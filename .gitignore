@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+
+# JS
+node_modules/
+dist/
+package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
