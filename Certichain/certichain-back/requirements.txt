@@ -2,3 +2,6 @@ Django>=5.0
 python-dotenv  
 gunicorn
 psycopg2-binary
+djangorestframework
+django-cors-headers
+pillow
