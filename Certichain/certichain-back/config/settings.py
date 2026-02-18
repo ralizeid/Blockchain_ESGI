@@ -63,16 +63,33 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # BASE DE DONNÉES 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'certichain_db'),
-        'USER': os.getenv('POSTGRES_USER', 'admin'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'super_password_a_changer'),
-        'HOST': os.getenv('POSTGRES_HOST', 'db'), 
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+# --- BASE DE DONNÉES INTELLIGENTE ---
+
+# On vérifie si une variable d'environnement POSTGRES_HOST existe.
+# En local, elle n'existe pas (None). En Docker, elle vaudra 'db'.
+DB_HOST = os.getenv('POSTGRES_HOST')
+
+if DB_HOST:
+    # SI ON EST EN PROD (DOCKER) -> ON UTILISE POSTGRESQL
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'certichain_db'),
+            'USER': os.getenv('POSTGRES_USER', 'admin'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'super_password_a_changer'),
+            'HOST': DB_HOST, 
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        }
     }
-}
+else:
+    # SI ON EST EN LOCAL (POWERSHELL) -> ON UTILISE SQLITE
+    print("⚠️  Mode Local détecté : Utilisation de SQLite")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
