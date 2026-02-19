@@ -2,18 +2,20 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
-from .models import Diploma
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import Diploma, UserProfile
 from .serializers import DiplomaSerializer, UserSerializer
-import uuid
 
 # --- AUTHENTIFICATION ---
+# (RegisterView et LoginView ne changent pas, tu peux les garder comme avant)
 
 class RegisterView(APIView):
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "Compte école créé !"}, status=status.HTTP_201_CREATED)
+            return Response({"message": "Compte école créé avec profil rectorat !"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
@@ -30,46 +32,101 @@ class LoginView(APIView):
             })
         return Response({"error": "Identifiants invalides"}, status=status.HTTP_401_UNAUTHORIZED)
 
-# --- DIPLÔMES ---
+# --- DIPLÔMES & VALIDATION ---
 
 class CreateDiplomaView(APIView):
     def post(self, request):
-        # On vérifie si l'utilisateur est "connecté" via l'ID envoyé (Méthode simple pour V2)
         user_id = request.data.get('user_id')
         if not user_id:
             return Response({"error": "Non authentifié"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
-            # On simule les données blockchain
-            diploma = serializer.save(owner_id=user_id) # On lie le diplôme à l'utilisateur
-            diploma.ipfs_cid = f"QmSimu{uuid.uuid4().hex[:8]}"
-            diploma.tx_hash = f"0x{uuid.uuid4().hex}"
-            diploma.token_id = diploma.id
-            diploma.save()
+            # 1. Récupération du profil
+            try:
+                profile = UserProfile.objects.get(user_id=user_id)
+            except UserProfile.DoesNotExist:
+                return Response({"error": "Profil incomplet : Email rectorat manquant"}, status=400)
+
+            diploma = serializer.save(
+                owner_id=user_id,
+                rectorate_email_snapshot=profile.rectorate_email
+            )
             
-            return Response({"id": diploma.id, "message": "Diplôme créé"}, status=status.HTTP_201_CREATED)
+            # 2. Envoi Email à l'ÉCOLE
+            # CORRECTION ICI : On utilise profile.user.email au lieu de request.user.email
+            school_link = f"http://127.0.0.1:8000/api/validate/{diploma.school_token}/"
+            
+            send_mail(
+                'Action Requise : Confirmez votre émission de diplôme',
+                f'Cliquez ici pour confirmer que vous êtes bien à l\'origine de ce diplôme : {school_link}',
+                settings.EMAIL_HOST_USER,
+                [profile.user.email or 'ecole@test.com'], # <--- C'est ici que ça plantait
+                fail_silently=False,
+            )
+
+            # 3. Envoi Email au RECTORAT
+            rectorate_link = f"http://127.0.0.1:8000/api/validate/{diploma.rectorate_token}/"
+            send_mail(
+                'Action Requise : Validation Rectorat',
+                f'L\'école {profile.user.username} a émis un diplôme pour {diploma.last_name}. Validez ici : {rectorate_link}',
+                settings.EMAIL_HOST_USER,
+                [profile.rectorate_email],
+                fail_silently=False,
+            )
+            
+            return Response({"message": "Diplôme créé. Emails de validation envoyés !"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ValidateDiplomaView(APIView):
+    def get(self, request, token):
+        try:
+            diploma = None
+            validation_type = None
+
+            if Diploma.objects.filter(school_token=token).exists():
+                diploma = Diploma.objects.get(school_token=token)
+                diploma.school_validated = True
+                validation_type = "École"
+            
+            elif Diploma.objects.filter(rectorate_token=token).exists():
+                diploma = Diploma.objects.get(rectorate_token=token)
+                diploma.rectorate_validated = True
+                validation_type = "Rectorat"
+            
+            else:
+                return Response({"error": "Lien invalide ou expiré"}, status=404)
+
+            if diploma.school_validated and diploma.rectorate_validated:
+                diploma.status = 'VALIDATED'
+            
+            diploma.save()
+
+            return Response({
+                "message": f"Validation {validation_type} réussie !",
+                "statut_global": diploma.status
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 class MyDiplomasView(APIView):
     def get(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
             return Response([])
-        # On récupère QUE les diplômes de cet utilisateur
         diplomas = Diploma.objects.filter(owner_id=user_id).order_by('-created_at')
         return Response(DiplomaSerializer(diplomas, many=True).data)
 
 class SearchDiplomaView(APIView):
     def get(self, request):
-        query = request.query_params.get('query') # Peut être un ID ou un Nom
+        query = request.query_params.get('query')
         if not query:
             return Response([])
 
-        # Logique de recherche : ID exact OU Nom de famille partiel
         if query.isdigit():
-            diplomas = Diploma.objects.filter(id=query)
+            diplomas = Diploma.objects.filter(id=query, status='VALIDATED')
         else:
-            diplomas = Diploma.objects.filter(last_name__icontains=query)
+            diplomas = Diploma.objects.filter(last_name__icontains=query, status='VALIDATED')
             
         return Response(DiplomaSerializer(diplomas, many=True).data)
