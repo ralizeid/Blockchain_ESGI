@@ -19,15 +19,15 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True  # Obligatoire pour Gmail (chiffrement)
 
 # Ton adresse Gmail complète
-EMAIL_HOST_USER =  
+EMAIL_HOST_USER =  'certichain2026@gmail.com'
 
 # LE CODE DE 16 CARACTÈRES (sans les espaces) généré à l'étape 1
 # Attention : Ne mets JAMAIS ton vrai mot de passe de connexion ici !
-EMAIL_HOST_PASSWORD = 
+EMAIL_HOST_PASSWORD = 'somr hvpz rqii swti'
 
 # L'adresse qui apparaîtra comme expéditeur
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',

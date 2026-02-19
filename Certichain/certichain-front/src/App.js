@@ -6,14 +6,14 @@ import Home from './pages/Home';
 import IssuerDashboard from './pages/IssuerDashboard';
 import VerifierPortal from './pages/VerifierPortal';
 import Login from './pages/Login';
+import Validate from './pages/Validate'; // <-- Import de la nouvelle page
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Vérifier si l'utilisateur est déjà connecté au chargement
   useEffect(() => {
     const userId = localStorage.getItem('user_id');
-    setIsAuthenticated(!!userId); // true si userId existe
+    setIsAuthenticated(!!userId);
   }, []);
 
   const handleLogin = (userId, username) => {
@@ -30,13 +30,11 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen">
-        {/* On passe l'état et la fonction de logout à la Navbar */}
         <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
         
         <Routes>
           <Route path="/" element={<Home />} />
           
-          {/* On passe handleLogin à la page Login */}
           <Route path="/login" element={
             isAuthenticated ? <Navigate to="/admin" /> : <Login onLogin={handleLogin} />
           } />
@@ -46,6 +44,9 @@ function App() {
           } />
           
           <Route path="/verify" element={<VerifierPortal />} />
+          
+          {/* NOUVELLE ROUTE POUR LA VALIDATION (Accessible à tous, pas besoin d'être connecté) */}
+          <Route path="/validate/:token" element={<Validate />} />
         </Routes>
       </div>
     </Router>

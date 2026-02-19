@@ -8,7 +8,6 @@ from .models import Diploma, UserProfile
 from .serializers import DiplomaSerializer, UserSerializer
 
 # --- AUTHENTIFICATION ---
-# (RegisterView et LoginView ne changent pas, tu peux les garder comme avant)
 
 class RegisterView(APIView):
     def post(self, request):
@@ -34,6 +33,9 @@ class LoginView(APIView):
 
 # --- DIPLÔMES & VALIDATION ---
 
+# N'oublie pas de vérifier que settings est bien importé en haut du fichier !
+# from django.conf import settings
+
 class CreateDiplomaView(APIView):
     def post(self, request):
         user_id = request.data.get('user_id')
@@ -42,7 +44,6 @@ class CreateDiplomaView(APIView):
 
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
-            # 1. Récupération du profil
             try:
                 profile = UserProfile.objects.get(user_id=user_id)
             except UserProfile.DoesNotExist:
@@ -53,23 +54,23 @@ class CreateDiplomaView(APIView):
                 rectorate_email_snapshot=profile.rectorate_email
             )
             
-            # 2. Envoi Email à l'ÉCOLE
-            # CORRECTION ICI : On utilise profile.user.email au lieu de request.user.email
-            school_link = f"http://127.0.0.1:8000/api/validate/{diploma.school_token}/"
+            # --- C'EST ICI QUE TOUT SE JOUE ---
+            # On utilise la variable qui s'adapte toute seule !
+            frontend_url = settings.FRONTEND_URL.rstrip('/') # rstrip('/') évite d'avoir un double slash si tu mets 'http://site.com/'
             
+            school_link = f"{frontend_url}/validate/{diploma.school_token}"
             send_mail(
                 'Action Requise : Confirmez votre émission de diplôme',
-                f'Cliquez ici pour confirmer que vous êtes bien à l\'origine de ce diplôme : {school_link}',
+                f'Bonjour,\n\nCliquez sur le lien ci-dessous pour confirmer l\'émission du diplôme pour {diploma.first_name} {diploma.last_name} :\n\n{school_link}\n\nL\'équipe CertiChain.',
                 settings.EMAIL_HOST_USER,
-                [profile.user.email or 'ecole@test.com'], # <--- C'est ici que ça plantait
+                [profile.user.email or 'ecole@test.com'],
                 fail_silently=False,
             )
 
-            # 3. Envoi Email au RECTORAT
-            rectorate_link = f"http://127.0.0.1:8000/api/validate/{diploma.rectorate_token}/"
+            rectorate_link = f"{frontend_url}/validate/{diploma.rectorate_token}"
             send_mail(
                 'Action Requise : Validation Rectorat',
-                f'L\'école {profile.user.username} a émis un diplôme pour {diploma.last_name}. Validez ici : {rectorate_link}',
+                f'Bonjour,\n\nL\'établissement {profile.user.username} a émis un diplôme pour {diploma.first_name} {diploma.last_name}.\n\nVeuillez valider cette certification ici :\n\n{rectorate_link}\n\nL\'équipe CertiChain.',
                 settings.EMAIL_HOST_USER,
                 [profile.rectorate_email],
                 fail_silently=False,
@@ -77,7 +78,6 @@ class CreateDiplomaView(APIView):
             
             return Response({"message": "Diplôme créé. Emails de validation envoyés !"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 class ValidateDiplomaView(APIView):
     def get(self, request, token):
         try:
@@ -95,7 +95,7 @@ class ValidateDiplomaView(APIView):
                 validation_type = "Rectorat"
             
             else:
-                return Response({"error": "Lien invalide ou expiré"}, status=404)
+                return Response({"error": "Lien de validation invalide ou déjà utilisé."}, status=404)
 
             if diploma.school_validated and diploma.rectorate_validated:
                 diploma.status = 'VALIDATED'
@@ -103,7 +103,7 @@ class ValidateDiplomaView(APIView):
             diploma.save()
 
             return Response({
-                "message": f"Validation {validation_type} réussie !",
+                "message": f"La validation {validation_type} a été effectuée avec succès !",
                 "statut_global": diploma.status
             })
 
