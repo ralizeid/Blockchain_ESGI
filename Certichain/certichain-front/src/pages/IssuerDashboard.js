@@ -5,8 +5,8 @@ const IssuerDashboard = () => {
   const userId = localStorage.getItem('user_id');
   const [activeTab, setActiveTab] = useState('create'); 
   const [myDiplomas, setMyDiplomas] = useState([]);
-  const [selectedDiploma, setSelectedDiploma] = useState(null); // Pour la vue détail
-  const [msg, setMsg] = useState({ type: '', text: '' }); // Pour les erreurs/succès
+  const [selectedDiploma, setSelectedDiploma] = useState(null); 
+  const [msg, setMsg] = useState({ type: '', text: '' }); 
   const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', diplomeFile: null, course_name: '' });
 
   const fetchMyDiplomas = async () => {
@@ -39,8 +39,8 @@ const IssuerDashboard = () => {
     try {
       const res = await fetch('/api/certify/', { method: 'POST', body: data });
       if (res.ok) {
-        setMsg({ type: 'success', text: "Diplôme certifié avec succès !" });
-        setTimeout(() => setActiveTab('list'), 1500); // Redirection auto
+        setMsg({ type: 'success', text: "Demande créée ! En attente de validation (Voir emails)." }); // Message mis à jour
+        setTimeout(() => setActiveTab('list'), 2000);
       } else {
         setMsg({ type: 'error', text: "Erreur lors de l'enregistrement." });
       }
@@ -48,21 +48,30 @@ const IssuerDashboard = () => {
       setMsg({ type: 'error', text: "Erreur serveur." });
     }
   };
+  
+  // Fonction pour afficher une belle pastille de statut
+  const getStatusBadge = (status) => {
+    if (status === 'VALIDATED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontSize: '0.8rem'}}>Validé ✅</span>;
+    if (status === 'PENDING') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#ffedd5', color: '#9a3412', fontSize: '0.8rem'}}>En attente ⏳</span>;
+    return status;
+  };
 
   return (
     <div className="dashboard-container">
       <div style={{display: 'flex', gap: '20px', marginBottom: '20px', justifyContent: 'center'}}>
         <button className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {setActiveTab('create'); setSelectedDiploma(null);}}>Nouveau Diplôme</button>
-        {/* RENOMMAGE ICI */}
-        <button className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('list')}>Mes diplômes certifiés</button>
+        <button className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('list')}>Mes émissions</button>
       </div>
 
       {msg.text && <div className={`msg-box msg-${msg.type}`}>{msg.text}</div>}
 
       {activeTab === 'create' ? (
         <div className="form-card">
-          <h2>🎓 Émettre un Diplôme</h2>
-          <form onSubmit={handleSubmit} style={{marginTop: '20px'}}>
+          <h2>🎓 Émettre un Diplôme (Double Validation)</h2>
+          <p style={{color: '#64748b', marginBottom: '20px'}}>
+            Après création, un email sera envoyé à vous ET au rectorat pour valider le document.
+          </p>
+          <form onSubmit={handleSubmit}>
              <div className="input-group">
                 <label className="input-label">Nom de l'étudiant</label>
                 <input className="input-field" onChange={e => setFormData({...formData, nom: e.target.value})} required/>
@@ -85,30 +94,25 @@ const IssuerDashboard = () => {
                   <input type="file" onChange={e => setFormData({...formData, diplomeFile: e.target.files[0]})} required/>
                 </div>
              </div>
-             <button className="btn btn-primary" type="submit">Certifier</button>
+             <button className="btn btn-primary" type="submit">Lancer la procédure</button>
           </form>
         </div>
       ) : (
-        // VUE LISTE & DÉTAIL
         <div className="form-card">
           {selectedDiploma ? (
-            // VUE DÉTAIL DU DIPLÔME SÉLECTIONNÉ
+             // ... Code de détail existant (inchangé, sauf si tu veux afficher le statut en grand) ...
             <div className="certificate-result animate-fade-in">
-                <div className="certificate-header">✅ CERTIFIÉ ET VALIDE</div>
+                <div className="certificate-header">DÉTAIL DU DIPLÔME</div>
                 <div className="certificate-body">
                     <h2 style={{textAlign: 'center'}}>{selectedDiploma.first_name} {selectedDiploma.last_name}</h2>
-                    <p style={{textAlign: 'center', color: '#64748b'}}>{selectedDiploma.course_name} • {selectedDiploma.graduation_date}</p>
-                    
+                    <div style={{textAlign: 'center', margin: '15px 0'}}>
+                        {getStatusBadge(selectedDiploma.status)}
+                    </div>
+                    {/* ... Le reste du détail (bouton télécharger etc) ... */}
                     <div style={{marginTop: '30px', display: 'flex', justifyContent: 'center', gap: '15px'}}>
-                        {/* BOUTON TÉLÉCHARGER */}
-                        {selectedDiploma.image && (
-                          <a 
-                            href={`${selectedDiploma.image}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="btn-download"
-                            download // Attribut pour forcer le téléchargement si possible
-                          >
+                         {/* BOUTON TÉLÉCHARGER */}
+                         {selectedDiploma.image && (
+                          <a href={selectedDiploma.image} target="_blank" rel="noopener noreferrer" className="btn-download" download>
                             📥 Télécharger le document
                           </a>
                         )}
@@ -117,11 +121,10 @@ const IssuerDashboard = () => {
                 </div>
             </div>
           ) : (
-            // LISTE DES DIPLÔMES
             <>
-                <h2>📜 Mes diplômes certifiés</h2>
+                <h2>📜 Historique et Statuts</h2>
                 {myDiplomas.length === 0 ? (
-                    <p style={{color: '#94a3b8', textAlign: 'center', marginTop: '20px'}}>Aucun diplôme émis pour le moment.</p>
+                    <p style={{color: '#94a3b8', textAlign: 'center', marginTop: '20px'}}>Aucun diplôme émis.</p>
                 ) : (
                     <div style={{marginTop: '20px'}}>
                         {myDiplomas.map(d => (
@@ -133,17 +136,18 @@ const IssuerDashboard = () => {
                                     cursor: 'pointer', 
                                     display: 'flex', 
                                     justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    transition: 'background 0.2s'
+                                    alignItems: 'center'
                                 }}
-                                onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
-                                onMouseOut={(e) => e.currentTarget.style.background = 'white'}
                             >
                                 <div>
                                     <strong>{d.last_name.toUpperCase()} {d.first_name}</strong>
                                     <div style={{fontSize: '0.85rem', color: '#64748b'}}>{d.course_name}</div>
                                 </div>
-                                <span style={{fontSize: '1.2rem', color: '#cbd5e1'}}>›</span>
+                                {/* AJOUT DU BADGE DE STATUT ICI */}
+                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                    {getStatusBadge(d.status)}
+                                    <span style={{fontSize: '1.2rem', color: '#cbd5e1'}}>›</span>
+                                </div>
                             </div>
                         ))}
                     </div>

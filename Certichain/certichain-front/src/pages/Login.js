@@ -3,9 +3,15 @@ import '../App.css';
 
 const Login = ({ onLogin }) => {
   const [isRegister, setIsRegister] = useState(false);
-  const [formData, setFormData] = useState({ username: '', password: '', email: '' });
   
-  // États pour les messages
+  // AJOUT : on initialise rectorate_email dans le state
+  const [formData, setFormData] = useState({ 
+    username: '', 
+    password: '', 
+    email: '', 
+    rectorate_email: '' 
+  });
+  
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -29,15 +35,15 @@ const Login = ({ onLogin }) => {
       
       if (response.ok) {
         if (isRegister) {
-          setSuccess("Compte créé avec succès ! Connectez-vous.");
+          setSuccess("Inscription réussie ! Un email a été envoyé au rectorat pour liaison.");
           setIsRegister(false);
         } else {
-          // Connexion réussie : On remonte l'info à App.js
           onLogin(data.user_id, data.username);
         }
       } else {
-        // Erreur API
-        setError(data.error || "Une erreur est survenue. Vérifiez vos informations.");
+        // Affiche l'erreur renvoyée par Django (ex: email manquant)
+        const errorMsg = typeof data === 'object' ? JSON.stringify(data) : data.error;
+        setError(errorMsg || "Une erreur est survenue.");
       }
     } catch (err) {
       setError("Impossible de contacter le serveur.");
@@ -48,10 +54,9 @@ const Login = ({ onLogin }) => {
     <div className="hero-container">
       <div className="form-card" style={{ maxWidth: '450px' }}>
         <div className="form-header">
-          <h2>{isRegister ? "Créer un compte" : "Connexion"}</h2>
+          <h2>{isRegister ? "Inscription Établissement" : "Connexion"}</h2>
         </div>
 
-        {/* Affichage des messages JOLIS */}
         {error && <div className="msg-box msg-error">⚠️ {error}</div>}
         {success && <div className="msg-box msg-success">✅ {success}</div>}
 
@@ -62,10 +67,28 @@ const Login = ({ onLogin }) => {
           </div>
 
           {isRegister && (
-             <div className="input-group">
-               <label className="input-label">Email</label>
-               <input className="input-field" type="email" name="email" onChange={handleChange} required />
-             </div>
+             <>
+               <div className="input-group">
+                 <label className="input-label">Email officiel de l'école</label>
+                 <input className="input-field" type="email" name="email" onChange={handleChange} required />
+               </div>
+
+               {/* --- NOUVEAU CHAMP RECTORAT --- */}
+               <div className="input-group">
+                 <label className="input-label">Email du Rectorat (Validateur)</label>
+                 <input 
+                    className="input-field" 
+                    type="email" 
+                    name="rectorate_email" 
+                    placeholder="ex: validation@academie-paris.fr"
+                    onChange={handleChange} 
+                    required 
+                 />
+                 <small style={{color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block'}}>
+                    ⚠️ Ce rectorat devra valider chaque diplôme émis par double authentification.
+                 </small>
+               </div>
+             </>
           )}
 
           <div className="input-group">

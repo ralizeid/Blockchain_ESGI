@@ -3,7 +3,6 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SÉCURITÉ & ENVIRONNEMENT
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-@m@sg%r^l%#o80lo1ve04fumoybk%p#m(4-_o-(__&04#oy%(#')
 
 # DEBUG à changer en False pour la prod 
@@ -12,7 +11,22 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 # A changer pour le nom de domaine en prod
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
+# --- CONFIGURATION EMAIL (GMAIL) ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True  # Obligatoire pour Gmail (chiffrement)
 
+# Ton adresse Gmail complète
+EMAIL_HOST_USER =  ''
+
+# LE CODE DE 16 CARACTÈRES (sans les espaces) généré à l'étape 1
+# Attention : Ne mets JAMAIS ton vrai mot de passe de connexion ici !
+EMAIL_HOST_PASSWORD = ''
+
+# L'adresse qui apparaîtra comme expéditeur
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
