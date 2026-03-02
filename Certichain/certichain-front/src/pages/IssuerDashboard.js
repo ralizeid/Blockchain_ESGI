@@ -9,14 +9,15 @@ const IssuerDashboard = () => {
   const [msg, setMsg] = useState({ type: '', text: '' }); 
   const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', diplomeFile: null, course_name: '' });
 
-  const fetchMyDiplomas = async () => {
-    const res = await fetch(`/api/my-diplomas/?user_id=${userId}`);
-    const data = await res.json();
-    setMyDiplomas(data);
-  };
-
   useEffect(() => {
-    if (activeTab === 'list') fetchMyDiplomas();
+    if (activeTab === 'list') { 
+      const fetchMyDiplomas = async () => {
+        const res = await fetch(`/api/my-diplomas/?user_id=${userId}`);
+        const data = await res.json();
+        setMyDiplomas(data);
+        };
+      fetchMyDiplomas();
+    }
   }, [activeTab]);
 
   const handleSubmit = async (e) => {
