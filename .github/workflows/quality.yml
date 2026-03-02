@@ -52,7 +52,7 @@ jobs:
           node-version: '20' 
 
       - name: Installation des dépendances
-        run: npm ci
+        run: npm install
 
       - name: Build de test (Vérifie que React compile)
         run: npm run build
