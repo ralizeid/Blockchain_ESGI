@@ -56,3 +56,5 @@ jobs:
 
       - name: Build de test (Vérifie que React compile)
         run: npm run build
+        env :
+          CI: 'true'
