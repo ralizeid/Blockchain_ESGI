@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 from .models import Diploma, UserProfile
 from .serializers import DiplomaSerializer, UserSerializer
-
+from .web3_service import mint_diploma_on_blockchain
 # --- AUTHENTIFICATION ---
 
 class RegisterView(APIView):
@@ -162,18 +162,40 @@ class ValidateDiplomaView(APIView):
             elif validation_type == "Rectorat":
                 diploma.rectorate_validated = True
 
+            # --- AUTOMATISATION BLOCKCHAIN (CUSTODIAL) ---
             if diploma.school_validated and diploma.rectorate_validated:
                 diploma.status = 'VALIDATED'
                 
+                print(f"🚀 Lancement de la certification blockchain pour le diplôme {diploma.id}...")
+                
+                # On fait appel à notre service Web3 !
+                tx_hash = mint_diploma_on_blockchain(diploma.id)
+                
+                if tx_hash:
+                    diploma.tx_hash = tx_hash
+                    diploma.token_id = str(diploma.id)
+                    print(f"✅ BINGO ! Diplôme gravé. Hash: {tx_hash}")
+                else:
+                    print("❌ Échec de la communication avec la blockchain.")
+                    return Response({
+                        "error": "Validation réussie, mais échec de la connexion à la Blockchain."
+                    }, status=500)
+            # ---------------------------------------------
+                
             diploma.save()
+            
+            
+            # On utilise getattr pour éviter l'Erreur 500 si le champ est vide
+            hash_display = getattr(diploma, 'tx_hash', 'N/A')
+            if not hash_display:  # Si le champ existe mais est vide (None ou "")
+                hash_display = 'N/A'
+                
             return Response({
-                "message": f"La validation ({validation_type}) a bien été enregistrée !",
+                "message": f"La validation ({validation_type}) a bien été enregistrée ! Hash: {hash_display}",
                 "statut_global": diploma.status
             })
             
         return Response({"error": "Action inconnue."}, status=400)
-
-
 class MyDiplomasView(APIView):
     def get(self, request):
         user_id = request.query_params.get('user_id')
