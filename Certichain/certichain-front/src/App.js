@@ -7,6 +7,7 @@ import IssuerDashboard from './pages/IssuerDashboard';
 import VerifierPortal from './pages/VerifierPortal';
 import Login from './pages/Login';
 import Validate from './pages/Validate'; // <-- Import de la nouvelle page
+import SchoolProfile from './pages/SchoolProfile';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -47,6 +48,8 @@ function App() {
           
           {/* NOUVELLE ROUTE POUR LA VALIDATION (Accessible à tous, pas besoin d'être connecté) */}
           <Route path="/validate/:token" element={<Validate />} />
+          <Route path="/school-profile" element={isAuthenticated ? <SchoolProfile /> : <Navigate to="/login" />
+} />
         </Routes>
       </div>
     </Router>

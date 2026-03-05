@@ -59,6 +59,7 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
               Administration
             </div>
             <Link to="/admin" className="sidebar-link" onClick={() => setIsOpen(false)}>🎓 Espace Émetteur</Link>
+            <Link to="/school-profile" className="sidebar-link" onClick={() => setIsOpen(false)}>🏫 Profil & Abonnement</Link>
           </>
         )}
       </div>
