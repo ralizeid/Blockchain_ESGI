@@ -30,6 +30,7 @@ class LoginView(APIView):
                 "username": user.username
             })
         return Response({"error": "Identifiants invalides"}, status=status.HTTP_401_UNAUTHORIZED)
+    
 
 # --- DIPLÔMES & VALIDATION ---
 
