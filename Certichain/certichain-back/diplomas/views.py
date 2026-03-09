@@ -5,8 +5,8 @@ from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
-from .models import Diploma, UserProfile
-from .serializers import DiplomaSerializer, UserSerializer
+from .models import Diploma, UserProfile, SubscriptionPlan
+from .serializers import DiplomaSerializer, UserSerializer, SubscriptionPlanSerializer
 
 # --- AUTHENTIFICATION ---
 
@@ -39,19 +39,33 @@ class QuotaView(APIView):
         user_id = request.query_params.get('user_id')
         if not user_id:
             return Response({"error": "Non authentifié"}, status=400)
-            
+
+        try:
+            profile = UserProfile.objects.select_related('subscription_plan').get(user_id=user_id)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "Profil introuvable"}, status=404)
+
+        plan = profile.subscription_plan
+        limit = plan.max_diplomas if plan else 0  # 0 si aucun abonnement
+
         current_year = timezone.now().year
         used_quota = Diploma.objects.filter(
-            owner_id=user_id, 
-            created_at__year=current_year
+            owner_id=user_id,
+            created_at__year=current_year,
         ).exclude(status='REJECTED').count()
-        
-        limit = 3 
-        
+
+        unlimited = (limit == -1)
+
         return Response({
-            "used": used_quota,
-            "limit": limit,
-            "remaining": limit - used_quota
+            "used":      used_quota,
+            "limit":     limit,
+            "remaining": None if unlimited else max(0, limit - used_quota),
+            "unlimited": unlimited,
+            "has_plan":     plan is not None,
+            "plan_name":    plan.display_name if plan else "Aucun",
+            "plan_id":      plan.id if plan else None,
+            "plan_level":   plan.level if plan else 0,
+            "annual_price": str(plan.annual_price) if plan else "0.00",
         })
 
 # --- DIPLÔMES & VALIDATION ---
@@ -62,29 +76,40 @@ class CreateDiplomaView(APIView):
         if not user_id:
             return Response({"error": "Non authentifié"}, status=status.HTTP_403_FORBIDDEN)
 
-        current_year = timezone.now().year
-        used_quota = Diploma.objects.filter(
-            owner_id=user_id, 
-            created_at__year=current_year
-        ).exclude(status='REJECTED').count()
-        
-        if used_quota >= 3:
-            return Response({"error": "Limite annuelle atteinte (3/3). Veuillez souscrire à un abonnement supérieur."}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            profile = UserProfile.objects.select_related('subscription_plan').get(user_id=user_id)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "Profil incomplet : Email rectorat manquant"}, status=400)
+
+        plan = profile.subscription_plan
+        if plan is None:
+            return Response({"error": "Aucun abonnement actif. Veuillez souscrire à un plan."}, status=status.HTTP_403_FORBIDDEN)
+
+        max_diplomas = plan.max_diplomas  # -1 = illimité
+
+        if max_diplomas != -1:
+            current_year = timezone.now().year
+            used_quota = Diploma.objects.filter(
+                owner_id=user_id,
+                created_at__year=current_year,
+            ).exclude(status='REJECTED').count()
+
+            if used_quota >= max_diplomas:
+                return Response(
+                    {"error": f"Limite annuelle atteinte ({used_quota}/{max_diplomas}). "
+                               f"Veuillez souscrire à un abonnement supérieur."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
-            try:
-                profile = UserProfile.objects.get(user_id=user_id)
-            except UserProfile.DoesNotExist:
-                return Response({"error": "Profil incomplet : Email rectorat manquant"}, status=400)
-
             diploma = serializer.save(
                 owner_id=user_id,
                 rectorate_email_snapshot=profile.rectorate_email
             )
-            
+
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000').rstrip('/')
-            
+
             school_link = f"{frontend_url}/validate/{diploma.school_token}"
             send_mail(
                 'Action Requise : Confirmez votre émission de diplôme',
@@ -102,7 +127,7 @@ class CreateDiplomaView(APIView):
                 [profile.rectorate_email],
                 fail_silently=False,
             )
-            
+
             return Response({"message": "Diplôme créé. Emails de validation envoyés !"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -194,3 +219,53 @@ class SearchDiplomaView(APIView):
             diplomas = Diploma.objects.filter(last_name__icontains=query, status='VALIDATED')
             
         return Response(DiplomaSerializer(diplomas, many=True).data)
+
+
+# --- ABONNEMENTS ---
+
+class SubscriptionPlansView(APIView):
+    """Retourne la liste des plans disponibles (utilisée à l'inscription et dans le dashboard)."""
+    def get(self, request):
+        plans = SubscriptionPlan.objects.all()
+        return Response(SubscriptionPlanSerializer(plans, many=True).data)
+
+
+class UpgradeSubscriptionView(APIView):
+    """Permet à une école de passer à un plan supérieur (jamais inférieur)."""
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        new_plan_name = request.data.get('plan')  # 'STARTER' | 'STANDARD' | 'PREMIUM'
+
+        if not user_id or not new_plan_name:
+            return Response({"error": "user_id et plan sont requis."}, status=400)
+
+        try:
+            profile = UserProfile.objects.select_related('subscription_plan').get(user_id=user_id)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "Profil introuvable."}, status=404)
+
+        try:
+            new_plan = SubscriptionPlan.objects.get(name=new_plan_name.upper())
+        except SubscriptionPlan.DoesNotExist:
+            return Response({"error": f"Plan inconnu : {new_plan_name}."}, status=400)
+
+        current_plan = profile.subscription_plan
+
+        # Règle : on ne peut qu'upgrader (niveau supérieur)
+        if current_plan and new_plan.level <= current_plan.level:
+            return Response(
+                {"error": f"Impossible de passer de '{current_plan.display_name}' à '{new_plan.display_name}'. "
+                           f"Vous ne pouvez choisir qu'un plan de niveau supérieur."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile.subscription_plan  = new_plan
+        profile.subscription_start = timezone.now().date()
+        profile.save()
+
+        return Response({
+            "message":  f"Abonnement mis à jour vers {new_plan.display_name} !",
+            "plan_name": new_plan.display_name,
+            "max_diplomas": new_plan.max_diplomas,
+            "annual_price": str(new_plan.annual_price),
+        })

@@ -1,14 +1,42 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 import uuid
 
-# Extension du User pour stocker l'email du rectorat
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    rectorate_email = models.EmailField(verbose_name="Email du Rectorat de rattachement")
+
+class SubscriptionPlan(models.Model):
+    PLAN_CHOICES = [
+        ('STARTER',  'Starter'),
+        ('STANDARD', 'Standard'),
+        ('PREMIUM',  'Premium'),
+    ]
+    name         = models.CharField(max_length=20, choices=PLAN_CHOICES, unique=True)
+    display_name = models.CharField(max_length=50)
+    annual_price = models.DecimalField(max_digits=8, decimal_places=2)
+    max_diplomas = models.IntegerField(help_text='-1 signifie illimité')
+    level        = models.IntegerField(help_text='Niveau pour contrôler les upgrades (plus grand = meilleur)')
+
+    class Meta:
+        ordering = ['level']
 
     def __str__(self):
-        return f"Profil de {self.user.username}"
+        return f"{self.display_name} ({self.max_diplomas} diplômes/an)"
+
+
+class UserProfile(models.Model):
+    user              = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    rectorate_email   = models.EmailField(verbose_name="Email du Rectorat de rattachement")
+    subscription_plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name='subscribers',
+    )
+    subscription_start = models.DateField(default=timezone.now)
+
+    def __str__(self):
+        plan = self.subscription_plan.display_name if self.subscription_plan else "Sans abonnement"
+        return f"Profil de {self.user.username} – {plan}"
 
 class Diploma(models.Model):
     STATUS_CHOICES = [
@@ -38,6 +66,15 @@ class Diploma(models.Model):
     rectorate_token = models.UUIDField(default=uuid.uuid4, editable=False)
     rectorate_email_snapshot = models.EmailField(blank=True, null=True) # On garde une trace de qui a validé
     
+    # Blockchain
+    diploma_hash       = models.CharField(max_length=66, blank=True, null=True, help_text='SHA-256 des données clés du diplôme (préfixé 0x)')
+    blockchain_tx_hash = models.CharField(max_length=66, blank=True, null=True, help_text='Hash de la transaction Ethereum')
+    blockchain_status  = models.CharField(
+        max_length=20,
+        choices=[('NOT_ANCHORED', 'Non ancré'), ('ANCHORED', 'Ancré sur la blockchain'), ('FAILED', "Échec d'ancrage")],
+        default='NOT_ANCHORED',
+    )
+
     # Tech fields
     created_at = models.DateTimeField(auto_now_add=True)
 
