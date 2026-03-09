@@ -34,6 +34,10 @@ class UserProfile(models.Model):
     )
     subscription_start = models.DateField(default=timezone.now)
 
+    # RGPD – Art. 7 : consentement explicite au traitement des données
+    gdpr_consent      = models.BooleanField(default=False, verbose_name="Consentement RGPD")
+    gdpr_consent_date = models.DateTimeField(null=True, blank=True, verbose_name="Date du consentement RGPD")
+
     def __str__(self):
         plan = self.subscription_plan.display_name if self.subscription_plan else "Sans abonnement"
         return f"Profil de {self.user.username} – {plan}"
