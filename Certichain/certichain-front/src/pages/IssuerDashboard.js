@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '../App.css';
+
+const PLAN_COLORS = { STARTER: '#3b82f6', STANDARD: '#8b5cf6', PREMIUM: '#f59e0b' };
 
 const IssuerDashboard = () => {
   const userId = localStorage.getItem('user_id');
-  const [activeTab, setActiveTab] = useState('create'); 
+  const [activeTab, setActiveTab] = useState('create');
   const [myDiplomas, setMyDiplomas] = useState([]);
-  const [selectedDiploma, setSelectedDiploma] = useState(null); 
-  const [msg, setMsg] = useState({ type: '', text: '' }); 
+  const [selectedDiploma, setSelectedDiploma] = useState(null);
+  const [msg, setMsg] = useState({ type: '', text: '' });
   const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', diplomeFile: null, course_name: '' });
-  
-  const [quota, setQuota] = useState({ used: 0, limit: 3, remaining: 3 });
 
-  const fetchQuota = async () => {
+  const [quota, setQuota] = useState({ used: 0, limit: 0, remaining: 0, unlimited: false, has_plan: false, plan_name: '…', plan_level: 0 });
+
+  // Upgrade modal state
+  const [showUpgrade, setShowUpgrade]   = useState(false);
+  const [upgradePlans, setUpgradePlans] = useState([]);
+  const [upgradeMsg, setUpgradeMsg]     = useState({ type: '', text: '' });
+
+  const fetchQuota = useCallback(async () => {
     try {
       const res = await fetch(`/api/quota/?user_id=${userId}`);
       const data = await res.json();
@@ -19,18 +26,56 @@ const IssuerDashboard = () => {
     } catch (e) {
       console.error("Erreur récupération quota");
     }
+  }, [userId]);
+
+  const openUpgradeModal = async () => {
+    setUpgradeMsg({ type: '', text: '' });
+    try {
+      const res = await fetch('/api/plans/');
+      const data = await res.json();
+      // Only show plans with a higher level
+      setUpgradePlans(data.filter(p => p.level > quota.plan_level));
+    } catch (e) {
+      setUpgradePlans([]);
+    }
+    setShowUpgrade(true);
+  };
+
+  const handleUpgrade = async (planName) => {
+    setUpgradeMsg({ type: '', text: '' });
+    try {
+      const res = await fetch('/api/upgrade/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, plan: planName }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUpgradeMsg({ type: 'success', text: data.message });
+        fetchQuota();
+        setTimeout(() => setShowUpgrade(false), 1500);
+      } else {
+        setUpgradeMsg({ type: 'error', text: data.error || "Erreur lors du changement de plan." });
+      }
+    } catch (e) {
+      setUpgradeMsg({ type: 'error', text: "Erreur serveur." });
+    }
   };
 
   useEffect(() => {
-    if (activeTab === 'list') { 
+    fetchQuota();
+  }, [fetchQuota]);
+
+  useEffect(() => {
+    if (activeTab === 'list') {
       const fetchMyDiplomas = async () => {
         const res = await fetch(`/api/my-diplomas/?user_id=${userId}`);
         const data = await res.json();
         setMyDiplomas(data);
-        };
+      };
       fetchMyDiplomas();
     }
-  }, [activeTab]);
+  }, [activeTab, userId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,33 +117,116 @@ const IssuerDashboard = () => {
     return status;
   };
 
-  const progressPercentage = Math.min((quota.used / quota.limit) * 100, 100);
-  const isLimitReached = quota.used >= quota.limit;
+  const isLimitReached     = quota.has_plan && !quota.unlimited && quota.used >= quota.limit;
+  const progressPercentage = (!quota.has_plan || quota.unlimited) ? 0 : Math.min((quota.used / (quota.limit || 1)) * 100, 100);
+  const planColor          = PLAN_COLORS[Object.keys(PLAN_COLORS).find(k => quota.plan_name?.toUpperCase().includes(k))] || '#3b82f6';
 
   return (
     <div className="dashboard-container">
-      
-      <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '30px', border: isLimitReached ? '2px solid #ef4444' : '1px solid #e2e8f0' }}>
+
+      {/* ── Plan & quota banner ── */}
+      <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '30px', border: isLimitReached ? '2px solid #ef4444' : `1px solid ${planColor}40` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <h3 style={{ margin: 0 }}>Plan actuel : <strong>Standard (Test)</strong></h3>
+          <h3 style={{ margin: 0 }}>
+            Plan actuel :&nbsp;
+            <strong style={{ color: planColor }}>{quota.plan_name}</strong>
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontWeight: 'bold', color: isLimitReached ? '#ef4444' : '#1e293b' }}>
-                {quota.used} / {quota.limit} Certifications
+              {!quota.has_plan ? 'Aucun abonnement' : quota.unlimited ? `${quota.used} / ∞` : `${quota.used} / ${quota.limit}`} {quota.has_plan ? 'Certifications' : ''}
             </span>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '6px 14px', fontSize: '0.8rem', width: 'auto' }}
+              onClick={openUpgradeModal}
+            >
+              ⬆ Changer de plan
+            </button>
+          </div>
         </div>
-        <div style={{ width: '100%', background: '#e2e8f0', borderRadius: '10px', height: '10px', overflow: 'hidden' }}>
-            <div style={{ 
-                width: `${progressPercentage}%`, 
-                background: isLimitReached ? '#ef4444' : '#3b82f6', 
-                height: '100%',
-                transition: 'width 0.5s ease'
-            }}></div>
-        </div>
+
+        {quota.has_plan && !quota.unlimited && (
+          <div style={{ width: '100%', background: '#e2e8f0', borderRadius: '10px', height: '10px', overflow: 'hidden' }}>
+            <div style={{
+              width: `${progressPercentage}%`,
+              background: isLimitReached ? '#ef4444' : planColor,
+              height: '100%',
+              transition: 'width 0.5s ease',
+            }} />
+          </div>
+        )}
+
         {isLimitReached ? (
-            <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>⚠️ Limite atteinte. Veuillez upgrader votre abonnement ou refuser une certification en cours.</p>
+          <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+            ⚠️ Limite atteinte. Upgradez votre abonnement pour continuer.
+          </p>
+        ) : !quota.has_plan ? (
+          <p style={{ color: '#f59e0b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+            ⚠️ Aucun abonnement actif. Veuillez choisir un plan pour émettre des diplômes.
+          </p>
+        ) : quota.unlimited ? (
+          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+            Certifications illimitées avec votre plan {quota.plan_name}.
+          </p>
         ) : (
-            <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>Il vous reste {quota.remaining} certification(s) pour cette année.</p>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+            Il vous reste {quota.remaining} certification(s) pour cette année.
+          </p>
         )}
       </div>
+
+      {/* ── Upgrade modal ── */}
+      {showUpgrade && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '30px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ marginTop: 0 }}>{quota.has_plan ? "Changer d'abonnement" : "Choisir un abonnement"}</h3>
+            <p style={{ color: '#64748b', fontSize: '0.9em' }}>
+              {quota.has_plan
+                ? <>Plan actuel : <strong>{quota.plan_name}</strong>. Vous pouvez uniquement upgrader vers un plan supérieur.</>
+                : "Aucun abonnement actif. Choisissez un plan pour commencer à émettre des diplômes."
+              }
+            </p>
+
+            {upgradeMsg.text && (
+              <div className={`msg-box msg-${upgradeMsg.type}`}>{upgradeMsg.text}</div>
+            )}
+
+            {upgradePlans.length === 0 ? (
+              <p style={{ color: '#64748b', textAlign: 'center' }}>Vous êtes déjà sur le plan le plus élevé !</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                {upgradePlans.map(plan => {
+                  const color = PLAN_COLORS[plan.name] || '#3b82f6';
+                  return (
+                    <div key={plan.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderRadius: '8px', border: `2px solid ${color}`, background: `${color}0d` }}>
+                      <div>
+                        <span style={{ fontWeight: 'bold', color }}>{plan.display_name}</span>
+                        <span style={{ color: '#64748b', fontSize: '0.85em', marginLeft: '10px' }}>
+                          {plan.max_diplomas === -1 ? 'Illimité' : `${plan.max_diplomas} diplômes/an`}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontWeight: 'bold' }}>{plan.annual_price} €/an</span>
+                        <button
+                          className="btn btn-primary"
+                          style={{ padding: '6px 16px', fontSize: '0.85rem', width: 'auto', background: color, border: 'none' }}
+                          onClick={() => handleUpgrade(plan.name)}
+                        >
+                          Choisir
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => setShowUpgrade(false)}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{display: 'flex', gap: '20px', marginBottom: '20px', justifyContent: 'center'}}>
         <button className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {setActiveTab('create'); setSelectedDiploma(null);}}>Nouveau Diplôme</button>
