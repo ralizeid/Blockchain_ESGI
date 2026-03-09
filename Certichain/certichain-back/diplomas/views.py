@@ -6,7 +6,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from .models import Diploma, UserProfile, SubscriptionPlan
-from .serializers import DiplomaSerializer, UserSerializer, SubscriptionPlanSerializer
+import hashlib
+from .serializers import DiplomaSerializer, UserSerializer, SubscriptionPlanSerializer, PublicDiplomaSerializer
 from .web3_service import mint_diploma_on_blockchain
 # --- AUTHENTIFICATION ---
 
@@ -103,9 +104,19 @@ class CreateDiplomaView(APIView):
 
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
+            # RGPD Art. 5.1.f + blockchain : calcul du hash SHA-256 des données personnelles
+            raw = (
+                str(request.data.get('first_name', '')).strip().lower() +
+                str(request.data.get('last_name', '')).strip().lower() +
+                str(request.data.get('course_name', '')).strip().lower() +
+                str(request.data.get('graduation_date', '')).strip()
+            )
+            diploma_hash = '0x' + hashlib.sha256(raw.encode('utf-8')).hexdigest()
+
             diploma = serializer.save(
                 owner_id=user_id,
-                rectorate_email_snapshot=profile.rectorate_email
+                rectorate_email_snapshot=profile.rectorate_email,
+                diploma_hash=diploma_hash,
             )
 
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000').rstrip('/')
@@ -197,10 +208,11 @@ class ValidateDiplomaView(APIView):
                 tx_hash = mint_diploma_on_blockchain(diploma.id)
                 
                 if tx_hash:
-                    diploma.tx_hash = tx_hash
-                    diploma.token_id = str(diploma.id)
+                    diploma.blockchain_tx_hash = tx_hash
+                    diploma.blockchain_status  = 'ANCHORED'
                     print(f"✅ BINGO ! Diplôme gravé. Hash: {tx_hash}")
                 else:
+                    diploma.blockchain_status = 'FAILED'
                     print("❌ Échec de la communication avec la blockchain.")
                     return Response({
                         "error": "Validation réussie, mais échec de la connexion à la Blockchain."
@@ -210,10 +222,7 @@ class ValidateDiplomaView(APIView):
             diploma.save()
             
             
-            # On utilise getattr pour éviter l'Erreur 500 si le champ est vide
-            hash_display = getattr(diploma, 'tx_hash', 'N/A')
-            if not hash_display:  # Si le champ existe mais est vide (None ou "")
-                hash_display = 'N/A'
+            hash_display = diploma.blockchain_tx_hash or 'N/A'
                 
             return Response({
                 "message": f"La validation ({validation_type}) a bien été enregistrée ! Hash: {hash_display}",
@@ -239,8 +248,9 @@ class SearchDiplomaView(APIView):
             diplomas = Diploma.objects.filter(id=query, status='VALIDATED')
         else:
             diplomas = Diploma.objects.filter(last_name__icontains=query, status='VALIDATED')
-            
-        return Response(DiplomaSerializer(diplomas, many=True).data)
+
+        # RGPD Art. 5.1.c – minimisation : on n'expose pas les tokens ni l'id propriétaire
+        return Response(PublicDiplomaSerializer(diplomas, many=True).data)
 
 
 # --- ABONNEMENTS ---
@@ -326,6 +336,8 @@ class ExportDataView(APIView):
                 "rectorate_email":    profile.rectorate_email if profile else None,
                 "subscription_plan":  profile.subscription_plan.display_name if (profile and profile.subscription_plan) else None,
                 "subscription_start": str(profile.subscription_start) if profile else None,
+                "gdpr_consent":       profile.gdpr_consent if profile else None,
+                "gdpr_consent_date":  str(profile.gdpr_consent_date) if (profile and profile.gdpr_consent_date) else None,
             } if profile else {},
             "diplomes_emis": list(diplomas),
         }

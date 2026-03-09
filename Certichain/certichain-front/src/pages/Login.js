@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import '../App.css';
 
 const Login = ({ onLogin }) => {
@@ -10,6 +11,7 @@ const Login = ({ onLogin }) => {
     email: '',
     rectorate_email: '',
     subscription_plan: '',
+    gdpr_consent: false,
   });
 
   const [plans, setPlans]     = useState([]);
@@ -32,7 +34,10 @@ const Login = ({ onLogin }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRegister]);
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -151,6 +156,27 @@ const Login = ({ onLogin }) => {
                     })}
                   </div>
                 )}
+              </div>
+              {/* ── Consentement RGPD ── */}
+              <div className="input-group">
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    name="gdpr_consent"
+                    checked={formData.gdpr_consent}
+                    onChange={handleChange}
+                    required
+                    style={{ marginTop: '3px', flexShrink: 0, accentColor: 'var(--primary)' }}
+                  />
+                  <span style={{ fontSize: '0.85em', color: '#1e293b', lineHeight: '1.5' }}>
+                    J'ai lu et j'accepte la{' '}
+                    <Link to="/privacy" target="_blank" style={{ color: 'var(--primary)' }}>
+                      politique de confidentialité
+                    </Link>{' '}
+                    de CertiChain. Je consens au traitement de mes données personnelles conformément
+                    au RGPD (Art. 7).
+                  </span>
+                </label>
               </div>
             </>
           )}
