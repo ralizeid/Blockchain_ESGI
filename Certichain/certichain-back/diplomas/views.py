@@ -269,3 +269,71 @@ class UpgradeSubscriptionView(APIView):
             "max_diplomas": new_plan.max_diplomas,
             "annual_price": str(new_plan.annual_price),
         })
+
+
+# --- RGPD ---
+
+class ExportDataView(APIView):
+    """RGPD Art. 15 & 20 – Export de toutes les données personnelles."""
+    def get(self, request):
+        from django.contrib.auth.models import User
+        user_id = request.query_params.get('user_id')
+        if not user_id:
+            return Response({"error": "user_id requis."}, status=400)
+
+        try:
+            user = User.objects.select_related('profile').get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "Utilisateur introuvable."}, status=404)
+
+        profile = getattr(user, 'profile', None)
+        diplomas = Diploma.objects.filter(owner_id=user_id).values(
+            'id', 'first_name', 'last_name', 'course_name',
+            'graduation_date', 'status', 'created_at',
+            'diploma_hash', 'blockchain_tx_hash', 'blockchain_status',
+        )
+
+        data = {
+            "compte": {
+                "id":         user.id,
+                "username":   user.username,
+                "email":      user.email,
+                "date_joined": str(user.date_joined),
+            },
+            "profil": {
+                "rectorate_email":    profile.rectorate_email if profile else None,
+                "subscription_plan":  profile.subscription_plan.display_name if (profile and profile.subscription_plan) else None,
+                "subscription_start": str(profile.subscription_start) if profile else None,
+            } if profile else {},
+            "diplomes_emis": list(diplomas),
+        }
+        return Response(data)
+
+
+class DeleteAccountView(APIView):
+    """RGPD Art. 17 – Suppression du compte avec anonymisation des diplômes validés."""
+    def post(self, request):
+        from django.contrib.auth.models import User
+        user_id = request.data.get('user_id')
+        confirm = request.data.get('confirm', False)
+
+        if not user_id or not confirm:
+            return Response({"error": "user_id et confirm=true requis."}, status=400)
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({"error": "Utilisateur introuvable."}, status=404)
+
+        # Anonymiser les diplômes validés (conserver la preuve blockchain – Art. 17.3.b)
+        Diploma.objects.filter(owner_id=user_id, status='VALIDATED').update(
+            first_name='[Supprimé]',
+            last_name='[Supprimé]',
+        )
+        # Supprimer les diplômes non validés
+        Diploma.objects.filter(owner_id=user_id).exclude(status='VALIDATED').delete()
+
+        # Supprimer le compte (cascade sur UserProfile)
+        user.delete()
+
+        return Response({"message": "Votre compte et vos données personnelles ont été supprimés."})

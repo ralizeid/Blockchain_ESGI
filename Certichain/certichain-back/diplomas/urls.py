@@ -4,6 +4,7 @@ from .views import (
     CreateDiplomaView, SearchDiplomaView, MyDiplomasView, ValidateDiplomaView,
     QuotaView,
     SubscriptionPlansView, UpgradeSubscriptionView,
+    ExportDataView, DeleteAccountView,
 )
 
 urlpatterns = [
@@ -17,4 +18,7 @@ urlpatterns = [
     # Abonnements
     path('plans/',      SubscriptionPlansView.as_view()),
     path('upgrade/',    UpgradeSubscriptionView.as_view()),
+    # RGPD
+    path('export-data/',    ExportDataView.as_view()),
+    path('delete-account/', DeleteAccountView.as_view()),
 ]

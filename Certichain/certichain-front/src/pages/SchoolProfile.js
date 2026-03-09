@@ -1,27 +1,32 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import '../App.css';
 
 const PLAN_COLORS = {
-  STARTER:  { main: '#3b82f6', accent: '#eff6ff' },
-  STANDARD: { main: '#8b5cf6', accent: '#f5f3ff' },
-  PREMIUM:  { main: '#f59e0b', accent: '#fffbeb' },
+  STARTER:  '#3b82f6',
+  STANDARD: '#8b5cf6',
+  PREMIUM:  '#f59e0b',
 };
 
 const SchoolProfile = () => {
+  const navigate = useNavigate();
   const userId   = localStorage.getItem('user_id');
   const username = localStorage.getItem('username') || '—';
 
-  const [activeTab, setActiveTab] = useState('profile');
-
-  // Real data from backend
-  const [quota, setQuota]   = useState(null);   // /api/quota/
-  const [plans, setPlans]   = useState([]);      // /api/plans/
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab]     = useState('profile');
+  const [quota, setQuota]             = useState(null);
+  const [plans, setPlans]             = useState([]);
+  const [loading, setLoading]         = useState(true);
 
   // Upgrade modal
-  const [showModal, setShowModal]     = useState(false);
+  const [showModal, setShowModal]       = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [upgradeMsg, setUpgradeMsg]   = useState({ type: '', text: '' });
+  const [upgradeMsg, setUpgradeMsg]     = useState({ type: '', text: '' });
+
+  // RGPD — delete account
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteStep, setDeleteStep]           = useState(1);
+  const [deleteMsg, setDeleteMsg]             = useState({ type: '', text: '' });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -46,7 +51,7 @@ const SchoolProfile = () => {
     if (!selectedPlan) return;
     setUpgradeMsg({ type: '', text: '' });
     try {
-      const res = await fetch('/api/upgrade/', {
+      const res  = await fetch('/api/upgrade/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, plan: selectedPlan.name }),
@@ -64,249 +69,462 @@ const SchoolProfile = () => {
     }
   };
 
-  /* â”€â”€ helpers â”€â”€ */
+  const handleExportData = async () => {
+    try {
+      const res  = await fetch(`/api/export-data/?user_id=${userId}`);
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Erreur export.'); return; }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `certichain_mes_donnees_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Impossible de télécharger les données.');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteMsg({ type: '', text: '' });
+    try {
+      const res  = await fetch('/api/delete-account/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, confirm: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDeleteStep(2);
+        setDeleteMsg({ type: 'success', text: data.message });
+        setTimeout(() => { localStorage.clear(); navigate('/'); window.location.reload(); }, 3000);
+      } else {
+        setDeleteMsg({ type: 'error', text: data.error || 'Erreur.' });
+      }
+    } catch {
+      setDeleteMsg({ type: 'error', text: 'Erreur serveur.' });
+    }
+  };
+
+  if (loading) return (
+    <div className="dashboard-container" style={{ textAlign: 'center', color: 'var(--gray)', paddingTop: 80 }}>
+      Chargement...
+    </div>
+  );
+
   const currentPlanName = quota?.plan_name || 'Aucun';
-  const planKey = plans.find(p => p.display_name === currentPlanName)?.name || '';
-  const planColors = PLAN_COLORS[planKey] || { main: '#64748b', accent: '#f1f5f9' };
-  const progressPct = (!quota?.has_plan || quota?.unlimited)
+  const planKey         = plans.find(p => p.display_name === currentPlanName)?.name || '';
+  const planColor       = PLAN_COLORS[planKey] || 'var(--primary)';
+  const progressPct     = (!quota?.has_plan || quota?.unlimited)
     ? 0
     : Math.min((quota.used / quota.limit) * 100, 100);
 
-  const upgradablePlans = plans.filter(p => p.level > (quota?.plan_level ?? 0));
-
-  const styles = {
-    page: { fontFamily: "'Segoe UI', system-ui, sans-serif", background: '#f0f4ff', minHeight: '100vh' },
-    header: { background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%)', padding: '40px 5%', color: 'white', position: 'relative', overflow: 'hidden' },
-    headerInner: { maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' },
-    avatar: { width: 72, height: 72, borderRadius: 16, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', border: '2px solid rgba(255,255,255,0.2)', flexShrink: 0 },
-    tabBar: { display: 'flex', gap: 4, background: 'white', borderBottom: '1px solid #e2e8f0', padding: '0 5%', position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-    contentArea: { maxWidth: 900, margin: '0 auto', padding: '40px 20px 80px' },
-    card: { background: 'white', borderRadius: 16, padding: 32, marginBottom: 24, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
-    sectionTitle: { fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', marginBottom: 24, textTransform: 'uppercase', letterSpacing: '0.05em' },
-    label: { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 },
-    value: { fontSize: '0.95rem', fontWeight: 500, color: '#1e293b' },
-    btnPrimary: { background: planColors.main, color: 'white', border: 'none', padding: '12px 24px', borderRadius: 10, fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer' },
-    btnGhost: { background: 'transparent', color: '#64748b', border: '1.5px solid #e2e8f0', padding: '10px 20px', borderRadius: 10, fontFamily: 'inherit', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' },
-    modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-    modalBox: { background: 'white', borderRadius: 20, padding: 40, maxWidth: 480, width: '100%', boxShadow: '0 25px 60px rgba(0,0,0,0.2)' },
-    progressBg: { background: '#e2e8f0', borderRadius: 999, height: 10, overflow: 'hidden', margin: '12px 0' },
-  };
-
-  const getTabStyle = (id) => ({
-    padding: '16px 24px', border: 'none', background: 'transparent', fontFamily: 'inherit',
-    fontSize: '0.9rem', fontWeight: 600,
-    color: activeTab === id ? '#2563eb' : '#64748b', cursor: 'pointer',
-    borderBottom: activeTab === id ? '3px solid #2563eb' : '3px solid transparent',
-  });
-
-  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Chargement…</div>;
+  const TABS = [
+    { id: 'profile', label: 'Informations' },
+    { id: 'quota',   label: 'Quota & Usage' },
+    { id: 'plans',   label: 'Abonnement' },
+    { id: 'rgpd',    label: 'Mes droits RGPD' },
+  ];
 
   return (
-    <div style={styles.page}>
+    <div className="dashboard-container" style={{ maxWidth: 860 }}>
 
-      {/* HEADER */}
-      <div style={styles.header}>
-        <div style={styles.headerInner}>
-          <div style={styles.avatar}>🎓</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'white', margin: 0 }}>{username}</h1>
-              <span style={{ background: '#10b981', color: 'white', padding: '3px 12px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
-                Vérifié ✅
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
+      {/* En-tete */}
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, color: 'var(--dark)' }}>
+          Profil &amp; Abonnement
+        </h1>
+        <p style={{ color: 'var(--gray)', marginTop: 6, marginBottom: 0 }}>
+          Compte : <strong>{username}</strong>
+          &nbsp;&mdash;&nbsp;
+          Plan actuel : <strong style={{ color: planColor }}>{currentPlanName}</strong>
+        </p>
+      </div>
+
+      {/* Onglets */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e2e8f0', marginBottom: 32 }}>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            style={{
+              padding: '10px 18px',
+              border: 'none',
+              background: 'transparent',
+              fontFamily: 'inherit',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              color: activeTab === t.id ? 'var(--primary)' : 'var(--gray)',
+              borderBottom: activeTab === t.id ? '2px solid var(--primary)' : '2px solid transparent',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* INFORMATIONS */}
+      {activeTab === 'profile' && (
+        <>
+          <div className="form-card" style={{ marginBottom: 16 }}>
+            <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Informations du compte</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginTop: 24 }}>
               {[
-                { label: 'Plan actuel', value: currentPlanName, icon: 'â­' },
-                { label: 'Certifications émises', value: quota?.used ?? 0, icon: '📜' },
-                { label: 'Quota annuel', value: quota?.unlimited ? '∞' : (quota?.limit ?? 0), icon: '📊' },
-              ].map((s, i) => (
-                <div key={i} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 16px', border: '1px solid rgba(255,255,255,0.15)' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', fontWeight: 600, textTransform: 'uppercase' }}>{s.icon} {s.label}</div>
-                  <div style={{ color: 'white', fontWeight: 700, fontSize: '1rem', marginTop: 2 }}>{s.value}</div>
+                { label: 'Identifiant',                value: username },
+                { label: 'Plan actuel',                value: currentPlanName, color: planColor },
+                { label: 'Certifications cette année', value: quota?.used ?? 0 },
+                { label: 'Quota annuel',               value: quota?.unlimited ? 'Illimité' : (quota?.limit ?? 0) },
+                { label: 'Prix annuel',                value: quota?.has_plan ? `${quota.annual_price} € HT` : '—' },
+              ].map(item => (
+                <div key={item.label}>
+                  <div className="input-label" style={{ marginBottom: 4 }}>{item.label}</div>
+                  <div style={{ fontSize: '0.98rem', fontWeight: 600, color: item.color || 'var(--dark)' }}>
+                    {item.value}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* TAB BAR */}
-      <div style={styles.tabBar}>
-        {[
-          { id: 'profile', label: '📋 Informations' },
-          { id: 'quota',   label: '📊 Quota & Usage' },
-          { id: 'plans',   label: '🚀 Abonnement' },
-        ].map(t => (
-          <button key={t.id} style={getTabStyle(t.id)} onClick={() => setActiveTab(t.id)}>{t.label}</button>
-        ))}
-      </div>
-
-      <div style={styles.contentArea}>
-
-        {/* ===== ONGLET INFORMATIONS ===== */}
-        {activeTab === 'profile' && (
-          <div style={styles.card}>
-            <div style={styles.sectionTitle}>Informations du compte</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
-              <div><label style={styles.label}>Identifiant</label><div style={styles.value}>{username}</div></div>
-              <div><label style={styles.label}>Plan actuel</label><div style={{ ...styles.value, color: planColors.main, fontWeight: 700 }}>{currentPlanName}</div></div>
-              <div><label style={styles.label}>Certifications cette année</label><div style={styles.value}>{quota?.used ?? 0}</div></div>
-              <div><label style={styles.label}>Quota annuel</label><div style={styles.value}>{quota?.unlimited ? 'Illimité' : (quota?.limit ?? 0)}</div></div>
-              <div><label style={styles.label}>Prix annuel</label><div style={styles.value}>{quota?.has_plan ? `${quota.annual_price} €` : '—'}</div></div>
-              <div><label style={styles.label}>Abonnement actif depuis</label><div style={styles.value}>{quota?.has_plan ? 'Oui' : 'Non'}</div></div>
-            </div>
+          {/* Plans d'abonnement – toujours visibles depuis l'onglet Informations */}
+          <div style={{ marginBottom: 8 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, color: 'var(--dark)' }}>
+              Offres d'abonnement
+            </h2>
+            <p style={{ color: 'var(--gray)', margin: '0 0 16px', fontSize: '0.875rem' }}>
+              Facturation annuelle. Le changement de plan s'effectue uniquement vers un niveau supérieur.
+            </p>
           </div>
-        )}
 
-        {/* ===== ONGLET QUOTA ===== */}
-        {activeTab === 'quota' && (
-          <>
-            <div style={styles.card}>
-              <div style={styles.sectionTitle}>Utilisation du quota annuel</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontWeight: 700, color: '#334155' }}>
-                  Plan <span style={{ color: planColors.main }}>{currentPlanName}</span>
-                </span>
-                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: progressPct >= 90 ? '#ef4444' : '#0f172a' }}>
-                  {quota?.used ?? 0} / {quota?.unlimited ? '∞' : (quota?.limit ?? 0)}
-                </span>
-              </div>
-              {quota?.has_plan && !quota?.unlimited && (
-                <div style={styles.progressBg}>
-                  <div style={{ width: progressPct + '%', background: progressPct >= 90 ? '#ef4444' : progressPct >= 70 ? '#f59e0b' : planColors.main, height: '100%', borderRadius: 999, transition: 'width 0.6s ease' }} />
-                </div>
-              )}
-              <p style={{ color: '#64748b', fontSize: '0.87rem', marginTop: 8 }}>
-                {!quota?.has_plan
-                  ? "âš ï¸ Aucun abonnement actif."
-                  : quota?.unlimited
-                    ? "Certifications illimitées."
-                    : `Il vous reste ${quota.remaining} certification(s) disponibles cette année.`}
-              </p>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            {plans.map(plan => {
+              const isCurrent    = plan.display_name === currentPlanName;
+              const color        = PLAN_COLORS[plan.name] || 'var(--primary)';
+              const isUpgradable = plan.level > (quota?.plan_level ?? 0);
 
-            <div style={{ ...styles.card, borderLeft: '4px solid ' + planColors.main }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>Besoin de plus de certifications ?</div>
-                  <p style={{ color: '#64748b', fontSize: '0.88rem', marginTop: 4, marginBottom: 0 }}>Passez à un plan supérieur dès maintenant.</p>
-                </div>
-                <button style={styles.btnPrimary} onClick={() => setActiveTab('plans')}>Voir les plans â†’</button>
-              </div>
-            </div>
-          </>
-        )}
+              return (
+                <div
+                  key={plan.name}
+                  className="form-card"
+                  style={{
+                    padding: 24,
+                    marginBottom: 0,
+                    border: `2px solid ${isCurrent ? color : '#e2e8f0'}`,
+                    position: 'relative',
+                    opacity: (!isCurrent && !isUpgradable) ? 0.55 : 1,
+                  }}
+                >
+                  {isCurrent && (
+                    <span style={{
+                      position: 'absolute', top: 14, right: 14,
+                      background: color, color: 'white',
+                      fontSize: '0.7rem', fontWeight: 700,
+                      padding: '2px 10px', borderRadius: 99,
+                    }}>
+                      Actuel
+                    </span>
+                  )}
 
-        {/* ===== ONGLET ABONNEMENT ===== */}
-        {activeTab === 'plans' && (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>Choisissez votre plan</h2>
-              <p style={{ color: '#64748b', marginTop: 8 }}>Facturation annuelle — changement uniquement vers un plan supérieur.</p>
-            </div>
+                  <div style={{ fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{plan.display_name}</div>
+                  <div style={{ fontSize: '1.7rem', fontWeight: 800, color }}>{plan.annual_price} &euro;</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--gray)', marginBottom: 16 }}>/ an HT</div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
-              {plans.map(plan => {
-                const isCurrent = plan.display_name === currentPlanName;
-                const colors = PLAN_COLORS[plan.name] || { main: '#64748b', accent: '#f1f5f9' };
-                const isUpgradable = plan.level > (quota?.plan_level ?? 0);
-                return (
-                  <div key={plan.name} style={{
-                    border: '2px solid ' + (isCurrent ? colors.main : '#e2e8f0'),
-                    borderRadius: 16, padding: '28px 24px',
-                    background: isCurrent ? colors.accent : 'white',
-                    position: 'relative', transition: 'all 0.25s',
-                  }}>
-                    {isCurrent && (
-                      <div style={{ position: 'absolute', top: 14, right: 14, background: colors.main, color: 'white', padding: '2px 10px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 800 }}>
-                        Actuel
-                      </div>
-                    )}
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>{plan.display_name}</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 800, color: colors.main, margin: '12px 0 4px' }}>
-                      {plan.annual_price} €
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: 16 }}>/ an HT</div>
-                    <div style={{ fontSize: '0.88rem', color: '#334155', padding: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: colors.main, fontWeight: 700 }}>✓</span>
+                  <ul style={{ padding: 0, margin: '0 0 20px', listStyle: 'none', fontSize: '0.875rem', color: '#334155' }}>
+                    <li style={{ padding: '3px 0' }}>
                       {plan.max_diplomas === -1 ? 'Certifications illimitées' : `${plan.max_diplomas} certifications / an`}
-                    </div>
-                    <div style={{ fontSize: '0.88rem', color: '#334155', padding: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: colors.main, fontWeight: 700 }}>✓</span>
-                      Validation double signature
-                    </div>
-                    <div style={{ fontSize: '0.88rem', color: '#334155', padding: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: colors.main, fontWeight: 700 }}>✓</span>
-                      Ancrage blockchain
-                    </div>
-                    <button
-                      onClick={() => { if (isUpgradable && !isCurrent) { setSelectedPlan(plan); setShowModal(true); setUpgradeMsg({ type: '', text: '' }); } }}
-                      disabled={isCurrent || !isUpgradable}
-                      style={{
-                        width: '100%', padding: 11, borderRadius: 8,
-                        fontFamily: 'inherit', fontSize: '0.9rem', fontWeight: 700,
-                        cursor: (isCurrent || !isUpgradable) ? 'default' : 'pointer',
-                        marginTop: 20,
-                        border: '2px solid ' + colors.main,
-                        background: isCurrent ? colors.main : 'transparent',
-                        color: isCurrent ? 'white' : colors.main,
-                        opacity: (!isCurrent && !isUpgradable) ? 0.4 : 1,
-                      }}
-                    >
-                      {isCurrent ? 'Plan actuel' : !isUpgradable ? 'Non disponible' : 'Choisir ce plan'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+                    </li>
+                    <li style={{ padding: '3px 0' }}>Validation double signature</li>
+                    <li style={{ padding: '3px 0' }}>Ancrage blockchain</li>
+                  </ul>
 
-      {/* MODAL CONFIRMATION UPGRADE */}
-      {showModal && selectedPlan && (
-        <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-          <div style={styles.modalBox} onClick={e => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: 28 }}>
-              <div style={{ fontSize: '3rem', marginBottom: 12 }}>🚀</div>
-              <h2 style={{ fontWeight: 800, fontSize: '1.4rem', color: '#0f172a', marginBottom: 8 }}>
-                Passer au plan {selectedPlan.display_name}
-              </h2>
-              <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-                De <strong>{currentPlanName}</strong> â†’ <strong style={{ color: (PLAN_COLORS[selectedPlan.name] || {}).main }}>{selectedPlan.display_name}</strong>.
-                Nouveau tarif : <strong>{selectedPlan.annual_price} € / an HT</strong>.
-              </p>
+                  <button
+                    className={isCurrent ? 'btn btn-primary' : 'btn btn-secondary'}
+                    style={{
+                      width: '100%',
+                      background: isCurrent ? color : undefined,
+                      borderColor: !isCurrent ? color : undefined,
+                      color: !isCurrent && isUpgradable ? color : undefined,
+                      cursor: (isCurrent || !isUpgradable) ? 'default' : 'pointer',
+                    }}
+                    disabled={isCurrent || !isUpgradable}
+                    onClick={() => {
+                      if (isUpgradable && !isCurrent) {
+                        setSelectedPlan(plan);
+                        setShowModal(true);
+                        setUpgradeMsg({ type: '', text: '' });
+                      }
+                    }}
+                  >
+                    {isCurrent ? 'Plan actuel' : !isUpgradable ? 'Non disponible' : 'Choisir ce plan'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* QUOTA */}
+      {activeTab === 'quota' && (
+        <>
+          <div className="form-card" style={{ marginBottom: 16 }}>
+            <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Utilisation annuelle</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+              <span style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>
+                Plan <strong style={{ color: planColor }}>{currentPlanName}</strong>
+              </span>
+              <span style={{ fontWeight: 700, color: progressPct >= 90 ? '#ef4444' : 'var(--dark)' }}>
+                {quota?.used ?? 0} / {quota?.unlimited ? 'Illimite' : (quota?.limit ?? 0)}
+              </span>
             </div>
 
-            {upgradeMsg.text && (
-              <div style={{ padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontWeight: 600,
-                background: upgradeMsg.type === 'success' ? '#dcfce7' : '#fee2e2',
-                color:      upgradeMsg.type === 'success' ? '#15803d'  : '#991b1b' }}>
-                {upgradeMsg.text}
+            {quota?.has_plan && !quota?.unlimited && (
+              <div style={{ background: '#e2e8f0', borderRadius: 8, height: 8, overflow: 'hidden', marginTop: 12 }}>
+                <div style={{
+                  width: progressPct + '%',
+                  height: '100%',
+                  background: progressPct >= 90 ? '#ef4444' : progressPct >= 70 ? '#f59e0b' : planColor,
+                  borderRadius: 8,
+                  transition: 'width 0.5s ease',
+                }} />
               </div>
             )}
 
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-              <div style={{ fontWeight: 700, color: '#334155', marginBottom: 10, fontSize: '0.9rem' }}>Ce plan inclut :</div>
-              <div style={{ fontSize: '0.88rem', color: '#475569', padding: '4px 0' }}>
-                ✓ {selectedPlan.max_diplomas === -1 ? 'Certifications illimitées' : `${selectedPlan.max_diplomas} certifications / an`}
-              </div>
-              <div style={{ fontSize: '0.88rem', color: '#475569', padding: '4px 0' }}>✓ Validation double signature</div>
-              <div style={{ fontSize: '0.88rem', color: '#475569', padding: '4px 0' }}>✓ Ancrage blockchain</div>
+            <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginTop: 12, marginBottom: 0 }}>
+              {!quota?.has_plan
+                ? 'Aucun abonnement actif.'
+                : quota?.unlimited
+                  ? `Certifications illimitees avec le plan ${currentPlanName}.`
+                  : `Il vous reste ${quota.remaining} certification(s) disponibles cette annee.`}
+            </p>
+          </div>
+
+          <div className="form-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--dark)' }}>Besoin de plus de certifications ?</div>
+              <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginTop: 4, marginBottom: 0 }}>
+                Passez a un plan superieur depuis l'onglet Abonnement.
+              </p>
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button style={{ ...styles.btnPrimary, flex: 1, background: (PLAN_COLORS[selectedPlan.name] || {}).main || '#3b82f6' }} onClick={handleUpgrade}>
-                Confirmer l'upgrade
+            <button className="btn btn-primary" style={{ width: 'auto' }} onClick={() => setActiveTab('plans')}>
+              Voir les plans
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ABONNEMENT */}
+      {activeTab === 'plans' && (
+        <>
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--dark)' }}>Choisir un plan</h2>
+            <p style={{ color: 'var(--gray)', marginTop: 4, fontSize: '0.875rem' }}>
+              Facturation annuelle. Le changement de plan s'effectue uniquement vers un niveau superieur.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            {plans.map(plan => {
+              const isCurrent    = plan.display_name === currentPlanName;
+              const color        = PLAN_COLORS[plan.name] || 'var(--primary)';
+              const isUpgradable = plan.level > (quota?.plan_level ?? 0);
+
+              return (
+                <div
+                  key={plan.name}
+                  className="form-card"
+                  style={{
+                    padding: 24,
+                    marginBottom: 0,
+                    border: `2px solid ${isCurrent ? color : '#e2e8f0'}`,
+                    position: 'relative',
+                    opacity: (!isCurrent && !isUpgradable) ? 0.55 : 1,
+                  }}
+                >
+                  {isCurrent && (
+                    <span style={{
+                      position: 'absolute', top: 14, right: 14,
+                      background: color, color: 'white',
+                      fontSize: '0.7rem', fontWeight: 700,
+                      padding: '2px 10px', borderRadius: 99,
+                    }}>
+                      Actuel
+                    </span>
+                  )}
+
+                  <div style={{ fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{plan.display_name}</div>
+                  <div style={{ fontSize: '1.7rem', fontWeight: 800, color: color }}>{plan.annual_price} &euro;</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--gray)', marginBottom: 16 }}>/ an HT</div>
+
+                  <ul style={{ padding: 0, margin: '0 0 20px', listStyle: 'none', fontSize: '0.875rem', color: '#334155' }}>
+                    <li style={{ padding: '3px 0' }}>
+                      {plan.max_diplomas === -1 ? 'Certifications illimitees' : `${plan.max_diplomas} certifications / an`}
+                    </li>
+                    <li style={{ padding: '3px 0' }}>Validation double signature</li>
+                    <li style={{ padding: '3px 0' }}>Ancrage blockchain</li>
+                  </ul>
+
+                  <button
+                    className={isCurrent ? 'btn btn-primary' : 'btn btn-secondary'}
+                    style={{
+                      width: '100%',
+                      background: isCurrent ? color : undefined,
+                      borderColor: !isCurrent ? color : undefined,
+                      color: !isCurrent && isUpgradable ? color : undefined,
+                      cursor: (isCurrent || !isUpgradable) ? 'default' : 'pointer',
+                    }}
+                    disabled={isCurrent || !isUpgradable}
+                    onClick={() => {
+                      if (isUpgradable && !isCurrent) {
+                        setSelectedPlan(plan);
+                        setShowModal(true);
+                        setUpgradeMsg({ type: '', text: '' });
+                      }
+                    }}
+                  >
+                    {isCurrent ? 'Plan actuel' : !isUpgradable ? 'Non disponible' : 'Choisir ce plan'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* RGPD */}
+      {activeTab === 'rgpd' && (
+        <>
+          <div className="form-card" style={{ marginBottom: 16 }}>
+            <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Vos droits sur vos donnees</h2>
+            <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginTop: 8 }}>
+              Conformement au Reglement (UE) 2016/679 (RGPD). Consultez notre{' '}
+              <Link to="/privacy" style={{ color: 'var(--primary)', fontWeight: 600 }}>politique de confidentialite</Link>.
+            </p>
+
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 24, marginTop: 24 }}>
+              <div style={{ fontWeight: 600, color: 'var(--dark)', marginBottom: 6 }}>
+                Droit d'acces &amp; portabilite{' '}
+                <span style={{ color: 'var(--gray)', fontWeight: 400, fontSize: '0.85rem' }}>Art. 15 &amp; 20</span>
+              </div>
+              <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginBottom: 14 }}>
+                Telechargez l'integralite de vos donnees personnelles au format JSON (compte, profil, diplomes emis).
+              </p>
+              <button className="btn btn-primary" style={{ width: 'auto' }} onClick={handleExportData}>
+                Telecharger mes donnees (JSON)
               </button>
-              <button style={styles.btnGhost} onClick={() => setShowModal(false)}>Annuler</button>
+            </div>
+          </div>
+
+          <div className="form-card" style={{ border: '1px solid #fecaca', marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, color: '#991b1b', marginBottom: 6 }}>
+              Droit a l'effacement{' '}
+              <span style={{ color: 'var(--gray)', fontWeight: 400, fontSize: '0.85rem' }}>Art. 17</span>
+            </div>
+            <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginBottom: 14 }}>
+              La suppression efface definitivement votre compte et vos donnees personnelles. Les diplomes
+              deja valides sont anonymises afin de conserver la preuve blockchain (Art. 17.3.b).
+              Cette action est irreversible.
+            </p>
+            <button
+              className="btn"
+              style={{ width: 'auto', background: '#dc2626', color: 'white', border: 'none' }}
+              onClick={() => { setShowDeleteModal(true); setDeleteStep(1); setDeleteMsg({ type: '', text: '' }); }}
+            >
+              Supprimer mon compte
+            </button>
+          </div>
+
+          <p style={{ color: 'var(--gray)', fontSize: '0.8rem' }}>
+            Pour toute demande de rectification ou d'opposition :{' '}
+            <a href="mailto:dpo@certichain.fr" style={{ color: 'var(--primary)' }}>dpo@certichain.fr</a>
+            {' '}&mdash; Autorite de controle :{' '}
+            <a href="https://www.cnil.fr" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>CNIL</a>.
+          </p>
+        </>
+      )}
+
+      {/* MODAL UPGRADE */}
+      {showModal && selectedPlan && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowModal(false)}
+        >
+          <div className="form-card" style={{ maxWidth: 440, width: '100%', padding: 36 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>Passer au plan {selectedPlan.display_name}</h3>
+            <p style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>
+              De <strong>{currentPlanName}</strong> vers{' '}
+              <strong style={{ color: PLAN_COLORS[selectedPlan.name] }}>{selectedPlan.display_name}</strong>.
+              Nouveau tarif : <strong>{selectedPlan.annual_price} &euro; / an HT</strong>.
+            </p>
+
+            {upgradeMsg.text && (
+              <div className={`msg-box msg-${upgradeMsg.type}`}>{upgradeMsg.text}</div>
+            )}
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 24, fontSize: '0.875rem', color: '#334155' }}>
+              <div style={{ marginBottom: 4, fontWeight: 600 }}>Ce plan inclut :</div>
+              <div>{selectedPlan.max_diplomas === -1 ? 'Certifications illimitees' : `${selectedPlan.max_diplomas} certifications / an`}</div>
+              <div>Validation double signature</div>
+              <div>Ancrage blockchain</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1, background: PLAN_COLORS[selectedPlan.name] || undefined }}
+                onClick={handleUpgrade}
+              >
+                Confirmer
+              </button>
+              <button className="btn btn-secondary" style={{ width: 'auto' }} onClick={() => setShowModal(false)}>
+                Annuler
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* MODAL SUPPRESSION COMPTE */}
+      {showDeleteModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div className="form-card" style={{ maxWidth: 440, width: '100%', padding: 36 }} onClick={e => e.stopPropagation()}>
+            {deleteStep === 1 ? (
+              <>
+                <h3 style={{ marginTop: 0, color: '#991b1b' }}>Supprimer mon compte</h3>
+                <p style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>
+                  Cette action est <strong>irreversible</strong>. Toutes vos donnees personnelles seront
+                  effacees. Les diplomes valides seront anonymises.
+                </p>
+                {deleteMsg.text && (
+                  <div className={`msg-box msg-${deleteMsg.type}`}>{deleteMsg.text}</div>
+                )}
+                <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+                  <button
+                    className="btn"
+                    style={{ flex: 1, background: '#dc2626', color: 'white', border: 'none' }}
+                    onClick={handleDeleteAccount}
+                  >
+                    Confirmer la suppression
+                  </button>
+                  <button className="btn btn-secondary" style={{ width: 'auto' }} onClick={() => setShowDeleteModal(false)}>
+                    Annuler
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="msg-box msg-success">Compte supprime. Redirection en cours...</div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
 
 export default SchoolProfile;
-
