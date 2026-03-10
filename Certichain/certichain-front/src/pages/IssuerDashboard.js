@@ -130,11 +130,11 @@ const IssuerDashboard = () => {
   };
   
   const getStatusBadge = (status, blockchainStatus) => {
-    if (blockchainStatus === 'REVOKED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fdf2f8', color: '#7c3aed', fontSize: '0.8rem', fontWeight: 'bold'}}>Révoqué 🚫</span>;
-    if (status === 'REVOKED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fff7ed', color: '#c2410c', fontSize: '0.8rem', fontWeight: 'bold'}}>Expiré 🕒</span>;
-    if (status === 'VALIDATED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontSize: '0.8rem'}}>Validé ✅</span>;
-    if (status === 'PENDING') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#ffedd5', color: '#9a3412', fontSize: '0.8rem'}}>En attente ⏳</span>;
-    if (status === 'REJECTED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fee2e2', color: '#991b1b', fontSize: '0.8rem'}}>Refusé ❌</span>;
+    if (blockchainStatus === 'REVOKED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fdf4ff', color: '#7c3aed', fontSize: '0.8rem', fontWeight: 'bold'}}>Révoqué 🚫</span>;
+    if (status === 'REVOKED')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fff7ed', color: '#c2410c', fontSize: '0.8rem', fontWeight: 'bold'}}>Expiré 🕒</span>;
+    if (status === 'VALIDATED')        return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontSize: '0.8rem'}}>Validé ✅</span>;
+    if (status === 'PENDING')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#ffedd5', color: '#9a3412', fontSize: '0.8rem'}}>En attente ⏳</span>;
+    if (status === 'REJECTED')         return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fee2e2', color: '#991b1b', fontSize: '0.8rem'}}>Refusé ❌</span>;
     return status;
   };
 
@@ -284,7 +284,7 @@ const IssuerDashboard = () => {
                     type="date"
                     style={{ flex: 1, minWidth: '160px' }}
                     value={formData.expiry_date}
-                    min={formData.dateObtention > today ? formData.dateObtention : (() => { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; })()}
+                    min={(() => { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; })()}
                     onChange={e => setFormData({...formData, expiry_date: e.target.value})}
                     disabled={isLimitReached || formData.never_expires}
                   />
@@ -331,12 +331,12 @@ const IssuerDashboard = () => {
                       <b>{selectedDiploma.course_name}</b>
                     </div>
                     <div className="certificate-row">
-                      <span className="certificate-label">Date :</span> 
+                      <span className="certificate-label">Date d'obtention :</span> 
                       <b>{selectedDiploma.graduation_date}</b>
                     </div>
                     <div className="certificate-row">
                       <span className="certificate-label">Expiration :</span>
-                      <b>{selectedDiploma.expiry_date ? selectedDiploma.expiry_date : <span style={{color:'#64748b', fontStyle:'italic'}}>N'expire jamais</span>}</b>
+                      <b>{selectedDiploma.expiry_date || <span style={{color:'#64748b',fontStyle:'italic'}}>N'expire jamais</span>}</b>
                     </div>
 
                     {/* --- NOUVEAU BLOC : SUIVI DES VALIDATIONS --- */}
@@ -354,16 +354,16 @@ const IssuerDashboard = () => {
                         </div>
                         
                         {selectedDiploma.blockchain_status === 'REVOKED' && (
-                            <div style={{ marginTop: '15px', padding: '10px', background: '#f5f3ff', borderRadius: '6px', border: '1px solid #7c3aed', color: '#7c3aed', textAlign: 'center', fontWeight: 'bold' }}>
+                            <div style={{ marginTop: '15px', padding: '10px', background: '#fdf4ff', borderRadius: '6px', border: '1px solid #d8b4fe', color: '#7c3aed', textAlign: 'center', fontWeight: 'bold' }}>
                                 🚫 Ce diplôme a été révoqué par l'établissement.
                             </div>
                         )}
                         {selectedDiploma.status === 'REVOKED' && selectedDiploma.blockchain_status !== 'REVOKED' && (
-                            <div style={{ marginTop: '15px', padding: '10px', background: '#fff7ed', borderRadius: '6px', border: '1px solid #c2410c', color: '#c2410c', textAlign: 'center', fontWeight: 'bold' }}>
+                            <div style={{ marginTop: '15px', padding: '10px', background: '#fff7ed', borderRadius: '6px', border: '1px solid #fed7aa', color: '#c2410c', textAlign: 'center', fontWeight: 'bold' }}>
                                 🕒 Ce diplôme a expiré automatiquement.
                             </div>
                         )}
-                        {selectedDiploma.status === 'REJECTED' && selectedDiploma.blockchain_status !== 'REVOKED' && (
+                        {selectedDiploma.status === 'REJECTED' && (
                             <div style={{ marginTop: '15px', color: '#dc2626', textAlign: 'center', fontWeight: 'bold' }}>
                                 Ce diplôme a été refusé.
                             </div>
@@ -381,10 +381,10 @@ const IssuerDashboard = () => {
                         {selectedDiploma.blockchain_status === 'ANCHORED' && (
                           <button
                             className="btn"
-                            style={{width: 'auto', background: '#ef4444', color: 'white', border: 'none'}}
+                            style={{width:'auto', background:'#ef4444', color:'white', border:'none'}}
                             onClick={async () => {
                               setRevokeMsg({ type: '', text: '' });
-                              if (!window.confirm(`Révoquer le diplôme de ${selectedDiploma.first_name} ${selectedDiploma.last_name} ?\nCette action est irréversible.`)) return;
+                              if (!window.confirm(`Révoquer le diplôme de ${selectedDiploma.first_name} ${selectedDiploma.last_name} ?\nCette action est irréversible sur la blockchain.`)) return;
                               try {
                                 const res = await fetch('/api/revoke-diploma/', {
                                   method: 'POST',
@@ -431,7 +431,7 @@ const IssuerDashboard = () => {
                                 }}
                             >
                                 <div>
-                                    <strong style={{ textDecoration: (d.status === 'REJECTED' || d.blockchain_status === 'REVOKED') ? 'line-through' : 'none', color: d.blockchain_status === 'REVOKED' ? '#7c3aed' : 'inherit' }}>
+                                    <strong style={{ textDecoration: ['REJECTED','REVOKED'].includes(d.status) || d.blockchain_status === 'REVOKED' ? 'line-through' : 'none', color: d.blockchain_status === 'REVOKED' ? '#7c3aed' : d.status === 'REVOKED' ? '#c2410c' : 'inherit' }}>
                                         {d.last_name.toUpperCase()} {d.first_name}
                                     </strong>
                                     <div style={{fontSize: '0.85rem', color: '#64748b'}}>{d.course_name}</div>
