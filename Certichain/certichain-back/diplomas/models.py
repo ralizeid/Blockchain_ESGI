@@ -85,13 +85,11 @@ class Diploma(models.Model):
         default='NOT_ANCHORED',
     )
 
-    # Date d'expiration – null signifie "n'expire jamais"
+    # Tech fields
     expiry_date = models.DateField(
         null=True, blank=True,
-        help_text="Date d'expiration du diplôme (laisser vide si le diplôme n'expire jamais)."
+        help_text="Date d'expiration du diplôme. Null = n'expire jamais."
     )
-
-    # Tech fields
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
