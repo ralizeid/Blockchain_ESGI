@@ -182,6 +182,12 @@ const VerifyDiploma = () => {
                     </span>
                   </div>
                 )}
+                {blockchain && !blockchain.error && blockchain.school_addr && blockchain.school_addr !== '0x0000000000000000000000000000000000000000' && (
+                  <div style={{ marginTop: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div><strong>✍️ École :</strong> {blockchain.school_addr}</div>
+                    <div><strong>✍️ Rectorat :</strong> {blockchain.rectorate_addr}</div>
+                  </div>
+                )}
               </div>
             </div>
           )}

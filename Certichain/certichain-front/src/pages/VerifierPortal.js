@@ -213,10 +213,15 @@ const VerifierPortal = () => {
                   <div>Statut : <strong style={{ color: blockchainData.revoked ? '#dc2626' : '#16a34a' }}>
                     {blockchainData.revoked ? 'Révoqué' : 'Valide'}
                   </strong></div>
-                  {blockchainData.issuer && (
-                    <div style={{ wordBreak: 'break-all' }}>
-                      Émetteur (portefeuille) : <code style={{ fontSize: '0.78rem', color: '#475569' }}>{blockchainData.issuer}</code>
-                    </div>
+                  {blockchainData.school_addr && blockchainData.school_addr !== '0x0000000000000000000000000000000000000000' && (
+                    <>
+                      <div style={{ wordBreak: 'break-all' }}>
+                        Signature école : <code style={{ fontSize: '0.78rem', color: '#475569' }}>{blockchainData.school_addr}</code>
+                      </div>
+                      <div style={{ wordBreak: 'break-all' }}>
+                        Signature rectorat : <code style={{ fontSize: '0.78rem', color: '#475569' }}>{blockchainData.rectorate_addr}</code>
+                      </div>
+                    </>
                   )}
                   {blockchainData.issued_at > 0 && (
                     <div>
