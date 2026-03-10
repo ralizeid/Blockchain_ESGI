@@ -34,7 +34,13 @@ $newContent = $content -replace 'CONTRACT_ADDRESS = .*', "CONTRACT_ADDRESS = `"$
 $newContent | Set-Content $pyFile
 
 # Lancement Django
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python -m venv venv; .\venv\Scripts\activate; pip install -r requirements.txt web3; python manage.py migrate; python manage.py runserver 0.0.0.0:8000"
+$djangoCmd = "python -m venv venv; " +
+             ".\venv\Scripts\activate; " +
+             "pip install -r requirements.txt web3; " +
+             "python manage.py makemigrations; " +
+             "python manage.py migrate; " +
+             "python manage.py runserver 0.0.0.0:8000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "$djangoCmd"
 
 # 3. FRONTEND (React)
 Set-Location ".."
@@ -42,5 +48,7 @@ Write-Host "[3/3] Preparation Frontend" -ForegroundColor Yellow
 Set-Location "certichain-front"
 npm install
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm start"
+
+Set-Location "../.."
 
 Write-Host "--- Lancement termine ---" -ForegroundColor Cyan
