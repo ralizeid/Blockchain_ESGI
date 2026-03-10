@@ -91,30 +91,69 @@ L'application est accessible sur [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Configuration MetaMask (pour la démo)
+## Configuration MetaMask
 
-Pour visualiser les transactions en temps réel :
+### Pourquoi MetaMask ?
 
-1. **Ajouter le réseau Hardhat local dans MetaMask :**
-   - Nom du réseau : `Hardhat Local`
-   - URL RPC : `http://127.0.0.1:8545`
-   - ID de chaîne : `31337`
-   - Symbole : `ETH`
+CertiChain utilise un système de **double signature cryptographique** (école + rectorat). Chaque validateur signe le hash du diplôme avec son propre wallet MetaMask — la clé privée ne quitte jamais le navigateur. Le backend vérifie la signature via `ecrecover` et ancre les deux adresses publiques sur la blockchain.
 
-2. **Importer le compte administrateur (compte #0 de Hardhat) :**
-   - Clé privée : `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
-   - Solde initial : 10 000 ETH (environnement de test uniquement)
+> **Architecture gasless** : l'école et le rectorat signent gratuitement (hors-chaîne). C'est le compte CertiChain (défini dans `.env`) qui paie les frais de transaction blockchain.
 
 ---
 
-## Scénario de test
+### 1 — Ajouter le réseau Hardhat local
 
-1. Créer un compte établissement depuis la page de connexion (choisir un plan d'abonnement).
-2. Se connecter et accéder au tableau de bord émetteur.
-3. Créer un nouveau diplôme — deux emails de validation sont générés (école + rectorat).
-4. Valider via les deux liens affichés dans le terminal Django.
-5. Vérifier que le statut passe à **VALIDATED** avec le hash de transaction blockchain.
-6. Tester la vérification publique depuis le portail vérificateur.
+1. Ouvrez MetaMask → **Paramètres** → **Réseaux** → **Ajouter un réseau manuellement**
+2. Renseignez :
+
+| Champ | Valeur |
+|---|---|
+| Nom du réseau | `Hardhat Local` |
+| URL RPC | `http://127.0.0.1:8545` |
+| ID de chaîne | `31337` |
+| Symbole | `ETH` |
+
+---
+
+### 2 — Importer les comptes de test Hardhat
+
+Ces comptes sont affichés dans le terminal `npx hardhat node`. Ils ont 10 000 ETH fictifs et sont **publiquement connus** — ne les utilisez jamais en production.
+
+**Importer dans MetaMask :** icône compte → **Ajouter un compte** → **Importer un compte** → coller la clé privée.
+
+| Rôle | Adresse publique | Clé privée (test uniquement) |
+|---|---|---|
+| École (Account #0) | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
+| Rectorat (Account #1) | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d` |
+
+> **Adresse publique vs clé privée** : l'adresse publique (`0x...` visible dans MetaMask sur l'écran principal) est sans risque à partager. La clé privée ne doit jamais être communiquée.
+
+---
+
+### 3 — Renseigner les adresses dans CertiChain
+
+Lors de l'inscription ou depuis **Profil → Wallet & Profil** :
+
+- **Adresse MetaMask de l'école** : l'adresse publique du wallet qui signera côté école
+- **Adresse MetaMask du Rectorat** : l'adresse publique du wallet partenaire
+
+Seul le wallet dont l'adresse est enregistrée pourra valider les diplômes. Toute tentative de signature avec un autre wallet sera rejetée (HTTP 403).
+
+---
+
+## Scénario de test (double signature)
+
+1. Créer un compte établissement — renseigner les deux adresses publiques MetaMask.
+2. Se connecter → **IssuerDashboard** → créer un diplôme.
+3. **Validation École** :
+   - Sélectionner Account #0 dans MetaMask
+   - Ouvrir le lien école affiché dans le terminal Django
+   - Cliquer **"🦊 Connecter et Signer"** → approuver dans MetaMask → **"Valider"**
+4. **Validation Rectorat** :
+   - Switcher sur Account #1 dans MetaMask
+   - Ouvrir le lien rectorat → même opération
+5. Le diplôme passe en **VALIDATED + ANCHORED** avec les deux adresses gravées on-chain.
+6. Scanner le QR code ou ouvrir `/verify/<uuid>` → **✅ DIPLÔME AUTHENTIQUE** avec les deux adresses co-signataires.
 
 ---
 

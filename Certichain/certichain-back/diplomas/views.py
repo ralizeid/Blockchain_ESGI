@@ -40,7 +40,87 @@ class LoginView(APIView):
             })
         return Response({"error": "Identifiants invalides"}, status=status.HTTP_401_UNAUTHORIZED)
 
-# --- GESTION DU QUOTA ---
+# --- MISE À JOUR DU PROFIL ---
+
+class UpdateProfileView(APIView):
+    """
+    GET  ?user_id=X  → retourne email, rectorate_email, school_eth_address, rectorate_eth_address
+    PATCH            → met à jour ces champs
+    """
+
+    def _get_profile(self, user_id):
+        try:
+            return UserProfile.objects.select_related('user').get(user_id=user_id)
+        except UserProfile.DoesNotExist:
+            return None
+
+    def get(self, request):
+        user_id = request.query_params.get('user_id')
+        if not user_id:
+            return Response({"error": "Non authentifié"}, status=400)
+        profile = self._get_profile(user_id)
+        if not profile:
+            return Response({"error": "Profil introuvable"}, status=404)
+        return Response({
+            "email":                 profile.user.email,
+            "rectorate_email":       profile.rectorate_email,
+            "school_eth_address":    profile.school_eth_address or "",
+            "rectorate_eth_address": profile.rectorate_eth_address or "",
+        })
+
+    def patch(self, request):
+        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response({"error": "Non authentifié"}, status=400)
+        profile = self._get_profile(user_id)
+        if not profile:
+            return Response({"error": "Profil introuvable"}, status=404)
+
+        # Validation adresses Ethereum (format 0x + 40 hex)
+        import re
+        eth_re = re.compile(r'^0x[0-9a-fA-F]{40}$')
+
+        school_eth    = request.data.get('school_eth_address', '').strip()
+        rectorate_eth = request.data.get('rectorate_eth_address', '').strip()
+
+        if school_eth and not eth_re.match(school_eth):
+            return Response({"error": "Adresse MetaMask école invalide (format 0x + 40 hex)"}, status=400)
+        if rectorate_eth and not eth_re.match(rectorate_eth):
+            return Response({"error": "Adresse MetaMask rectorat invalide (format 0x + 40 hex)"}, status=400)
+
+        # Email principal
+        email = request.data.get('email', '').strip()
+        if email:
+            profile.user.email = email
+            profile.user.save(update_fields=['email'])
+
+        # Email rectorat
+        rectorate_email = request.data.get('rectorate_email', '').strip()
+        if rectorate_email:
+            profile.rectorate_email = rectorate_email
+
+        # Adresses MetaMask (on accepte chaîne vide pour effacer)
+        if 'school_eth_address' in request.data:
+            profile.school_eth_address = school_eth or None
+        if 'rectorate_eth_address' in request.data:
+            profile.rectorate_eth_address = rectorate_eth or None
+
+        profile.save()
+
+        # Changement de mot de passe
+        current_password = request.data.get('current_password', '').strip()
+        new_password     = request.data.get('new_password', '').strip()
+        if current_password or new_password:
+            if not current_password or not new_password:
+                return Response({"error": "Fournissez le mot de passe actuel et le nouveau mot de passe."}, status=400)
+            if not profile.user.check_password(current_password):
+                return Response({"error": "Mot de passe actuel incorrect."}, status=400)
+            if len(new_password) < 8:
+                return Response({"error": "Le nouveau mot de passe doit contenir au moins 8 caractères."}, status=400)
+            profile.user.set_password(new_password)
+            profile.user.save(update_fields=['password'])
+
+        return Response({"message": "Profil mis à jour avec succès."})
 
 class QuotaView(APIView):
     def get(self, request):
