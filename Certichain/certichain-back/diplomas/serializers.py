@@ -57,7 +57,7 @@ class DiplomaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Diploma
         fields = '__all__'
-        read_only_fields = ['owner', 'status', 'school_validated', 'rectorate_validated', 'school_token', 'rectorate_token']
+        read_only_fields = ['owner', 'status', 'school_validated', 'rectorate_validated', 'school_token', 'rectorate_token', 'verification_uuid']
 
     def validate(self, data):
         from django.utils import timezone as tz
@@ -90,5 +90,5 @@ class PublicDiplomaSerializer(serializers.ModelSerializer):
             'id', 'first_name', 'last_name', 'course_name', 'graduation_date',
             'expiry_date',
             'status', 'status_display', 'diploma_hash', 'blockchain_tx_hash',
-            'blockchain_status', 'created_at',
+            'blockchain_status', 'created_at', 'verification_uuid',
         ]

@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Validate from './pages/Validate';
 import SchoolProfile from './pages/SchoolProfile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import VerifyDiploma from './pages/VerifyDiploma';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -52,6 +53,8 @@ function App() {
           <Route path="/school-profile" element={isAuthenticated ? <SchoolProfile /> : <Navigate to="/login" />
 } />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          {/* Vérification publique par UUID étudiant (QR Code) */}
+          <Route path="/verify/:uuid" element={<VerifyDiploma />} />
         </Routes>
       </div>
     </Router>

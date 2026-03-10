@@ -110,10 +110,11 @@ def verify_diploma_on_blockchain(diploma_hash: str) -> dict | None:
         hash_bytes = bytes.fromhex(diploma_hash.removeprefix('0x'))
         certified, revoked, issuer, issued_at = contract.functions.verify(hash_bytes).call()
         return {
-            "certified":  certified,
-            "revoked":    revoked,
-            "issuer":     issuer,
-            "issued_at":  issued_at,
+            "exists":    certified,   # alias pour le frontend VerifyDiploma
+            "certified": certified,
+            "revoked":   revoked,
+            "issuer":    issuer,
+            "issued_at": issued_at,
         }
     except Exception as e:
         logging.error(f"Erreur verify_diploma_on_blockchain: {e}")

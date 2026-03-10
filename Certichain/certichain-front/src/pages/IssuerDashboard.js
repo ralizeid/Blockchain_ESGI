@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import '../App.css';
 
 const PLAN_COLORS = { STARTER: '#3b82f6', STANDARD: '#8b5cf6', PREMIUM: '#f59e0b' };
@@ -12,6 +13,7 @@ const IssuerDashboard = () => {
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', diplomeFile: null, course_name: '', expiry_date: '', never_expires: true });
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const [quota, setQuota] = useState({ used: 0, limit: 0, remaining: 0, unlimited: false, has_plan: false, plan_name: '…', plan_level: 0 });
 
@@ -338,6 +340,25 @@ const IssuerDashboard = () => {
                       <span className="certificate-label">Expiration :</span>
                       <b>{selectedDiploma.expiry_date || <span style={{color:'#64748b',fontStyle:'italic'}}>N'expire jamais</span>}</b>
                     </div>
+
+                    {/* QR Code de vérification étudiant */}
+                    {selectedDiploma.verification_uuid && (() => {
+                      const verifyUrl = `${window.location.origin}/verify/${selectedDiploma.verification_uuid}`;
+                      return (
+                        <div style={{ margin: '20px 0', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                          <h4 style={{ margin: '0 0 12px', color: '#334155', fontSize: '0.9rem' }}>📱 Lien de vérification étudiant</h4>
+                          <QRCodeSVG value={verifyUrl} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', wordBreak: 'break-all', marginBottom: '10px', fontFamily: 'monospace' }}>{verifyUrl}</div>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ width: 'auto', padding: '5px 14px', fontSize: '0.8rem' }}
+                            onClick={() => { navigator.clipboard.writeText(verifyUrl); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }}
+                          >
+                            {copiedLink ? '✅ Copié !' : '📋 Copier le lien'}
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     {/* --- NOUVEAU BLOC : SUIVI DES VALIDATIONS --- */}
                     <div style={{ marginTop: '20px', padding: '15px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>

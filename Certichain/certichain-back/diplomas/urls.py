@@ -5,7 +5,7 @@ from .views import (
     QuotaView,
     SubscriptionPlansView, UpgradeSubscriptionView,
     ExportDataView, DeleteAccountView,
-    RevokeDiplomaView, VerifyBlockchainView,
+    RevokeDiplomaView, VerifyBlockchainView, VerifyByUUIDView,
 )
 
 urlpatterns = [
@@ -25,4 +25,5 @@ urlpatterns = [
     # Blockchain
     path('revoke-diploma/',    RevokeDiplomaView.as_view()),
     path('verify-blockchain/', VerifyBlockchainView.as_view()),
+    path('verify/<uuid:uuid>/', VerifyByUUIDView.as_view()),
 ]
