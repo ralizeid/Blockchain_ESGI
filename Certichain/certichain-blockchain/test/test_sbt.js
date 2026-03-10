@@ -1,23 +1,67 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("CertiChain SBT", function () {
-  it("Doit créer un diplôme mais INTERDIRE le transfert", async function () {
-    const [admin, etudiant, voleur] = await ethers.getSigners();
-    
-    // Déploiement
-    const CertiChain = await ethers.getContractFactory("CertiChainSBT");
-    const certichain = await CertiChain.deploy();
-    
-    // Test Mint
-    await certichain.safeMint(etudiant.address);
-    console.log("✅ Diplôme créé");
+describe("CertiChain – Registre de certification pseudonymisé", function () {
+  let certichain, admin, other;
 
-    // Test Blocage Transfert
-    await expect(
-      certichain.connect(etudiant).transferFrom(etudiant.address, voleur.address, 0)
-    ).to.be.revertedWith("Action Interdite: Ce diplome est lie a l'etudiant (SBT).");
-    
-    console.log("✅ Sécurité SBT validée");
+  // Helper : simule le hash SHA-256 que le backend calcule
+  const makeHash = (str) => ethers.keccak256(ethers.toUtf8Bytes(str));
+
+  beforeEach(async function () {
+    [admin, other] = await ethers.getSigners();
+    const CertiChain = await ethers.getContractFactory("CertiChainSBT");
+    certichain = await CertiChain.deploy();
+  });
+
+  it("Doit certifier un hash et vérifier son état", async function () {
+    const hash = makeHash("jean|dupont|master informatique|550e8400-uuid-secret");
+    await certichain.certify(hash);
+
+    const [certified, revoked, issuer, issuedAt] = await certichain.verify(hash);
+    expect(certified).to.be.true;
+    expect(revoked).to.be.false;
+    expect(issuer).to.equal(admin.address);
+    expect(issuedAt).to.be.gt(0);
+    console.log("✅ Certification réussie – hash ancré");
+  });
+
+  it("Doit rejeter une double certification du même hash", async function () {
+    const hash = makeHash("alice|martin|licence droit|uuid-2");
+    await certichain.certify(hash);
+    await expect(certichain.certify(hash))
+      .to.be.revertedWith("Ce hash est deja certifie.");
+    console.log("✅ Protection double certification OK");
+  });
+
+  it("Doit révoquer un diplôme et refléter le drapeau", async function () {
+    const hash = makeHash("bob|durand|bts|uuid-3");
+    await certichain.certify(hash);
+    await certichain.revoke(hash);
+
+    const [certified, revoked] = await certichain.verify(hash);
+    expect(certified).to.be.true;   // toujours certifié (preuve d'historique)
+    expect(revoked).to.be.true;     // mais marqué révoqué
+    console.log("✅ Révocation enregistrée – diplôme invalidé");
+  });
+
+  it("Doit interdire la révocation d'un hash non certifié", async function () {
+    const hash = makeHash("fantome|inconnu|rien|uuid-4");
+    await expect(certichain.revoke(hash))
+      .to.be.revertedWith("Ce hash n'est pas certifie.");
+    console.log("✅ Révocation fantôme bloquée");
+  });
+
+  it("Doit retourner uncertified pour un hash inconnu", async function () {
+    const hash = makeHash("inconnu|total|absent|uuid-5");
+    const [certified] = await certichain.verify(hash);
+    expect(certified).to.be.false;
+    console.log("✅ Hash inexistant correctement signalé");
+  });
+
+  it("Doit interdire la certification par un non-propriétaire", async function () {
+    const hash = makeHash("attaque|injection|hack|uuid-6");
+    await expect(certichain.connect(other).certify(hash)).to.be.reverted;
+    console.log("✅ Sécurité onlyOwner validée");
   });
 });
+

@@ -5,6 +5,7 @@ from .views import (
     QuotaView,
     SubscriptionPlansView, UpgradeSubscriptionView,
     ExportDataView, DeleteAccountView,
+    RevokeDiplomaView, VerifyBlockchainView,
 )
 
 urlpatterns = [
@@ -21,4 +22,7 @@ urlpatterns = [
     # RGPD
     path('export-data/',    ExportDataView.as_view()),
     path('delete-account/', DeleteAccountView.as_view()),
+    # Blockchain
+    path('revoke-diploma/',    RevokeDiplomaView.as_view()),
+    path('verify-blockchain/', VerifyBlockchainView.as_view()),
 ]
