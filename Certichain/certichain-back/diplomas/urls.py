@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     RegisterView, LoginView,
     CreateDiplomaView, SearchDiplomaView, MyDiplomasView, ValidateDiplomaView,
-    QuotaView,
+    QuotaView, UpdateProfileView,
     SubscriptionPlansView, UpgradeSubscriptionView,
     ExportDataView, DeleteAccountView,
     RevokeDiplomaView, VerifyBlockchainView, VerifyByUUIDView,
@@ -15,7 +15,8 @@ urlpatterns = [
     path('my-diplomas/', MyDiplomasView.as_view()),
     path('search/',     SearchDiplomaView.as_view()),
     path('validate/<uuid:token>/', ValidateDiplomaView.as_view()),
-    path('quota/',      QuotaView.as_view()),
+    path('quota/',          QuotaView.as_view()),
+    path('update-profile/', UpdateProfileView.as_view()),
     # Abonnements
     path('plans/',      SubscriptionPlansView.as_view()),
     path('upgrade/',    UpgradeSubscriptionView.as_view()),

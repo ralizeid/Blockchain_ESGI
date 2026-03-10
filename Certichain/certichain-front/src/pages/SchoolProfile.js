@@ -28,17 +28,35 @@ const SchoolProfile = () => {
   const [deleteStep, setDeleteStep]           = useState(1);
   const [deleteMsg, setDeleteMsg]             = useState({ type: '', text: '' });
 
+  // Wallet & Profil — édition
+  const [profileForm, setProfileForm] = useState({
+    email: '', rectorate_email: '', school_eth_address: '', rectorate_eth_address: ''
+  });
+  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [profileMsg, setProfileMsg]       = useState({ type: '', text: '' });
+  const [passwordMsg, setPasswordMsg]     = useState({ type: '', text: '' });
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [qRes, pRes] = await Promise.all([
+      const [qRes, pRes, prRes] = await Promise.all([
         fetch(`/api/quota/?user_id=${userId}`),
         fetch('/api/plans/'),
+        fetch(`/api/update-profile/?user_id=${userId}`),
       ]);
-      const qData = await qRes.json();
-      const pData = await pRes.json();
-      if (qRes.ok) setQuota(qData);
-      if (pRes.ok) setPlans(pData);
+      const qData  = await qRes.json();
+      const pData  = await pRes.json();
+      const prData = await prRes.json();
+      if (qRes.ok)  setQuota(qData);
+      if (pRes.ok)  setPlans(pData);
+      if (prRes.ok) setProfileForm({
+        email:                 prData.email                 || '',
+        rectorate_email:       prData.rectorate_email       || '',
+        school_eth_address:    prData.school_eth_address    || '',
+        rectorate_eth_address: prData.rectorate_eth_address || '',
+      });
     } catch (e) {
       console.error('Erreur chargement profil', e);
     }
@@ -67,6 +85,61 @@ const SchoolProfile = () => {
     } catch (e) {
       setUpgradeMsg({ type: 'error', text: 'Erreur serveur.' });
     }
+  };
+
+  const handleProfileSave = async () => {
+    setProfileSaving(true);
+    setProfileMsg({ type: '', text: '' });
+    try {
+      const res  = await fetch('/api/update-profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, ...profileForm }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setProfileMsg({ type: 'success', text: data.message });
+      } else {
+        setProfileMsg({ type: 'error', text: data.error || 'Erreur.' });
+      }
+    } catch {
+      setProfileMsg({ type: 'error', text: 'Erreur serveur.' });
+    }
+    setProfileSaving(false);
+  };
+
+  const handlePasswordSave = async () => {
+    setPasswordMsg({ type: '', text: '' });
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordMsg({ type: 'error', text: 'Les mots de passe ne correspondent pas.' });
+      return;
+    }
+    if (passwordForm.new_password.length < 8) {
+      setPasswordMsg({ type: 'error', text: 'Le mot de passe doit contenir au moins 8 caractères.' });
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const res  = await fetch('/api/update-profile/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id:          userId,
+          current_password: passwordForm.current_password,
+          new_password:     passwordForm.new_password,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordMsg({ type: 'success', text: 'Mot de passe modifié avec succès.' });
+        setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+      } else {
+        setPasswordMsg({ type: 'error', text: data.error || 'Erreur.' });
+      }
+    } catch {
+      setPasswordMsg({ type: 'error', text: 'Erreur serveur.' });
+    }
+    setPasswordSaving(false);
   };
 
   const handleExportData = async () => {
@@ -122,6 +195,7 @@ const SchoolProfile = () => {
 
   const TABS = [
     { id: 'profile', label: 'Informations' },
+    { id: 'wallet',  label: '🔒 Wallet & Profil' },
     { id: 'quota',   label: 'Quota & Usage' },
     { id: 'plans',   label: 'Abonnement' },
     { id: 'rgpd',    label: 'Mes droits RGPD' },
@@ -164,6 +238,148 @@ const SchoolProfile = () => {
           </button>
         ))}
       </div>
+
+      {/* WALLET & PROFIL */}
+      {activeTab === 'wallet' && (
+        <div className="form-card">
+          <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Wallet &amp; Profil</h2>
+          <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginBottom: 24 }}>
+            Les adresses MetaMask enregistrées définissent <strong>qui peut signer les diplômes</strong>.
+            Seul le portefeuille dont l'adresse est renseignée ici sera accepté lors de la validation.
+          </p>
+
+          {profileMsg.text && (
+            <div className={`msg-box msg-${profileMsg.type}`} style={{ marginBottom: 16 }}>
+              {profileMsg.type === 'success' ? '✅' : '⚠️'} {profileMsg.text}
+            </div>
+          )}
+
+          <div className="input-group">
+            <label className="input-label">Email officiel de l'école</label>
+            <input
+              className="input-field"
+              type="email"
+              value={profileForm.email}
+              onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Email du Rectorat</label>
+            <input
+              className="input-field"
+              type="email"
+              value={profileForm.rectorate_email}
+              onChange={e => setProfileForm(f => ({ ...f, rectorate_email: e.target.value }))}
+            />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">🔒 Adresse MetaMask de l'école</label>
+            <input
+              className="input-field"
+              type="text"
+              placeholder="0x..."
+              value={profileForm.school_eth_address}
+              onChange={e => setProfileForm(f => ({ ...f, school_eth_address: e.target.value }))}
+              pattern="^0x[0-9a-fA-F]{40}$"
+            />
+            <small style={{ color: 'var(--gray)', fontSize: '0.8em', marginTop: 4, display: 'block' }}>
+              Adresse publique visible dans MetaMask (onglet principal, sous le nom du compte).
+              Seul le wallet possédant la clé privée correspondante pourra signer.
+            </small>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">🔒 Adresse MetaMask du Rectorat</label>
+            <input
+              className="input-field"
+              type="text"
+              placeholder="0x..."
+              value={profileForm.rectorate_eth_address}
+              onChange={e => setProfileForm(f => ({ ...f, rectorate_eth_address: e.target.value }))}
+              pattern="^0x[0-9a-fA-F]{40}$"
+            />
+            <small style={{ color: 'var(--gray)', fontSize: '0.8em', marginTop: 4, display: 'block' }}>
+              L'adresse publique du rectorat partenaire. Laisser vide pour ne pas restreindre.
+            </small>
+          </div>
+
+          <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: 14, margin: '16px 0', fontSize: '0.875rem', color: '#166534' }}>
+            <strong>🔗 Comment trouver son adresse publique MetaMask ?</strong><br />
+            Ouvrez MetaMask → écran principal → l'adresse <code>0x...</code> affichée sous le nom du compte.
+            Cliquez dessus pour la copier. C'est l'adresse <strong>publique</strong>, sans risque à partager.
+          </div>
+
+          <button
+            className="btn btn-primary"
+            style={{ width: 'auto', marginTop: 8 }}
+            onClick={handleProfileSave}
+            disabled={profileSaving}
+          >
+            {profileSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+          </button>
+
+          {/* --- Changement de mot de passe --- */}
+          <div style={{ borderTop: '1px solid #e2e8f0', marginTop: 32, paddingTop: 24 }}>
+            <h3 style={{ marginTop: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--dark)' }}>Changer le mot de passe</h3>
+
+            {passwordMsg.text && (
+              <div className={`msg-box msg-${passwordMsg.type}`} style={{ marginBottom: 16 }}>
+                {passwordMsg.type === 'success' ? '✅' : '⚠️'} {passwordMsg.text}
+              </div>
+            )}
+
+            <div className="input-group">
+              <label className="input-label">Mot de passe actuel</label>
+              <input
+                className="input-field"
+                type="password"
+                value={passwordForm.current_password}
+                onChange={e => setPasswordForm(f => ({ ...f, current_password: e.target.value }))}
+                autoComplete="current-password"
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Nouveau mot de passe</label>
+              <input
+                className="input-field"
+                type="password"
+                value={passwordForm.new_password}
+                onChange={e => setPasswordForm(f => ({ ...f, new_password: e.target.value }))}
+                autoComplete="new-password"
+                minLength={8}
+              />
+              <small style={{ color: 'var(--gray)', fontSize: '0.8em', marginTop: 4, display: 'block' }}>Minimum 8 caractères.</small>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Confirmer le nouveau mot de passe</label>
+              <input
+                className="input-field"
+                type="password"
+                value={passwordForm.confirm_password}
+                onChange={e => setPasswordForm(f => ({ ...f, confirm_password: e.target.value }))}
+                autoComplete="new-password"
+                style={passwordForm.confirm_password && passwordForm.confirm_password !== passwordForm.new_password ? { borderColor: '#ef4444' } : {}}
+              />
+              {passwordForm.confirm_password && passwordForm.confirm_password !== passwordForm.new_password && (
+                <small style={{ color: '#ef4444', fontSize: '0.8em', marginTop: 4, display: 'block' }}>Les mots de passe ne correspondent pas.</small>
+              )}
+            </div>
+
+            <button
+              className="btn btn-primary"
+              style={{ width: 'auto', marginTop: 8 }}
+              onClick={handlePasswordSave}
+              disabled={passwordSaving || !passwordForm.current_password || !passwordForm.new_password || passwordForm.new_password !== passwordForm.confirm_password}
+            >
+              {passwordSaving ? 'Modification...' : 'Modifier le mot de passe'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* INFORMATIONS */}
       {activeTab === 'profile' && (
