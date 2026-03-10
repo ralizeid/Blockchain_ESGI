@@ -10,6 +10,8 @@ const Login = ({ onLogin }) => {
     password: '',
     email: '',
     rectorate_email: '',
+    school_eth_address: '',
+    rectorate_eth_address: '',
     subscription_plan: '',
     gdpr_consent: false,
   });
@@ -108,6 +110,38 @@ const Login = ({ onLogin }) => {
                 />
                 <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
                   ⚠️ Ce rectorat devra valider chaque diplôme émis par double authentification.
+                </small>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Adresse MetaMask de l'école</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  name="school_eth_address"
+                  placeholder="0x..."
+                  onChange={handleChange}
+                  pattern="^0x[0-9a-fA-F]{40}$"
+                  title="Adresse Ethereum valide (0x suivi de 40 caractères hexadécimaux)"
+                />
+                <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
+                  🔒 Seul ce wallet pourra signer les diplômes côté école.
+                </small>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Adresse MetaMask du Rectorat</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  name="rectorate_eth_address"
+                  placeholder="0x..."
+                  onChange={handleChange}
+                  pattern="^0x[0-9a-fA-F]{40}$"
+                  title="Adresse Ethereum valide (0x suivi de 40 caractères hexadécimaux)"
+                />
+                <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
+                  🔒 Seul ce wallet pourra signer les diplômes côté rectorat.
                 </small>
               </div>
 

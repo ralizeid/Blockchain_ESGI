@@ -51,21 +51,38 @@ def compute_diploma_hash(first_name: str, last_name: str, course_name: str, secr
     return '0x' + hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
 
-def certify_diploma_on_blockchain(diploma_hash: str) -> str | None:
+def verify_eth_signature(diploma_hash: str, signature: str, claimed_address: str) -> bool:
     """
-    Ancre le hash d'un diplôme sur la blockchain via certify(bytes32).
-    – Identité : adresse du portefeuille admin (0x…), jamais le nom de l'école.
-    – Aucune donnée personnelle n'est transmise au contrat.
-    Retourne le hash de transaction Ethereum ou None en cas d'erreur.
+    Vérifie qu'une signature MetaMask (personal_sign) correspond à l'adresse déclarée.
+    personal_sign préfixe : "\x19Ethereum Signed Message:\n" + longueur + message
+    """
+    try:
+        from eth_account.messages import encode_defunct
+        w3 = Web3()
+        message   = encode_defunct(hexstr=diploma_hash)
+        recovered = w3.eth.account.recover_message(message, signature=signature)
+        return recovered.lower() == claimed_address.lower()
+    except Exception as e:
+        logging.error(f"Erreur vérification signature MetaMask: {e}")
+        return False
+
+
+def certify_diploma_on_blockchain(diploma_hash: str, school_address: str, rectorate_address: str) -> str | None:
+    """
+    Ancre le hash d'un diplôme sur la blockchain via certify(bytes32, address, address).
+    Les deux adresses MetaMask (école + rectorat) sont enregistrées on-chain
+    comme preuve publique et immuable de la double co-validation.
     """
     try:
         w3, contract, admin_account, admin_private_key = _get_contract()
-        hash_bytes = bytes.fromhex(diploma_hash.removeprefix('0x'))
+        hash_bytes   = bytes.fromhex(diploma_hash.removeprefix('0x'))
+        school_cs    = Web3.to_checksum_address(school_address)
+        rectorate_cs = Web3.to_checksum_address(rectorate_address)
 
-        tx = contract.functions.certify(hash_bytes).build_transaction({
+        tx = contract.functions.certify(hash_bytes, school_cs, rectorate_cs).build_transaction({
             'from':     admin_account.address,
             'nonce':    w3.eth.get_transaction_count(admin_account.address),
-            'gas':      200000,
+            'gas':      300000,
             'gasPrice': w3.eth.gas_price,
         })
         signed = w3.eth.account.sign_transaction(tx, admin_private_key)
@@ -108,13 +125,14 @@ def verify_diploma_on_blockchain(diploma_hash: str) -> dict | None:
     try:
         w3, contract, _, _ = _get_contract()
         hash_bytes = bytes.fromhex(diploma_hash.removeprefix('0x'))
-        certified, revoked, issuer, issued_at = contract.functions.verify(hash_bytes).call()
+        certified, revoked, school_addr, rectorate_addr, issued_at = contract.functions.verify(hash_bytes).call()
         return {
-            "exists":    certified,   # alias pour le frontend VerifyDiploma
-            "certified": certified,
-            "revoked":   revoked,
-            "issuer":    issuer,
-            "issued_at": issued_at,
+            "exists":         certified,   # alias attendu par VerifyDiploma.js
+            "certified":      certified,
+            "revoked":        revoked,
+            "school_addr":    school_addr,
+            "rectorate_addr": rectorate_addr,
+            "issued_at":      issued_at,
         }
     except Exception as e:
         logging.error(f"Erreur verify_diploma_on_blockchain: {e}")

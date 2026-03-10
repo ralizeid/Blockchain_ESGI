@@ -13,6 +13,7 @@ from .web3_service import (
     certify_diploma_on_blockchain,
     revoke_diploma_on_blockchain,
     verify_diploma_on_blockchain,
+    verify_eth_signature,
 )
 logging.basicConfig(level=logging.INFO)
 # --- AUTHENTIFICATION ---
@@ -176,13 +177,14 @@ class ValidateDiplomaView(APIView):
             already_validated = diploma.rectorate_validated
             
         return Response({
-            "first_name": diploma.first_name,
-            "last_name": diploma.last_name,
-            "course_name": diploma.course_name,
-            "graduation_date": str(diploma.graduation_date), 
-            "validation_type": validation_type,
-            "status": diploma.status,
-            "already_validated": already_validated # On envoie l'info au frontend
+            "first_name":        diploma.first_name,
+            "last_name":         diploma.last_name,
+            "course_name":       diploma.course_name,
+            "graduation_date":   str(diploma.graduation_date),
+            "diploma_hash":      diploma.diploma_hash,   # nécessaire pour la signature MetaMask
+            "validation_type":   validation_type,
+            "status":            diploma.status,
+            "already_validated": already_validated,
         })
 
     def post(self, request, token):
@@ -201,40 +203,79 @@ class ValidateDiplomaView(APIView):
             return Response({"message": f"Le diplôme a été refusé par : {validation_type}. Le quota a été restauré."})
 
         elif action == 'validate':
+            eth_signature = request.data.get('eth_signature')
+            eth_address   = request.data.get('eth_address')
+
+            if not eth_signature or not eth_address:
+                return Response(
+                    {"error": "Signature MetaMask requise (eth_signature + eth_address)."},
+                    status=400,
+                )
+            if not diploma.diploma_hash:
+                return Response(
+                    {"error": "Hash du diplôme manquant, impossible de vérifier la signature."},
+                    status=400,
+                )
+            if not verify_eth_signature(diploma.diploma_hash, eth_signature, eth_address):
+                return Response(
+                    {"error": "Signature invalide : l'adresse MetaMask ne correspond pas à la signature fournie."},
+                    status=400,
+                )
+
+            # Vérification du whitelist : seule l'adresse enregistrée à l'inscription peut signer
+            profile = diploma.owner.profile
             if validation_type == "École":
-                diploma.school_validated = True
+                registered = profile.school_eth_address
+                if registered and eth_address.lower() != registered.lower():
+                    return Response(
+                        {"error": f"Adresse MetaMask non autorisée pour le rôle École. Adresse attendue : {registered}"},
+                        status=403,
+                    )
             elif validation_type == "Rectorat":
-                diploma.rectorate_validated = True
+                registered = profile.rectorate_eth_address
+                if registered and eth_address.lower() != registered.lower():
+                    return Response(
+                        {"error": f"Adresse MetaMask non autorisée pour le rôle Rectorat. Adresse attendue : {registered}"},
+                        status=403,
+                    )
+
+            if validation_type == "École":
+                diploma.school_validated     = True
+                diploma.school_eth_address   = eth_address
+                diploma.school_eth_signature = eth_signature
+            elif validation_type == "Rectorat":
+                diploma.rectorate_validated     = True
+                diploma.rectorate_eth_address   = eth_address
+                diploma.rectorate_eth_signature = eth_signature
 
             # --- AUTOMATISATION BLOCKCHAIN (CUSTODIAL) ---
             if diploma.school_validated and diploma.rectorate_validated:
                 diploma.status = 'VALIDATED'
-                
                 logging.info(f"Certification blockchain du diplôme {diploma.id} (hash: {diploma.diploma_hash[:10]}…)")
 
-                # Ancrage du hash pseudonymisé sur le contrat – aucune donnée perso transmise
-                tx_hash = certify_diploma_on_blockchain(diploma.diploma_hash)
-                
+                tx_hash = certify_diploma_on_blockchain(
+                    diploma.diploma_hash,
+                    diploma.school_eth_address,
+                    diploma.rectorate_eth_address,
+                )
                 if tx_hash:
                     diploma.blockchain_tx_hash = tx_hash
                     diploma.blockchain_status  = 'ANCHORED'
-                    logging.info(f" Succès ! Diplôme gravé. Hash: {tx_hash}")
+                    logging.info(f"Diplôme gravé on-chain. Tx: {tx_hash}")
                 else:
                     diploma.blockchain_status = 'FAILED'
                     logging.error("Échec de la communication avec la blockchain.")
-                    return Response({
-                        "error": "Validation réussie, mais échec de la connexion à la Blockchain."
-                    }, status=500)
+                    diploma.save()
+                    return Response(
+                        {"error": "Validation réussie, mais échec de la connexion à la Blockchain."},
+                        status=500,
+                    )
             # ---------------------------------------------
-                
+
             diploma.save()
-            
-            
-            hash_display = diploma.blockchain_tx_hash or 'N/A'
-                
             return Response({
-                "message": f"La validation ({validation_type}) a bien été enregistrée ! Hash: {hash_display}",
-                "statut_global": diploma.status
+                "message":       f"La validation ({validation_type}) a bien été enregistrée !",
+                "statut_global": diploma.status,
             })
             
         return Response({"error": "Action inconnue."}, status=400)

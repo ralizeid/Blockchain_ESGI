@@ -34,6 +34,10 @@ class UserProfile(models.Model):
     )
     subscription_start = models.DateField(default=timezone.now)
 
+    # Adresses MetaMask enregistrées à l'inscription – seules ces adresses peuvent signer les diplômes
+    school_eth_address    = models.CharField(max_length=42, blank=True, null=True, help_text="Adresse MetaMask officielle de l'école (0x...)")
+    rectorate_eth_address = models.CharField(max_length=42, blank=True, null=True, help_text="Adresse MetaMask officielle du rectorat (0x...)")
+
     # RGPD – Art. 7 : consentement explicite au traitement des données
     gdpr_consent      = models.BooleanField(default=False, verbose_name="Consentement RGPD")
     gdpr_consent_date = models.DateTimeField(null=True, blank=True, verbose_name="Date du consentement RGPD")
@@ -88,6 +92,12 @@ class Diploma(models.Model):
         ],
         default='NOT_ANCHORED',
     )
+
+    # Double signature MetaMask – preuve cryptographique de co-validation (École + Rectorat)
+    school_eth_address      = models.CharField(max_length=42,  blank=True, null=True, help_text='Adresse MetaMask de l\'école')
+    school_eth_signature    = models.CharField(max_length=200, blank=True, null=True)
+    rectorate_eth_address   = models.CharField(max_length=42,  blank=True, null=True, help_text='Adresse MetaMask du rectorat')
+    rectorate_eth_signature = models.CharField(max_length=200, blank=True, null=True)
 
     # Tech fields
     expiry_date = models.DateField(
