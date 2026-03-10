@@ -466,3 +466,47 @@ class VerifyBlockchainView(APIView):
             )
         return Response(result)
 
+
+class VerifyByUUIDView(APIView):
+    """
+    Vérification publique par UUID étudiant.
+
+    L'étudiant reçoit un lien /verify/<uuid> (QR Code ou email).
+    Cette vue retrouve le diplôme, vérifie son état on-chain et retourne
+    les informations nécessaires à l'affichage.
+
+    Droit à l'oubli (RGPD Art. 17) :
+    Si l'école a effacé les données, first_name == '[Supprimé]'.
+    Le hash reste sur la blockchain (preuve d'historique), mais
+    aucune information personnelle n'est exposée — le hash devient
+    une "empreinte morte" que personne ne peut recalculer.
+    """
+    authentication_classes = []
+    permission_classes     = []
+
+    def get(self, request, uuid):
+        try:
+            diploma = Diploma.objects.get(verification_uuid=uuid)
+        except Diploma.DoesNotExist:
+            return Response({"error": "Lien de vérification invalide ou révoqué."}, status=404)
+
+        # Déclenche la révocation automatique si la date d'expiration est passée
+        _auto_revoke_expired()
+        diploma.refresh_from_db()
+
+        data_deleted = (diploma.first_name == '[Supprimé]')
+
+        bc_result = None
+        # On interroge la blockchain uniquement si le diplôme y a été ancré.
+        # Si le nœud est down ou a été redémarré, on retourne None et le frontend
+        # distingue  ANCHORED+bc_null  (nœud indisponible) de  NOT_ANCHORED.
+        if diploma.diploma_hash and not data_deleted and diploma.blockchain_status in ('ANCHORED', 'REVOKED'):
+            bc_result = verify_diploma_on_blockchain(diploma.diploma_hash)
+
+        return Response({
+            "found":        True,
+            "data_deleted": data_deleted,
+            "diploma":      PublicDiplomaSerializer(diploma).data,
+            "blockchain":   bc_result,
+        })
+

@@ -70,6 +70,10 @@ class Diploma(models.Model):
     rectorate_validated = models.BooleanField(default=False)
     rectorate_token = models.UUIDField(default=uuid.uuid4, editable=False)
     rectorate_email_snapshot = models.EmailField(blank=True, null=True) # On garde une trace de qui a validé
+
+    # Lien étudiant – UUID opaque transmis à l'étudiant (QR Code / lien de vérification)
+    # N'est PAS intégré dans le hash : c'est un simple lookuptoken, jamais devinable
+    verification_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     
     # Blockchain
     diploma_hash       = models.CharField(max_length=66, blank=True, null=True, help_text='SHA-256 pseudonymisé des données clés (préfixé 0x) – jamais de données perso en clair')
