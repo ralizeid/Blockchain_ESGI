@@ -5,6 +5,7 @@ from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
+import logging
 from .models import Diploma, UserProfile, SubscriptionPlan
 from .serializers import DiplomaSerializer, UserSerializer, SubscriptionPlanSerializer, PublicDiplomaSerializer
 from .web3_service import (
@@ -13,6 +14,7 @@ from .web3_service import (
     revoke_diploma_on_blockchain,
     verify_diploma_on_blockchain,
 )
+logging.basicConfig(level=logging.INFO)
 # --- AUTHENTIFICATION ---
 
 class RegisterView(APIView):
@@ -208,7 +210,7 @@ class ValidateDiplomaView(APIView):
             if diploma.school_validated and diploma.rectorate_validated:
                 diploma.status = 'VALIDATED'
                 
-                print(f"🚀 Certification blockchain du diplôme {diploma.id} (hash: {diploma.diploma_hash[:10]}…)")
+                logging.info(f"Certification blockchain du diplôme {diploma.id} (hash: {diploma.diploma_hash[:10]}…)")
 
                 # Ancrage du hash pseudonymisé sur le contrat – aucune donnée perso transmise
                 tx_hash = certify_diploma_on_blockchain(diploma.diploma_hash)
@@ -216,10 +218,10 @@ class ValidateDiplomaView(APIView):
                 if tx_hash:
                     diploma.blockchain_tx_hash = tx_hash
                     diploma.blockchain_status  = 'ANCHORED'
-                    print(f"✅ BINGO ! Diplôme gravé. Hash: {tx_hash}")
+                    logging.info(f" Succès ! Diplôme gravé. Hash: {tx_hash}")
                 else:
                     diploma.blockchain_status = 'FAILED'
-                    print("❌ Échec de la communication avec la blockchain.")
+                    logging.error("Échec de la communication avec la blockchain.")
                     return Response({
                         "error": "Validation réussie, mais échec de la connexion à la Blockchain."
                     }, status=500)
@@ -255,9 +257,9 @@ def _auto_revoke_expired(owner_id=None):
             tx = revoke_diploma_on_blockchain(diploma.diploma_hash)
             if tx:
                 diploma.blockchain_status = 'REVOKED'
-                print(f"🕒 Diplôme #{diploma.id} expiré → révoqué on-chain ({tx})")
+                logging.info(f"Diplôme #{diploma.id} expiré → révoqué on-chain ({tx})")
             else:
-                print(f"⚠️  Diplôme #{diploma.id} expiré → échec on-chain, DB seule mise à jour")
+                logging.warning(f"Diplôme #{diploma.id} expiré → échec on-chain, DB seule mise à jour")
         diploma.status = 'REVOKED'
         diploma.save(update_fields=['status', 'blockchain_status'])
 
