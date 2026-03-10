@@ -236,11 +236,30 @@ class ValidateDiplomaView(APIView):
             })
             
         return Response({"error": "Action inconnue."}, status=400)
+# --- UTILITAIRE INTERNE ---
+
+def _auto_revoke_expired(owner_id=None):
+    """
+    Met à jour en DB le statut des diplômes dont la date d'expiration est dépassée.
+    Appelé à chaque requête de liste/recherche (pas de celery nécessaire).
+    On ne touche pas blockchain_status car aucune transaction n'est émise ici.
+    """
+    qs = Diploma.objects.filter(
+        expiry_date__lt=timezone.now().date(),
+        status='VALIDATED',
+    )
+    if owner_id:
+        qs = qs.filter(owner_id=owner_id)
+    qs.update(status='REVOKED')
+
+
 class MyDiplomasView(APIView):
     def get(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
             return Response([])
+        # Auto-révocation des diplômes expirés de cet utilisateur
+        _auto_revoke_expired(owner_id=user_id)
         diplomas = Diploma.objects.filter(owner_id=user_id).order_by('-created_at')
         return Response(DiplomaSerializer(diplomas, many=True).data)
 
@@ -249,11 +268,12 @@ class SearchDiplomaView(APIView):
         query = request.query_params.get('query')
         if not query:
             return Response([])
-
+        # Auto-révocation globale avant recherche publique
+        _auto_revoke_expired()
         if query.isdigit():
-            diplomas = Diploma.objects.filter(id=query, status='VALIDATED')
+            diplomas = Diploma.objects.filter(id=query, status__in=['VALIDATED', 'REVOKED'])
         else:
-            diplomas = Diploma.objects.filter(last_name__icontains=query, status='VALIDATED')
+            diplomas = Diploma.objects.filter(last_name__icontains=query, status__in=['VALIDATED', 'REVOKED'])
 
         # RGPD Art. 5.1.c – minimisation : on n'expose pas les tokens ni l'id propriétaire
         return Response(PublicDiplomaSerializer(diplomas, many=True).data)
@@ -409,7 +429,7 @@ class RevokeDiplomaView(APIView):
             return Response({"error": "Échec de la révocation sur la blockchain."}, status=500)
 
         diploma.blockchain_status = 'REVOKED'
-        diploma.status            = 'REJECTED'
+        diploma.status            = 'REVOKED'
         diploma.save(update_fields=['blockchain_status', 'status'])
 
         return Response({

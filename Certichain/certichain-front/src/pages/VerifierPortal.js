@@ -55,7 +55,9 @@ const VerifierPortal = () => {
 
   const statusBadge = (diploma) => {
     if (diploma.blockchain_status === 'REVOKED')
-      return <span style={badge('#dc2626', '#fef2f2')}>Révoqué</span>;
+      return <span style={badge('#7c3aed', '#fdf4ff')}>Révoqué 🚫</span>;
+    if (diploma.status === 'REVOKED')
+      return <span style={badge('#c2410c', '#fff7ed')}>Expiré 🕒</span>;
     if (diploma.blockchain_status === 'ANCHORED')
       return <span style={badge('#16a34a', '#f0fdf4')}>Ancré blockchain</span>;
     if (diploma.blockchain_status === 'FAILED')
@@ -129,12 +131,19 @@ const VerifierPortal = () => {
       {selectedDiploma && (
         <div className="form-card animate-fade-in">
 
-          {/* En-tête : valide ou révoqué */}
+          {/* En-tête : valide, expiré ou révoqué */}
           {selectedDiploma.blockchain_status === 'REVOKED' ? (
-            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '16px', marginBottom: '20px', textAlign: 'center' }}>
-              <div style={{ fontWeight: '700', color: '#dc2626', fontSize: '1rem' }}>DIPLÔME RÉVOQUÉ</div>
+            <div style={{ background: '#fdf4ff', border: '1px solid #d8b4fe', borderRadius: '8px', padding: '16px', marginBottom: '20px', textAlign: 'center' }}>
+              <div style={{ fontWeight: '700', color: '#7c3aed', fontSize: '1rem' }}>DIPLÔME RÉVOQUÉ</div>
               <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>
-                Ce diplôme a été invalidé par l'établissement émetteur.
+                Ce diplôme a été révoqué par l'établissement émetteur.
+              </div>
+            </div>
+          ) : selectedDiploma.status === 'REVOKED' ? (
+            <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '8px', padding: '16px', marginBottom: '20px', textAlign: 'center' }}>
+              <div style={{ fontWeight: '700', color: '#c2410c', fontSize: '1rem' }}>DIPLÔME EXPIRÉ</div>
+              <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>
+                La date de validité de ce diplôme est dépassée.
               </div>
             </div>
           ) : (

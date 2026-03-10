@@ -59,6 +59,27 @@ class DiplomaSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['owner', 'status', 'school_validated', 'rectorate_validated', 'school_token', 'rectorate_token']
 
+    def validate(self, data):
+        from django.utils import timezone as tz
+        today = tz.now().date()
+        grad_date   = data.get('graduation_date')
+        expiry_date = data.get('expiry_date')
+
+        if grad_date and grad_date > today:
+            raise serializers.ValidationError(
+                {'graduation_date': "La date d'obtention ne peut pas être dans le futur."}
+            )
+        if expiry_date:
+            if expiry_date <= today:
+                raise serializers.ValidationError(
+                    {'expiry_date': "La date d'expiration doit être strictement dans le futur."}
+                )
+            if grad_date and expiry_date <= grad_date:
+                raise serializers.ValidationError(
+                    {'expiry_date': "La date d'expiration doit être postérieure à la date d'obtention."}
+                )
+        return data
+
 
 # RGPD Art. 5.1.c – minimisation des données : seuls les champs publics sont exposés
 class PublicDiplomaSerializer(serializers.ModelSerializer):
@@ -68,6 +89,7 @@ class PublicDiplomaSerializer(serializers.ModelSerializer):
         model = Diploma
         fields = [
             'id', 'first_name', 'last_name', 'course_name', 'graduation_date',
+            'expiry_date',
             'status', 'status_display', 'diploma_hash', 'blockchain_tx_hash',
             'blockchain_status', 'created_at',
         ]
