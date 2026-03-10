@@ -71,11 +71,16 @@ class Diploma(models.Model):
     rectorate_email_snapshot = models.EmailField(blank=True, null=True) # On garde une trace de qui a validé
     
     # Blockchain
-    diploma_hash       = models.CharField(max_length=66, blank=True, null=True, help_text='SHA-256 des données clés du diplôme (préfixé 0x)')
+    diploma_hash       = models.CharField(max_length=66, blank=True, null=True, help_text='SHA-256 pseudonymisé des données clés (préfixé 0x) – jamais de données perso en clair')
     blockchain_tx_hash = models.CharField(max_length=66, blank=True, null=True, help_text='Hash de la transaction Ethereum')
     blockchain_status  = models.CharField(
         max_length=20,
-        choices=[('NOT_ANCHORED', 'Non ancré'), ('ANCHORED', 'Ancré sur la blockchain'), ('FAILED', "Échec d'ancrage")],
+        choices=[
+            ('NOT_ANCHORED', 'Non ancré'),
+            ('ANCHORED',     'Ancré sur la blockchain'),
+            ('FAILED',       "Échec d'ancrage"),
+            ('REVOKED',      'Révoqué sur la blockchain'),
+        ],
         default='NOT_ANCHORED',
     )
 

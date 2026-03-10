@@ -6,9 +6,13 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from .models import Diploma, UserProfile, SubscriptionPlan
-import hashlib
 from .serializers import DiplomaSerializer, UserSerializer, SubscriptionPlanSerializer, PublicDiplomaSerializer
-from .web3_service import mint_diploma_on_blockchain
+from .web3_service import (
+    compute_diploma_hash,
+    certify_diploma_on_blockchain,
+    revoke_diploma_on_blockchain,
+    verify_diploma_on_blockchain,
+)
 # --- AUTHENTIFICATION ---
 
 class RegisterView(APIView):
@@ -104,20 +108,22 @@ class CreateDiplomaView(APIView):
 
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
-            # RGPD Art. 5.1.f + blockchain : calcul du hash SHA-256 des données personnelles
-            raw = (
-                str(request.data.get('first_name', '')).strip().lower() +
-                str(request.data.get('last_name', '')).strip().lower() +
-                str(request.data.get('course_name', '')).strip().lower() +
-                str(request.data.get('graduation_date', '')).strip()
-            )
-            diploma_hash = '0x' + hashlib.sha256(raw.encode('utf-8')).hexdigest()
-
+            # Sauvegarde initiale – school_token (UUID) est généré automatiquement par le modèle
             diploma = serializer.save(
                 owner_id=user_id,
                 rectorate_email_snapshot=profile.rectorate_email,
-                diploma_hash=diploma_hash,
             )
+
+            # RGPD Art. 5.1.f – Pseudonymisation : hash calculé APRÈS save pour
+            # inclure school_token comme sel cryptographique aléatoire.
+            # Format : "prénom|nom|intitulé|uuid-secret" → SHA-256 → bytes32
+            diploma.diploma_hash = compute_diploma_hash(
+                diploma.first_name,
+                diploma.last_name,
+                diploma.course_name,
+                str(diploma.school_token),
+            )
+            diploma.save(update_fields=['diploma_hash'])
 
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000').rstrip('/')
 
@@ -202,10 +208,10 @@ class ValidateDiplomaView(APIView):
             if diploma.school_validated and diploma.rectorate_validated:
                 diploma.status = 'VALIDATED'
                 
-                print(f"🚀 Lancement de la certification blockchain pour le diplôme {diploma.id}...")
-                
-                # On fait appel à notre service Web3 !
-                tx_hash = mint_diploma_on_blockchain(diploma.id)
+                print(f"🚀 Certification blockchain du diplôme {diploma.id} (hash: {diploma.diploma_hash[:10]}…)")
+
+                # Ancrage du hash pseudonymisé sur le contrat – aucune donnée perso transmise
+                tx_hash = certify_diploma_on_blockchain(diploma.diploma_hash)
                 
                 if tx_hash:
                     diploma.blockchain_tx_hash = tx_hash
@@ -371,3 +377,66 @@ class DeleteAccountView(APIView):
         user.delete()
 
         return Response({"message": "Votre compte et vos données personnelles ont été supprimés."})
+
+
+class RevokeDiplomaView(APIView):
+    """
+    Révoque un diplôme ancré sur la blockchain.
+    – Seul le propriétaire (école émettrice) peut révoquer ses propres diplômes.
+    – Le hash reste sur la chaîne (preuve d'historique) mais le flag revoked = true.
+    – Le statut Django passe à REJECTED (plus comptabilisé dans le quota).
+    """
+    def post(self, request):
+        user_id    = request.data.get('user_id')
+        diploma_id = request.data.get('diploma_id')
+
+        if not user_id or not diploma_id:
+            return Response({"error": "user_id et diploma_id requis."}, status=400)
+
+        try:
+            diploma = Diploma.objects.get(pk=diploma_id, owner_id=user_id)
+        except Diploma.DoesNotExist:
+            return Response({"error": "Diplôme introuvable ou non autorisé."}, status=404)
+
+        if diploma.blockchain_status != 'ANCHORED':
+            return Response(
+                {"error": "Seuls les diplômes ancrés (ANCHORED) peuvent être révoqués."},
+                status=400,
+            )
+
+        tx_hash = revoke_diploma_on_blockchain(diploma.diploma_hash)
+        if not tx_hash:
+            return Response({"error": "Échec de la révocation sur la blockchain."}, status=500)
+
+        diploma.blockchain_status = 'REVOKED'
+        diploma.status            = 'REJECTED'
+        diploma.save(update_fields=['blockchain_status', 'status'])
+
+        return Response({
+            "message":  "Diplôme révoqué avec succès sur la blockchain.",
+            "tx_hash":  tx_hash,
+            "diploma_hash": diploma.diploma_hash,
+        })
+
+
+class VerifyBlockchainView(APIView):
+    """
+    Vérifie l'état d'un diplôme directement sur le contrat (lecture seule, public).
+    Paramètre GET : hash=0x...
+    """
+    authentication_classes = []
+    permission_classes     = []
+
+    def get(self, request):
+        diploma_hash = request.query_params.get('hash')
+        if not diploma_hash:
+            return Response({"error": "Paramètre 'hash' requis."}, status=400)
+
+        result = verify_diploma_on_blockchain(diploma_hash)
+        if result is None:
+            return Response(
+                {"error": "Impossible de contacter la blockchain. Vérifiez que le nœud Hardhat est lancé."},
+                status=503,
+            )
+        return Response(result)
+
