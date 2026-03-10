@@ -64,7 +64,6 @@ class DiplomaSerializer(serializers.ModelSerializer):
         today = tz.now().date()
         grad_date   = data.get('graduation_date')
         expiry_date = data.get('expiry_date')
-
         if grad_date and grad_date > today:
             raise serializers.ValidationError(
                 {'graduation_date': "La date d'obtention ne peut pas être dans le futur."}
