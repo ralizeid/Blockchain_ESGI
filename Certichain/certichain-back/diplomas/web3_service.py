@@ -2,8 +2,10 @@ from web3 import Web3
 import json
 import os
 import hashlib
+import logging
 from django.conf import settings
 
+logging.basicConfig(level=logging.INFO)
 
 def _get_contract():
     """Initialise et retourne (w3, contract, admin_account) depuis les variables d'environnement."""
@@ -70,7 +72,7 @@ def certify_diploma_on_blockchain(diploma_hash: str) -> str | None:
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         return w3.to_hex(tx_hash)
     except Exception as e:
-        print(f"Erreur certify_diploma_on_blockchain: {e}")
+        logging.error(f"Erreur certify_diploma_on_blockchain: {e}")
         return None
 
 
@@ -94,7 +96,7 @@ def revoke_diploma_on_blockchain(diploma_hash: str) -> str | None:
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         return w3.to_hex(tx_hash)
     except Exception as e:
-        print(f"Erreur revoke_diploma_on_blockchain: {e}")
+        logging.error(f"Erreur revoke_diploma_on_blockchain: {e}")
         return None
 
 
@@ -114,5 +116,5 @@ def verify_diploma_on_blockchain(diploma_hash: str) -> dict | None:
             "issued_at":  issued_at,
         }
     except Exception as e:
-        print(f"Erreur verify_diploma_on_blockchain: {e}")
+        logging.error(f"Erreur verify_diploma_on_blockchain: {e}")
         return None
