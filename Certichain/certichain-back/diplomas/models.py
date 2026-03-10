@@ -44,9 +44,10 @@ class UserProfile(models.Model):
 
 class Diploma(models.Model):
     STATUS_CHOICES = [
-        ('PENDING', 'En attente de validation'),
+        ('PENDING',   'En attente de validation'),
         ('VALIDATED', 'Validé par tous'),
-        ('REJECTED', 'Rejeté'),
+        ('REJECTED',  'Rejeté'),
+        ('REVOKED',   'Révoqué'),
     ]
 
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='diplomas')
@@ -82,6 +83,12 @@ class Diploma(models.Model):
             ('REVOKED',      'Révoqué sur la blockchain'),
         ],
         default='NOT_ANCHORED',
+    )
+
+    # Date d'expiration – null signifie "n'expire jamais"
+    expiry_date = models.DateField(
+        null=True, blank=True,
+        help_text="Date d'expiration du diplôme (laisser vide si le diplôme n'expire jamais)."
     )
 
     # Tech fields
