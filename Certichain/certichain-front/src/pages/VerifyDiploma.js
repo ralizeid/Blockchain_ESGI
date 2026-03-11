@@ -144,8 +144,9 @@ const VerifyDiploma = () => {
       <div style={headerStyle('#f0fdf4', '#166534')}>
         <div style={{ fontSize: '2rem' }}>✅</div>
         <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>DIPLÔME AUTHENTIQUE</div>
-        <div style={{ fontSize: '0.85rem', marginTop: '6px' }}>
-          Ce diplôme est valide et son authenticité est confirmée sur la blockchain.
+        <div style={{ fontSize: '0.85rem', marginTop: '6px', lineHeight: 1.5 }}>
+          Émis par <strong>{diploma.school_name}</strong> et validé par le Rectorat
+          pour <strong>{diploma.first_name} {diploma.last_name}</strong>.
         </div>
       </div>
     );
@@ -160,7 +161,8 @@ const VerifyDiploma = () => {
       </div>
     );
   };
-
+  // ── Détection de type de fichier pour affichage conditionnel ────────────────
+  const isImageUrl = (url) => url && /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
   const row = (label, value) => (
     <div className="certificate-row" key={label}>
       <span className="certificate-label">{label}</span>
@@ -178,14 +180,48 @@ const VerifyDiploma = () => {
 
           {!isDeleted && (
             <>
+              {/* Photo d'identité – portrait rond (Scénario C : usurpation) */}
+              {diploma.photo_url && (
+                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <img
+                    src={diploma.photo_url}
+                    alt="Photo d'identité"
+                    style={{
+                      width: 110, height: 110, objectFit: 'cover',
+                      borderRadius: '50%', border: '3px solid #e2e8f0',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+                    }}
+                  />
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 5, fontStyle: 'italic' }}>
+                    Photo d’identité officielle – vérifiez que la personne en face correspond
+                  </div>
+                </div>
+              )}
+
               <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>
                 {diploma.first_name} {diploma.last_name}
               </h2>
 
-              {row('Formation :', diploma.course_name)}
-              {row("Date d'obtention :", diploma.graduation_date)}
-              {row('Expiration :', diploma.expiry_date || 'N\'expire jamais')}
-              {row('Émis le :', new Date(diploma.created_at).toLocaleDateString('fr-FR'))}
+              {row('Formation :', diploma.course_name)}
+              {diploma.date_of_birth && row('Date de naissance :', new Date(diploma.date_of_birth).toLocaleDateString('fr-FR'))}
+              {row("Date d'obtention :", diploma.graduation_date)}
+              {row('Expiration :', diploma.expiry_date || "N'expire jamais")}
+              {diploma.school_name && row('Établissement :', diploma.school_name)}
+              {row('Émis le :', new Date(diploma.created_at).toLocaleDateString('fr-FR'))}
+
+              {/* Lien vers le document diplôme */}
+              {diploma.image_url && (
+                <div style={{ marginTop: 14, textAlign: 'center' }}>
+                  <a
+                    href={diploma.image_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#3b82f6', textDecoration: 'underline', fontSize: '0.85rem' }}
+                  >
+                    📄 Consulter le document officiel du diplôme
+                  </a>
+                </div>
+              )}
             </>
           )}
 
