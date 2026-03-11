@@ -21,11 +21,11 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True  # Obligatoire pour Gmail (chiffrement)
 
 # Ton adresse Gmail complète
-EMAIL_HOST_USER =  'certichain2026@gmail.com'
+EMAIL_HOST_USER =  ''
 
 # LE CODE DE 16 CARACTÈRES (sans les espaces) généré à l'étape 1
 # Attention : Ne mets JAMAIS ton vrai mot de passe de connexion ici !
-EMAIL_HOST_PASSWORD = 'somr hvpz rqii swti'
+EMAIL_HOST_PASSWORD = ''
 
 # L'adresse qui apparaîtra comme expéditeur
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
@@ -144,4 +144,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
