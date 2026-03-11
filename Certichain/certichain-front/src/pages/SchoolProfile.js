@@ -30,7 +30,9 @@ const SchoolProfile = () => {
 
   // Wallet & Profil — édition
   const [profileForm, setProfileForm] = useState({
-    email: '', rectorate_email: '', school_eth_address: '', rectorate_eth_address: ''
+    email: '', rectorate_email: '', school_eth_address: '', rectorate_eth_address: '',
+    school_name: '', school_type: '', school_address: '', school_zip: '', school_city: '',
+    school_phone: '', school_website: '', director_name: '', uai_code: '', siret: '',
   });
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [profileSaving, setProfileSaving] = useState(false);
@@ -56,6 +58,16 @@ const SchoolProfile = () => {
         rectorate_email:       prData.rectorate_email       || '',
         school_eth_address:    prData.school_eth_address    || '',
         rectorate_eth_address: prData.rectorate_eth_address || '',
+        school_name:    prData.school_name    || '',
+        school_type:    prData.school_type    || '',
+        school_address: prData.school_address || '',
+        school_zip:     prData.school_zip     || '',
+        school_city:    prData.school_city    || '',
+        school_phone:   prData.school_phone   || '',
+        school_website: prData.school_website || '',
+        director_name:  prData.director_name  || '',
+        uai_code:       prData.uai_code       || '',
+        siret:          prData.siret          || '',
       });
     } catch (e) {
       console.error('Erreur chargement profil', e);
@@ -402,6 +414,152 @@ const SchoolProfile = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* ── Informations établissement — éditable ── */}
+          <div className="form-card" style={{ marginBottom: 24 }}>
+            <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>🏫 Établissement</h2>
+            <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginBottom: 20 }}>
+              Ces informations peuvent être affichées sur les attestations.
+            </p>
+
+            {profileMsg.text && activeTab === 'profile' && (
+              <div className={`msg-box msg-${profileMsg.type}`} style={{ marginBottom: 16 }}>
+                {profileMsg.type === 'success' ? '✅' : '⚠️'} {profileMsg.text}
+              </div>
+            )}
+
+            <div className="input-group">
+              <label className="input-label">Nom officiel de l'établissement</label>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="ex: Lycée Jules Ferry"
+                value={profileForm.school_name}
+                onChange={e => setProfileForm(f => ({ ...f, school_name: e.target.value }))}
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Type d'établissement</label>
+              <select
+                className="input-field"
+                value={profileForm.school_type}
+                onChange={e => setProfileForm(f => ({ ...f, school_type: e.target.value }))}
+              >
+                <option value="">— Sélectionner —</option>
+                <option value="LYCEE">Lycée</option>
+                <option value="BTS_IUT">BTS / IUT</option>
+                <option value="UNIVERSITE">Université</option>
+                <option value="GRANDE_ECOLE">Grande École</option>
+                <option value="INGENIEUR">École d'ingénieurs</option>
+                <option value="COMMERCE">École de commerce</option>
+                <option value="AUTRE">Autre</option>
+              </select>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Nom du directeur / chef d'établissement</label>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="ex: Marie Dupont"
+                value={profileForm.director_name}
+                onChange={e => setProfileForm(f => ({ ...f, director_name: e.target.value }))}
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Adresse postale</label>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="ex: 12 rue de la Paix"
+                value={profileForm.school_address}
+                onChange={e => setProfileForm(f => ({ ...f, school_address: e.target.value }))}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div className="input-group" style={{ flex: '0 0 120px' }}>
+                <label className="input-label">Code postal</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  placeholder="75001"
+                  value={profileForm.school_zip}
+                  onChange={e => setProfileForm(f => ({ ...f, school_zip: e.target.value }))}
+                />
+              </div>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label className="input-label">Ville</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  placeholder="Paris"
+                  value={profileForm.school_city}
+                  onChange={e => setProfileForm(f => ({ ...f, school_city: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Téléphone</label>
+              <input
+                className="input-field"
+                type="tel"
+                placeholder="01 23 45 67 89"
+                value={profileForm.school_phone}
+                onChange={e => setProfileForm(f => ({ ...f, school_phone: e.target.value }))}
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Site web</label>
+              <input
+                className="input-field"
+                type="url"
+                placeholder="https://www.ecole.fr"
+                value={profileForm.school_website}
+                onChange={e => setProfileForm(f => ({ ...f, school_website: e.target.value }))}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div className="input-group" style={{ flex: '0 0 calc(50% - 5px)' }}>
+                <label className="input-label">Code UAI / RNE</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  placeholder="0750654E"
+                  maxLength={8}
+                  value={profileForm.uai_code}
+                  onChange={e => setProfileForm(f => ({ ...f, uai_code: e.target.value }))}
+                />
+                <small style={{ color: 'var(--gray)', fontSize: '0.78em', marginTop: 3, display: 'block' }}>7 chiffres + 1 lettre</small>
+              </div>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label className="input-label">Numéro SIRET</label>
+                <input
+                  className="input-field"
+                  type="text"
+                  placeholder="12345678901234"
+                  maxLength={14}
+                  value={profileForm.siret}
+                  onChange={e => setProfileForm(f => ({ ...f, siret: e.target.value }))}
+                />
+                <small style={{ color: 'var(--gray)', fontSize: '0.78em', marginTop: 3, display: 'block' }}>14 chiffres</small>
+              </div>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              style={{ width: 'auto', marginTop: 8 }}
+              onClick={handleProfileSave}
+              disabled={profileSaving}
+            >
+              {profileSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+            </button>
           </div>
 
           {/* Plans d'abonnement – toujours visibles depuis l'onglet Informations */}

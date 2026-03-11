@@ -14,6 +14,17 @@ const Login = ({ onLogin }) => {
     rectorate_eth_address: '',
     subscription_plan: '',
     gdpr_consent: false,
+    // Informations établissement
+    school_name: '',
+    school_type: '',
+    school_address: '',
+    school_zip: '',
+    school_city: '',
+    school_phone: '',
+    school_website: '',
+    director_name: '',
+    uai_code: '',
+    siret: '',
   });
 
   const [plans, setPlans]     = useState([]);
@@ -96,6 +107,83 @@ const Login = ({ onLogin }) => {
               <div className="input-group">
                 <label className="input-label">Email officiel de l'école</label>
                 <input className="input-field" type="email" name="email" onChange={handleChange} required />
+              </div>
+
+              {/* ── Informations établissement ── */}
+              <div style={{ borderTop: '1px solid #e2e8f0', margin: '16px 0 12px', paddingTop: '16px' }}>
+                <p style={{ fontWeight: 700, color: '#1e293b', margin: '0 0 12px', fontSize: '0.95rem' }}>
+                  🏫 Informations de l'établissement
+                </p>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Nom officiel de l'établissement <span style={{color:'#ef4444'}}>*</span></label>
+                <input className="input-field" type="text" name="school_name" placeholder="ex: Lycée Jules Ferry" onChange={handleChange} required />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Type d'établissement</label>
+                <select className="input-field" name="school_type" onChange={handleChange} value={formData.school_type}>
+                  <option value="">— Sélectionner —</option>
+                  <option value="LYCEE">Lycée</option>
+                  <option value="BTS_IUT">BTS / IUT</option>
+                  <option value="UNIVERSITE">Université</option>
+                  <option value="GRANDE_ECOLE">Grande École</option>
+                  <option value="INGENIEUR">École d'ingénieurs</option>
+                  <option value="COMMERCE">École de commerce</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Nom du directeur / chef d'établissement</label>
+                <input className="input-field" type="text" name="director_name" placeholder="ex: Marie Dupont" onChange={handleChange} />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Adresse postale</label>
+                <input className="input-field" type="text" name="school_address" placeholder="ex: 12 rue de la Paix" onChange={handleChange} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="input-group" style={{ flex: '0 0 110px' }}>
+                  <label className="input-label">Code postal</label>
+                  <input className="input-field" type="text" name="school_zip" placeholder="75001" onChange={handleChange} pattern="\d{4,6}" />
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label className="input-label">Ville</label>
+                  <input className="input-field" type="text" name="school_city" placeholder="Paris" onChange={handleChange} />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Téléphone</label>
+                <input className="input-field" type="tel" name="school_phone" placeholder="01 23 45 67 89" onChange={handleChange} />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Site web</label>
+                <input className="input-field" type="url" name="school_website" placeholder="https://www.ecole.fr" onChange={handleChange} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="input-group" style={{ flex: '0 0 calc(50% - 5px)' }}>
+                  <label className="input-label">Code UAI / RNE</label>
+                  <input className="input-field" type="text" name="uai_code" placeholder="0750654E" onChange={handleChange} maxLength={8} />
+                  <small style={{ color:'#64748b', fontSize:'0.78em', marginTop:'3px', display:'block' }}>7 chiffres + 1 lettre</small>
+                </div>
+                <div className="input-group" style={{ flex: 1 }}>
+                  <label className="input-label">Numéro SIRET</label>
+                  <input className="input-field" type="text" name="siret" placeholder="12345678901234" onChange={handleChange} maxLength={14} pattern="\d{14}" />
+                  <small style={{ color:'#64748b', fontSize:'0.78em', marginTop:'3px', display:'block' }}>14 chiffres</small>
+                </div>
+              </div>
+
+              {/* ── Rectorat ── */}
+              <div style={{ borderTop: '1px solid #e2e8f0', margin: '16px 0 12px', paddingTop: '16px' }}>
+                <p style={{ fontWeight: 700, color: '#1e293b', margin: '0 0 12px', fontSize: '0.95rem' }}>
+                  🏛️ Rectorat &amp; Wallets MetaMask
+                </p>
               </div>
 
               <div className="input-group">

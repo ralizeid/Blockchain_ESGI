@@ -34,9 +34,33 @@ class UserProfile(models.Model):
     )
     subscription_start = models.DateField(default=timezone.now)
 
+    # Informations de l'établissement
+    school_name    = models.CharField(max_length=200, blank=True, null=True, verbose_name="Nom officiel de l'établissement")
+    school_type    = models.CharField(
+        max_length=50, blank=True, null=True,
+        choices=[
+            ('LYCEE',       'Lycée'),
+            ('BTS_IUT',     'BTS / IUT'),
+            ('UNIVERSITE',  'Université'),
+            ('GRANDE_ECOLE','Grande École'),
+            ('INGENIEUR',   'École d\'ingénieurs'),
+            ('COMMERCE',    'École de commerce'),
+            ('AUTRE',       'Autre'),
+        ],
+        verbose_name="Type d'établissement",
+    )
+    school_address = models.CharField(max_length=255, blank=True, null=True, verbose_name='Adresse postale')
+    school_zip     = models.CharField(max_length=10,  blank=True, null=True, verbose_name='Code postal')
+    school_city    = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ville')
+    school_phone   = models.CharField(max_length=20,  blank=True, null=True, verbose_name='Téléphone')
+    school_website = models.URLField(max_length=200,  blank=True, null=True, verbose_name='Site web')
+    director_name  = models.CharField(max_length=150, blank=True, null=True, verbose_name='Nom du directeur / chef d\'établissement')
+    uai_code       = models.CharField(max_length=8,   blank=True, null=True, verbose_name='Code UAI/RNE', help_text='7 chiffres + 1 lettre, ex : 0750654E')
+    siret          = models.CharField(max_length=14,  blank=True, null=True, verbose_name='Numéro SIRET', help_text='14 chiffres')
+
     # Adresses MetaMask enregistrées à l'inscription – seules ces adresses peuvent signer les diplômes
     school_eth_address    = models.CharField(max_length=42, blank=True, null=True, help_text="Adresse MetaMask officielle de l'école (0x...)")
-    rectorate_eth_address = models.CharField(max_length=42, blank=True, null=True, help_text="Adresse MetaMask officielle du rectorat (0x...)")
+    rectorate_eth_address = models.CharField(max_length=42, blank=True, null=True, help_text="Adresse MetaMask officielle du rectorat (0x...")
 
     # RGPD – Art. 7 : consentement explicite au traitement des données
     gdpr_consent      = models.BooleanField(default=False, verbose_name="Consentement RGPD")
