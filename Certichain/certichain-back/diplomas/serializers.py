@@ -17,10 +17,28 @@ class UserSerializer(serializers.ModelSerializer):
     rectorate_eth_address = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
     # RGPD Art. 7 – consentement explicite obligatoire à l'inscription
     gdpr_consent = serializers.BooleanField(write_only=True, required=True)
+    # Informations établissement
+    school_name    = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    school_type    = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    school_address = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    school_zip     = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    school_city    = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    school_phone   = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    school_website = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    director_name  = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    uai_code       = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    siret          = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'rectorate_email', 'subscription_plan', 'school_eth_address', 'rectorate_eth_address', 'gdpr_consent']
+        fields = [
+            'id', 'username', 'email', 'password',
+            'rectorate_email', 'subscription_plan',
+            'school_eth_address', 'rectorate_eth_address',
+            'gdpr_consent',
+            'school_name', 'school_type', 'school_address', 'school_zip', 'school_city',
+            'school_phone', 'school_website', 'director_name', 'uai_code', 'siret',
+        ]
         extra_kwargs = {'password': {'write_only': True}}
 
     def validate_gdpr_consent(self, value):
@@ -42,6 +60,16 @@ class UserSerializer(serializers.ModelSerializer):
         gdpr_consent          = validated_data.pop('gdpr_consent')
         school_eth_address    = validated_data.pop('school_eth_address', '') or None
         rectorate_eth_address = validated_data.pop('rectorate_eth_address', '') or None
+        school_name    = validated_data.pop('school_name',    '') or None
+        school_type    = validated_data.pop('school_type',    '') or None
+        school_address = validated_data.pop('school_address', '') or None
+        school_zip     = validated_data.pop('school_zip',     '') or None
+        school_city    = validated_data.pop('school_city',    '') or None
+        school_phone   = validated_data.pop('school_phone',   '') or None
+        school_website = validated_data.pop('school_website', '') or None
+        director_name  = validated_data.pop('director_name',  '') or None
+        uai_code       = validated_data.pop('uai_code',       '') or None
+        siret          = validated_data.pop('siret',          '') or None
 
         user = User.objects.create_user(**validated_data)
 
@@ -53,6 +81,16 @@ class UserSerializer(serializers.ModelSerializer):
             rectorate_eth_address=rectorate_eth_address,
             gdpr_consent=gdpr_consent,
             gdpr_consent_date=timezone.now() if gdpr_consent else None,
+            school_name=school_name,
+            school_type=school_type,
+            school_address=school_address,
+            school_zip=school_zip,
+            school_city=school_city,
+            school_phone=school_phone,
+            school_website=school_website,
+            director_name=director_name,
+            uai_code=uai_code,
+            siret=siret,
         )
         return user
 

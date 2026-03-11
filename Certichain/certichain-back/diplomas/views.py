@@ -64,8 +64,18 @@ class UpdateProfileView(APIView):
         return Response({
             "email":                 profile.user.email,
             "rectorate_email":       profile.rectorate_email,
-            "school_eth_address":    profile.school_eth_address or "",
+            "school_eth_address":    profile.school_eth_address    or "",
             "rectorate_eth_address": profile.rectorate_eth_address or "",
+            "school_name":    profile.school_name    or "",
+            "school_type":    profile.school_type    or "",
+            "school_address": profile.school_address or "",
+            "school_zip":     profile.school_zip     or "",
+            "school_city":    profile.school_city    or "",
+            "school_phone":   profile.school_phone   or "",
+            "school_website": profile.school_website or "",
+            "director_name":  profile.director_name  or "",
+            "uai_code":       profile.uai_code       or "",
+            "siret":          profile.siret          or "",
         })
 
     def patch(self, request):
@@ -104,6 +114,16 @@ class UpdateProfileView(APIView):
             profile.school_eth_address = school_eth or None
         if 'rectorate_eth_address' in request.data:
             profile.rectorate_eth_address = rectorate_eth or None
+
+        # Informations établissement
+        simple_fields = [
+            'school_name', 'school_type', 'school_address', 'school_zip',
+            'school_city', 'school_phone', 'school_website', 'director_name',
+            'uai_code', 'siret',
+        ]
+        for field in simple_fields:
+            if field in request.data:
+                setattr(profile, field, request.data[field].strip() or None)
 
         profile.save()
 
