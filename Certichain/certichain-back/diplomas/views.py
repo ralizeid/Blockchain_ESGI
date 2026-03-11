@@ -219,10 +219,21 @@ class CreateDiplomaView(APIView):
                 fail_silently=False,
             )
 
-            rectorate_link = f"{frontend_url}/validate/{diploma.rectorate_token}"
+            rectorate_link   = f"{frontend_url}/validate/{diploma.rectorate_token}"
+            rectorat_dashboard = f"{frontend_url}/rectorat"
             send_mail(
-                'Action Requise : Validation Rectorat',
-                f'Bonjour,\n\nL\'établissement {profile.user.username} a émis un diplôme pour {diploma.first_name} {diploma.last_name}.\n\nVeuillez examiner et valider cette certification ici :\n\n{rectorate_link}\n\nL\'équipe CertiChain.',
+                'Action Requise : Validation Rectorat – CertiChain',
+                (
+                    f'Bonjour,\n\n'
+                    f'L\'établissement {profile.user.username} a émis un diplôme pour '
+                    f'{diploma.first_name} {diploma.last_name} ({diploma.course_name}).\n\n'
+                    f'─── OPTION 1 – Valider uniquement ce diplôme ───\n'
+                    f'{rectorate_link}\n\n'
+                    f'─── OPTION 2 – Accéder au tableau de bord Rectorat ───\n'
+                    f'Signez tous les diplômes en attente en une seule session MetaMask :\n'
+                    f'{rectorat_dashboard}\n\n'
+                    f'L\'équipe CertiChain.'
+                ),
                 settings.EMAIL_HOST_USER,
                 [profile.rectorate_email],
                 fail_silently=False,
@@ -359,6 +370,172 @@ class ValidateDiplomaView(APIView):
             })
             
         return Response({"error": "Action inconnue."}, status=400)
+
+
+class RectoratePendingView(APIView):
+    """
+    GET /api/rectorate/pending/?eth_address=0x...
+
+    Retourne tous les diplômes en attente de signature rectorat,
+    groupés par école.  L'eth_address doit correspondre au
+    rectorate_eth_address enregistré sur le profil de l'école.
+    (Pas de session requise — la sécurité est garantie par la
+    vérification MetaMask au moment de la soumission.)
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        eth_address = request.query_params.get('eth_address', '').strip().lower()
+        if not eth_address:
+            return Response({"error": "Le paramètre eth_address est requis."}, status=400)
+
+        profiles = UserProfile.objects.filter(
+            rectorate_eth_address__iexact=eth_address
+        ).select_related('user')
+
+        schools = []
+        total = 0
+        for profile in profiles:
+            pending = (
+                Diploma.objects
+                .filter(owner=profile.user, school_validated=True, rectorate_validated=False)
+                .exclude(status__in=['REJECTED', 'REVOKED'])
+                .order_by('created_at')
+            )
+            if not pending.exists():
+                continue
+            diplomas_data = [
+                {
+                    "id":              d.id,
+                    "rectorate_token": str(d.rectorate_token),
+                    "first_name":      d.first_name,
+                    "last_name":       d.last_name,
+                    "course_name":     d.course_name,
+                    "graduation_date": str(d.graduation_date),
+                    "diploma_hash":    d.diploma_hash,
+                    "created_at":      d.created_at.isoformat(),
+                }
+                for d in pending
+            ]
+            schools.append({
+                "school_name": profile.user.username,
+                "school_id":   profile.user.id,
+                "diplomas":    diplomas_data,
+            })
+            total += len(diplomas_data)
+
+        return Response({"schools": schools, "total": total})
+
+
+class RectorateBulkValidateView(APIView):
+    """
+    POST /api/rectorate/bulk-validate/
+
+    Body:
+      { "validations": [
+          { "token": "<rectorate_token>", "eth_address": "0x...", "eth_signature": "0x..." },
+          ...
+      ] }
+
+    Valide chaque diplôme avec sa signature MetaMask individuelle
+    et retourne un rapport par diplôme.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        items = request.data.get('validations', [])
+        if not items:
+            return Response({"error": "Le tableau validations est requis et ne peut être vide."}, status=400)
+
+        results = []
+        for item in items:
+            token_str   = item.get('token', '')
+            eth_address = item.get('eth_address', '')
+            eth_sig     = item.get('eth_signature', '')
+
+            if not token_str or not eth_address or not eth_sig:
+                results.append({"token": token_str, "success": False,
+                                 "error": "Champs manquants (token, eth_address, eth_signature)."})
+                continue
+
+            try:
+                diploma = Diploma.objects.get(rectorate_token=token_str)
+            except Diploma.DoesNotExist:
+                results.append({"token": token_str, "success": False, "error": "Token invalide."})
+                continue
+
+            if diploma.rectorate_validated:
+                results.append({"token": token_str, "success": True,
+                                 "message": "Déjà validé.", "diploma_id": diploma.id})
+                continue
+
+            if diploma.status in ('REJECTED', 'REVOKED'):
+                results.append({"token": token_str, "success": False,
+                                 "error": f"Diplôme {diploma.status}, impossible à valider.",
+                                 "diploma_id": diploma.id})
+                continue
+
+            if not diploma.diploma_hash:
+                results.append({"token": token_str, "success": False,
+                                 "error": "Hash manquant.", "diploma_id": diploma.id})
+                continue
+
+            if not verify_eth_signature(diploma.diploma_hash, eth_sig, eth_address):
+                results.append({"token": token_str, "success": False,
+                                 "error": "Signature MetaMask invalide.", "diploma_id": diploma.id})
+                continue
+
+            # Vérification whitelist
+            profile    = diploma.owner.profile
+            registered = profile.rectorate_eth_address
+            if registered and eth_address.lower() != registered.lower():
+                results.append({"token": token_str, "success": False,
+                                 "error": f"Adresse non autorisée. Attendue : {registered}",
+                                 "diploma_id": diploma.id})
+                continue
+
+            diploma.rectorate_validated     = True
+            diploma.rectorate_eth_address   = eth_address
+            diploma.rectorate_eth_signature = eth_sig
+
+            if diploma.school_validated and diploma.rectorate_validated:
+                diploma.status = 'VALIDATED'
+                tx_hash = certify_diploma_on_blockchain(
+                    diploma.diploma_hash,
+                    diploma.school_eth_address,
+                    diploma.rectorate_eth_address,
+                )
+                if tx_hash:
+                    diploma.blockchain_tx_hash = tx_hash
+                    diploma.blockchain_status  = 'ANCHORED'
+                    logging.info(f"Bulk rectorat: diplôme {diploma.id} ancré. Tx: {tx_hash}")
+                else:
+                    diploma.blockchain_status = 'FAILED'
+                    logging.error(f"Bulk rectorat: échec blockchain pour diplôme {diploma.id}.")
+                    diploma.save()
+                    results.append({"token": token_str, "success": False,
+                                    "error": "Validation enregistrée mais Blockchain inaccessible.",
+                                    "diploma_id": diploma.id})
+                    continue
+
+            diploma.save()
+            results.append({
+                "token":             token_str,
+                "success":           True,
+                "message":           "Ancré on-chain." if diploma.blockchain_status == 'ANCHORED' else "Validé.",
+                "diploma_id":        diploma.id,
+                "statut_global":     diploma.status,
+                "blockchain_status": diploma.blockchain_status,
+            })
+
+        successes = sum(1 for r in results if r.get('success'))
+        return Response({
+            "results":   results,
+            "successes": successes,
+            "failures":  len(results) - successes,
+        })
 
 
 # --- UTILITAIRE INTERNE ---

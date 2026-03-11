@@ -6,6 +6,7 @@ from .views import (
     SubscriptionPlansView, UpgradeSubscriptionView,
     ExportDataView, DeleteAccountView, StudentErasureView, StudentErasureConfirmView,
     SchoolDiplomaErasureView,
+    RectoratePendingView, RectorateBulkValidateView,
     RevokeDiplomaView, VerifyBlockchainView, VerifyByUUIDView,
 )
 
@@ -27,6 +28,9 @@ urlpatterns = [
     path('student-erasure/',         StudentErasureView.as_view()),
     path('student-erasure/confirm/', StudentErasureConfirmView.as_view()),
     path('school-diploma-erasure/',  SchoolDiplomaErasureView.as_view()),
+    # Rectorat
+    path('rectorate/pending/',        RectoratePendingView.as_view()),
+    path('rectorate/bulk-validate/',  RectorateBulkValidateView.as_view()),
     # Blockchain
     path('revoke-diploma/',    RevokeDiplomaView.as_view()),
     path('verify-blockchain/', VerifyBlockchainView.as_view()),
