@@ -60,7 +60,7 @@ class Diploma(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     course_name = models.CharField(max_length=200)
-    graduation_date = models.DateField()
+    graduation_date = models.DateField(null=True, blank=True)
     image = models.FileField(upload_to='diplomas/') 
     
     # --- SECURITÉ & DOUBLE VALIDATION ---
