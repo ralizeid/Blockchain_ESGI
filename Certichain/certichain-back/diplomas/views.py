@@ -530,39 +530,30 @@ class DeleteAccountView(APIView):
 
 class StudentErasureView(APIView):
     """
-    RGPD Art. 17 – Droit à l'oubli exercé par l'étudiant lui-même.
+    RGPD Art. 17 – Étape 1 : demande de suppression.
 
-    L'étudiant possède son verification_uuid (reçu par QR code / lien).
-    Cet UUID secret sert de preuve d'identité : seul le titulaire légitime le connaît.
+    Génère un OTP à 6 chiffres valable 30 minutes et l'envoie à l'adresse
+    email de l'étudiant enregistrée lors de l'émission du diplôme.
 
     POST /api/student-erasure/
-      { "uuid": "<verification_uuid>", "confirm": true }
+      { "uuid": "<verification_uuid>", "deletion_token": "<student_deletion_token>" }
 
-    Effet :
-      - Anonymise first_name, last_name, image → '[Supprimé]'
-      - Efface graduation_date → null
-      - Marque data_deleted = True
-      - Conserve diploma_hash + blockchain_* (preuve, Art. 17.3.b)
-      - Invalide l'UUID (rotation) → le lien de vérification ne divulgue plus rien
+    Si l'étudiant n'a plus accès à son email, il doit contacter l'école directement.
     """
     def post(self, request):
-        import uuid as uuid_lib
+        import random
         raw_uuid       = request.data.get('uuid')
         deletion_token = request.data.get('deletion_token')
-        confirm        = request.data.get('confirm', False)
 
-        if not raw_uuid or not deletion_token or not confirm:
-            return Response(
-                {"error": "uuid, deletion_token et confirm=true requis."},
-                status=400,
-            )
+        if not raw_uuid or not deletion_token:
+            return Response({"error": "uuid et deletion_token requis."}, status=400)
 
         try:
             diploma = Diploma.objects.get(verification_uuid=raw_uuid)
         except Diploma.DoesNotExist:
             return Response({"error": "Identifiant de diplôme invalide."}, status=404)
 
-        # Vérification du token privé – les recruteurs ne l'ont jamais
+        # Vérification du token privé
         if str(diploma.student_deletion_token) != str(deletion_token):
             return Response(
                 {"error": "Token de suppression invalide. Seul l'étudiant titulaire peut exercer ce droit."},
@@ -572,35 +563,178 @@ class StudentErasureView(APIView):
         if diploma.first_name == '[Supprimé]':
             return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
 
-        # Anonymisation RGPD Art. 17
-        diploma.first_name      = '[Supprimé]'
-        diploma.last_name       = '[Supprimé]'
-        # Suppression de l'image si présente
+        if not diploma.student_email:
+            return Response(
+                {"error": "Aucun email étudiant enregistré pour ce diplôme. Contactez directement l'établissement émetteur."},
+                status=400,
+            )
+
+        # Générer un OTP à 6 chiffres valable 30 minutes
+        otp = f"{random.randint(0, 999999):06d}"
+        diploma.erasure_otp            = otp
+        diploma.erasure_otp_expires_at = timezone.now() + timezone.timedelta(minutes=30)
+        diploma.save(update_fields=['erasure_otp', 'erasure_otp_expires_at'])
+
+        # Masquer l'email pour la réponse (vie privée)
+        email = diploma.student_email
+        parts = email.split('@')
+        masked = parts[0][:2] + '***@' + parts[1] if len(parts) == 2 else '***'
+
+        try:
+            send_mail(
+                subject='[CertiChain] Code de confirmation – Droit à l\'oubli (RGPD Art. 17)',
+                message=(
+                    f"Bonjour,\n\n"
+                    f"Vous avez demandé la suppression définitive de vos données personnelles "
+                    f"associées au diplôme « {diploma.course_name } ».\n\n"
+                    f"Votre code de confirmation est : {otp}\n\n"
+                    f"Ce code est valable 30 minutes.\n\n"
+                    f"Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\n"
+                    f"— L'équipe CertiChain"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            logging.error(f"Échec envoi email OTP erasure: {e}")
+            return Response({"error": "Impossible d'envoyer le code de confirmation par email."}, status=500)
+
+        logging.info(f"RGPD – OTP envoyé à {masked} pour le diplôme {diploma.id}.")
+        return Response({
+            "status":       "otp_sent",
+            "email_masked": masked,
+            "message":      f"Un code de confirmation a été envoyé à {masked}. Valable 30 minutes.",
+        })
+
+
+class StudentErasureConfirmView(APIView):
+    """
+    RGPD Art. 17 – Étape 2 : confirmation par code OTP.
+
+    POST /api/student-erasure/confirm/
+      { "uuid": "…", "deletion_token": "…", "otp": "123456" }
+
+    Vérifie l'OTP + son expiration, puis efface les données personnelles.
+    """
+    def post(self, request):
+        import uuid as uuid_lib
+        raw_uuid       = request.data.get('uuid')
+        deletion_token = request.data.get('deletion_token')
+        otp_input      = request.data.get('otp', '').strip()
+
+        if not raw_uuid or not deletion_token or not otp_input:
+            return Response({"error": "uuid, deletion_token et otp requis."}, status=400)
+
+        try:
+            diploma = Diploma.objects.get(verification_uuid=raw_uuid)
+        except Diploma.DoesNotExist:
+            return Response({"error": "Identifiant de diplôme invalide."}, status=404)
+
+        if str(diploma.student_deletion_token) != str(deletion_token):
+            return Response({"error": "Token de suppression invalide."}, status=403)
+
+        if diploma.first_name == '[Supprimé]':
+            return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
+
+        # Vérification OTP
+        if not diploma.erasure_otp:
+            return Response({"error": "Aucun code en attente. Recommencez la demande."}, status=400)
+
+        if timezone.now() > diploma.erasure_otp_expires_at:
+            diploma.erasure_otp = None
+            diploma.erasure_otp_expires_at = None
+            diploma.save(update_fields=['erasure_otp', 'erasure_otp_expires_at'])
+            return Response({"error": "Code expiré. Recommencez la demande."}, status=400)
+
+        if otp_input != diploma.erasure_otp:
+            return Response({"error": "Code incorrect. Vérifiez votre email et réessayez."}, status=400)
+
+        # ── Anonymisation RGPD Art. 17 ──────────────────────────────────────────
+        diploma.first_name = '[Supprimé]'
+        diploma.last_name  = '[Supprimé]'
         if diploma.image:
             try:
                 diploma.image.delete(save=False)
             except Exception:
                 pass
             diploma.image = None
-        # Suppression de la photo d'identité si présente
         if diploma.photo:
             try:
                 diploma.photo.delete(save=False)
             except Exception:
                 pass
             diploma.photo = None
-        # Rotation de l'UUID : l'ancien lien ne fonctionne plus, le nouveau est opaque
+        # Effacement de l'email et de l'OTP (plus aucune donnée personnelle résiduelle)
+        diploma.student_email          = None
+        diploma.erasure_otp            = None
+        diploma.erasure_otp_expires_at = None
+        # Rotation de l'UUID : l'ancien lien ne fonctionnera plus
         diploma.verification_uuid = uuid_lib.uuid4()
         diploma.save()
 
-        logging.info(
-            f"RGPD Art. 17 – Étudiant a exercé son droit à l'oubli sur le diplôme {diploma.id}."
-        )
+        logging.info(f"RGPD Art. 17 – Étudiant a confirmé son droit à l'oubli sur le diplôme {diploma.id}.")
         return Response({
             "message": (
                 "Vos données personnelles ont été supprimées conformément au RGPD (Art. 17). "
                 "La preuve cryptographique sur la blockchain est conservée (Art. 17.3.b) "
                 "mais ne contient aucune information personnelle."
+            )
+        })
+
+
+class SchoolDiplomaErasureView(APIView):
+    """
+    RGPD Art. 17 – Effacement des données personnelles d’un diplôme par l’école émettrice.
+
+    Seul le propriétaire du diplôme (vérifié via user_id) peut effectuer cet effacement.
+    Le hash + la preuve blockchain sont conservés (Art. 17.3.b).
+
+    POST /api/school-diploma-erasure/
+      { "user_id": X, "diploma_id": Y, "confirm": true }
+    """
+    def post(self, request):
+        import uuid as uuid_lib
+        user_id    = request.data.get('user_id')
+        diploma_id = request.data.get('diploma_id')
+        confirm    = request.data.get('confirm', False)
+
+        if not user_id or not diploma_id or not confirm:
+            return Response({"error": "user_id, diploma_id et confirm=true requis."}, status=400)
+
+        try:
+            diploma = Diploma.objects.get(pk=diploma_id, owner_id=user_id)
+        except Diploma.DoesNotExist:
+            return Response({"error": "Diplôme introuvable ou non autorisé."}, status=404)
+
+        if diploma.first_name == '[Supprimé]':
+            return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
+
+        # Anonymisation RGPD Art. 17
+        diploma.first_name    = '[Supprimé]'
+        diploma.last_name     = '[Supprimé]'
+        diploma.student_email = None
+        if diploma.image:
+            try:
+                diploma.image.delete(save=False)
+            except Exception:
+                pass
+            diploma.image = None
+        if diploma.photo:
+            try:
+                diploma.photo.delete(save=False)
+            except Exception:
+                pass
+            diploma.photo = None
+        # Rotation de l'UUID
+        diploma.verification_uuid = uuid_lib.uuid4()
+        diploma.save()
+
+        logging.info(f"RGPD Art. 17 – École (user {user_id}) a effacé les données du diplôme {diploma.id}.")
+        return Response({
+            "message": (
+                "Les données personnelles du diplôme ont été supprimées (RGPD Art. 17). "
+                "La preuve blockchain est conservée (Art. 17.3.b)."
             )
         })
 

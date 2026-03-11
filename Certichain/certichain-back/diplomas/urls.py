@@ -4,7 +4,8 @@ from .views import (
     CreateDiplomaView, SearchDiplomaView, MyDiplomasView, ValidateDiplomaView,
     QuotaView, UpdateProfileView,
     SubscriptionPlansView, UpgradeSubscriptionView,
-    ExportDataView, DeleteAccountView, StudentErasureView,
+    ExportDataView, DeleteAccountView, StudentErasureView, StudentErasureConfirmView,
+    SchoolDiplomaErasureView,
     RevokeDiplomaView, VerifyBlockchainView, VerifyByUUIDView,
 )
 
@@ -21,9 +22,11 @@ urlpatterns = [
     path('plans/',      SubscriptionPlansView.as_view()),
     path('upgrade/',    UpgradeSubscriptionView.as_view()),
     # RGPD
-    path('export-data/',      ExportDataView.as_view()),
-    path('delete-account/',   DeleteAccountView.as_view()),
-    path('student-erasure/',  StudentErasureView.as_view()),
+    path('export-data/',             ExportDataView.as_view()),
+    path('delete-account/',          DeleteAccountView.as_view()),
+    path('student-erasure/',         StudentErasureView.as_view()),
+    path('student-erasure/confirm/', StudentErasureConfirmView.as_view()),
+    path('school-diploma-erasure/',  SchoolDiplomaErasureView.as_view()),
     # Blockchain
     path('revoke-diploma/',    RevokeDiplomaView.as_view()),
     path('verify-blockchain/', VerifyBlockchainView.as_view()),

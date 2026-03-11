@@ -14,8 +14,11 @@ const VerifyDiploma = () => {
   const [error, setError]     = useState(null);
 
   // Droit à l'oubli – état local
-  const [erasureStep, setErasureStep]   = useState('idle'); // 'idle'|'confirm'|'pending'|'done'|'error'
+  // étapes : 'idle' | 'confirm' | 'sending' | 'otp_sent' | 'verifying' | 'done' | 'error'
+  const [erasureStep, setErasureStep]   = useState('idle');
   const [erasureMsg, setErasureMsg]     = useState('');
+  const [emailMasked, setEmailMasked]   = useState('');
+  const [otpInput, setOtpInput]         = useState('');
 
   const doVerify = useCallback(async () => {
     setLoading(true);
@@ -36,27 +39,50 @@ const VerifyDiploma = () => {
 
   useEffect(() => { doVerify(); }, [doVerify]);
 
-  const handleErasure = async () => {
-    setErasureStep('pending');
+  // Étape 1 : demander l’envoi du code OTP
+  const handleRequestOtp = async () => {
+    setErasureStep('sending');
     try {
       const res  = await fetch('/api/student-erasure/', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ uuid, deletion_token: erasureToken, confirm: true }),
+        body:    JSON.stringify({ uuid, deletion_token: erasureToken }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEmailMasked(data.email_masked);
+        setErasureStep('otp_sent');
+      } else {
+        setErasureMsg(data.error || 'Une erreur est survenue.');
+        setErasureStep('error');
+      }
+    } catch {
+      setErasureMsg('Impossible de contacter le serveur.');
+      setErasureStep('error');
+    }
+  };
+
+  // Étape 2 : confirmer avec le code OTP reçu par email
+  const handleConfirmOtp = async () => {
+    setErasureStep('verifying');
+    try {
+      const res  = await fetch('/api/student-erasure/confirm/', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ uuid, deletion_token: erasureToken, otp: otpInput }),
       });
       const data = await res.json();
       if (res.ok) {
         setErasureStep('done');
         setErasureMsg(data.message);
-        // Recharger la page de vérification pour refléter l'état "données supprimées"
         await doVerify();
       } else {
-        setErasureStep('error');
-        setErasureMsg(data.error || 'Une erreur est survenue.');
+        setErasureMsg(data.error || 'Code invalide.');
+        setErasureStep('otp_sent'); // on reste sur la saisie pour réessayer
       }
     } catch {
-      setErasureStep('error');
       setErasureMsg('Impossible de contacter le serveur.');
+      setErasureStep('otp_sent');
     }
   };
 
@@ -281,15 +307,15 @@ const VerifyDiploma = () => {
                 <div style={{ marginTop: 14, fontSize: '0.85rem', color: '#475569' }}>
                   <p style={{ margin: '0 0 12px' }}>
                     En tant que titulaire de ce diplôme, vous pouvez demander la suppression
-                    de vos données personnelles (prénom, nom, date d'obtention, photo).
-                    Le hash cryptographique sera conservé sur la blockchain à titre
-                    de preuve historique, conformément à l'Art. 17.3.b du RGPD, mais
-                    sans les données sources il devient intraçable.
+                    de vos données personnelles (prénom, nom, photo). Le hash cryptographique
+                    sera conservé sur la blockchain (Art. 17.3.b du RGPD) mais sans les
+                    données sources il devient intraçable.
                   </p>
                   <p style={{ margin: '0 0 16px', color: '#dc2626', fontWeight: 600 }}>
-                    ⚠️ Cette action est irréversible. Le lien de ce diplôme sera aussi invalidé.
+                    ⚠️ Cette action est irréversible. Un code de confirmation vous sera envoyé par email.
                   </p>
 
+                  {/* Étape 1 : bouton initial */}
                   {erasureStep === 'idle' && (
                     <button
                       onClick={() => setErasureStep('confirm')}
@@ -299,17 +325,19 @@ const VerifyDiploma = () => {
                     </button>
                   )}
 
+                  {/* Étape 1b : confirmation avant envoi email */}
                   {erasureStep === 'confirm' && (
                     <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 16 }}>
                       <p style={{ margin: '0 0 14px', fontWeight: 600, color: '#991b1b' }}>
-                        Confirmez-vous la suppression définitive de vos données personnelles ?
+                        Un code de confirmation va être envoyé à votre adresse email enregistrée.
+                        Confirmez-vous cette demande ?
                       </p>
                       <div style={{ display: 'flex', gap: 10 }}>
                         <button
-                          onClick={handleErasure}
+                          onClick={handleRequestOtp}
                           style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
                         >
-                          Oui, supprimer définitivement
+                          Oui, envoyer le code
                         </button>
                         <button
                           onClick={() => setErasureStep('idle')}
@@ -321,12 +349,76 @@ const VerifyDiploma = () => {
                     </div>
                   )}
 
-                  {erasureStep === 'pending' && (
-                    <p style={{ color: '#64748b' }}>⏳ Suppression en cours…</p>
+                  {/* Envoi en cours */}
+                  {erasureStep === 'sending' && (
+                    <p style={{ color: '#64748b' }}>⏳ Envoi du code en cours…</p>
                   )}
 
+                  {/* Étape 2 : saisie du code OTP */}
+                  {erasureStep === 'otp_sent' && (
+                    <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: 16 }}>
+                      <p style={{ margin: '0 0 12px', color: '#9a3412', fontWeight: 600 }}>
+                        📧 Code envoyé à <strong>{emailMasked}</strong>
+                      </p>
+                      <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#64748b' }}>
+                        Saisissez le code à 6 chiffres reçu par email (valable 30 minutes).
+                        Si vous n'avez plus accès à cet email, contactez directement votre établissement.
+                      </p>
+                      {erasureMsg && (
+                        <p style={{ margin: '0 0 10px', color: '#dc2626', fontSize: '0.82rem' }}>⚠️ {erasureMsg}</p>
+                      )}
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="123456"
+                          value={otpInput}
+                          onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                          style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '1.1rem', letterSpacing: '0.2em', width: 110, textAlign: 'center' }}
+                        />
+                        <button
+                          onClick={handleConfirmOtp}
+                          disabled={otpInput.length !== 6}
+                          style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: otpInput.length === 6 ? 'pointer' : 'not-allowed', fontSize: '0.85rem', fontWeight: 600, opacity: otpInput.length === 6 ? 1 : 0.5 }}
+                        >
+                          Confirmer la suppression
+                        </button>
+                        <button
+                          onClick={() => { setErasureStep('idle'); setOtpInput(''); setErasureMsg(''); }}
+                          style={{ background: 'none', border: '1px solid #94a3b8', color: '#475569', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: '0.85rem' }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                      <p style={{ margin: '10px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                        Vous n'avez pas reçu le code ?{' '}
+                        <button
+                          onClick={() => { setOtpInput(''); setErasureMsg(''); handleRequestOtp(); }}
+                          style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.78rem', padding: 0 }}
+                        >
+                          Renvoyer
+                        </button>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Vérification en cours */}
+                  {erasureStep === 'verifying' && (
+                    <p style={{ color: '#64748b' }}>⏳ Vérification du code…</p>
+                  )}
+
+                  {/* Erreur générale (pas d'email enregistré, etc.) */}
                   {erasureStep === 'error' && (
-                    <p style={{ color: '#dc2626' }}>⚠️ {erasureMsg}</p>
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 14 }}>
+                      <p style={{ margin: '0 0 10px', color: '#dc2626' }}>⚠️ {erasureMsg}</p>
+                      <button
+                        onClick={() => { setErasureStep('idle'); setErasureMsg(''); }}
+                        style={{ background: 'none', border: '1px solid #94a3b8', color: '#475569', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem' }}
+                      >
+                        Retour
+                      </button>
+                    </div>
                   )}
                 </div>
               </details>

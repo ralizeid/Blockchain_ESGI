@@ -11,8 +11,9 @@ const IssuerDashboard = () => {
   const [myDiplomas, setMyDiplomas] = useState([]);
   const [selectedDiploma, setSelectedDiploma] = useState(null);
   const [msg, setMsg] = useState({ type: '', text: '' });
-  const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', dateNaissance: '', diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true });
+  const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', dateNaissance: '', studentEmail: '', diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true });
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
+  const [schoolErasureMsg, setSchoolErasureMsg] = useState({ type: '', text: '' });
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [quota, setQuota] = useState({ used: 0, limit: 0, remaining: 0, unlimited: false, has_plan: false, plan_name: '…', plan_level: 0 });
@@ -111,6 +112,7 @@ const IssuerDashboard = () => {
     data.append('course_name', formData.course_name);
     data.append('graduation_date', formData.dateObtention);
     if (formData.dateNaissance) data.append('date_of_birth', formData.dateNaissance);
+    if (formData.studentEmail)  data.append('student_email', formData.studentEmail);
     data.append('image', formData.diplomeFile);
     if (formData.photoFile) data.append('photo', formData.photoFile);
     if (!formData.never_expires && formData.expiry_date) {
@@ -285,6 +287,20 @@ const IssuerDashboard = () => {
                 <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} disabled={isLimitReached}/>
              </div>
              <div className="input-group">
+                <label className="input-label">Email de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – nécessaire pour le droit à l'oubli RGPD)</span></label>
+                <input
+                  className="input-field"
+                  type="email"
+                  placeholder="etudiant@exemple.fr"
+                  value={formData.studentEmail}
+                  onChange={e => setFormData({...formData, studentEmail: e.target.value})}
+                  disabled={isLimitReached}
+                />
+                <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
+                  Utilisé uniquement pour envoyer un code de confirmation lors d’une demande de suppression. Non exposé publiquement.
+                </small>
+             </div>
+             <div className="input-group">
                 <label className="input-label">Date d'expiration</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   <input
@@ -439,12 +455,47 @@ const IssuerDashboard = () => {
                     </div>
 
                     {revokeMsg.text && <div className={`msg-box msg-${revokeMsg.type}`} style={{marginTop:'15px'}}>{revokeMsg.text}</div>}
+                    {schoolErasureMsg.text && <div className={`msg-box msg-${schoolErasureMsg.type}`} style={{marginTop:'15px'}}>{schoolErasureMsg.text}</div>}
 
                     <div style={{marginTop: '30px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap'}}>
                          {selectedDiploma.image && (
                           <a href={selectedDiploma.image} target="_blank" rel="noopener noreferrer" className="btn-download" download>
                             📥 Document Original
                           </a>
+                        )}
+                        {selectedDiploma.first_name !== '[Supprimé]' && (
+                          <button
+                            className="btn"
+                            style={{width:'auto', background:'#b45309', color:'white', border:'none'}}
+                            onClick={async () => {
+                              setSchoolErasureMsg({ type: '', text: '' });
+                              if (!window.confirm(
+                                `Effacer les données personnelles du diplôme de ${selectedDiploma.first_name} ${selectedDiploma.last_name} ?\n\n` +
+                                `Cette action est irréversible : nom, prénom, fichiers et email seront supprimés.\n` +
+                                `La preuve blockchain est conservée (RGPD Art. 17.3.b).`
+                              )) return;
+                              try {
+                                const res = await fetch('/api/school-diploma-erasure/', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ user_id: userId, diploma_id: selectedDiploma.id, confirm: true }),
+                                });
+                                const data = await res.json();
+                                if (res.ok) {
+                                  setSchoolErasureMsg({ type: 'success', text: '✅ ' + data.message });
+                                  const erased = { ...selectedDiploma, first_name: '[Supprimé]', last_name: '[Supprimé]', image: null, photo: null };
+                                  setSelectedDiploma(erased);
+                                  setMyDiplomas(prev => prev.map(d => d.id === selectedDiploma.id ? erased : d));
+                                } else {
+                                  setSchoolErasureMsg({ type: 'error', text: data.error || "Erreur lors de l'effacement." });
+                                }
+                              } catch {
+                                setSchoolErasureMsg({ type: 'error', text: 'Erreur serveur.' });
+                              }
+                            }}
+                          >
+                            🗑️ Effacer les données RGPD
+                          </button>
                         )}
                         {selectedDiploma.blockchain_status === 'ANCHORED' && (
                           <button
@@ -475,7 +526,7 @@ const IssuerDashboard = () => {
                             🚫 Révoquer
                           </button>
                         )}
-                        <button className="btn btn-secondary" style={{width: 'auto'}} onClick={() => { setSelectedDiploma(null); setRevokeMsg({ type: '', text: '' }); }}>Retour</button>
+                        <button className="btn btn-secondary" style={{width: 'auto'}} onClick={() => { setSelectedDiploma(null); setRevokeMsg({ type: '', text: '' }); setSchoolErasureMsg({ type: '', text: '' }); }}>Retour</button>
                     </div>
                 </div>
             </div>

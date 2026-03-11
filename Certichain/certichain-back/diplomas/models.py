@@ -84,6 +84,14 @@ class Diploma(models.Model):
     # Token privé de suppression RGPD Art. 17 – NE doit PAS apparaître dans le QR Code public.
     # Seul l'établissement le connaît ; il le transmet directement à l'étudiant (email, courrier…).
     student_deletion_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    # Email étudiant – uniquement pour l'envoi du code de confirmation RGPD.
+    # N'est jamais exposé publiquement ni intégré dans le hash.
+    student_email = models.EmailField(blank=True, null=True, help_text="Email étudiant (envoi code OTP droit à l'oubli uniquement)")
+
+    # OTP de confirmation d'effacement (6 chiffres, valable 30 minutes)
+    erasure_otp            = models.CharField(max_length=6,  blank=True, null=True)
+    erasure_otp_expires_at = models.DateTimeField(blank=True, null=True)
     
     # Blockchain
     diploma_hash       = models.CharField(max_length=66, blank=True, null=True, help_text='SHA-256 pseudonymisé des données clés (préfixé 0x) – jamais de données perso en clair')
