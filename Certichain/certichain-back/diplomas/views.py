@@ -401,9 +401,9 @@ class SearchDiplomaView(APIView):
             return Response([])
         _auto_revoke_expired()
         if query.isdigit():
-            diplomas = Diploma.objects.filter(id=query, status__in=['VALIDATED', 'REVOKED'])
+            diplomas = Diploma.objects.select_related('owner').filter(id=query, status__in=['VALIDATED', 'REVOKED'])
         else:
-            diplomas = Diploma.objects.filter(last_name__icontains=query, status__in=['VALIDATED', 'REVOKED'])
+            diplomas = Diploma.objects.select_related('owner').filter(last_name__icontains=query, status__in=['VALIDATED', 'REVOKED'])
         # RGPD Art. 5.1.c – minimisation : on n'expose pas les tokens ni l'id propriétaire
         return Response(PublicDiplomaSerializer(diplomas, many=True).data)
 
@@ -574,6 +574,13 @@ class StudentErasureView(APIView):
             except Exception:
                 pass
             diploma.image = None
+        # Suppression de la photo d'identité si présente
+        if diploma.photo:
+            try:
+                diploma.photo.delete(save=False)
+            except Exception:
+                pass
+            diploma.photo = None
         # Rotation de l'UUID : l'ancien lien ne fonctionne plus, le nouveau est opaque
         diploma.verification_uuid = uuid_lib.uuid4()
         diploma.save()
@@ -671,7 +678,7 @@ class VerifyByUUIDView(APIView):
 
     def get(self, request, uuid):
         try:
-            diploma = Diploma.objects.get(verification_uuid=uuid)
+            diploma = Diploma.objects.select_related('owner').get(verification_uuid=uuid)
         except Diploma.DoesNotExist:
             return Response({"error": "Lien de vérification invalide ou révoqué."}, status=404)
 
@@ -691,7 +698,7 @@ class VerifyByUUIDView(APIView):
         return Response({
             "found":        True,
             "data_deleted": data_deleted,
-            "diploma":      PublicDiplomaSerializer(diploma).data,
+            "diploma":      PublicDiplomaSerializer(diploma, context={'request': request}).data,
             "blockchain":   bc_result,
         })
 

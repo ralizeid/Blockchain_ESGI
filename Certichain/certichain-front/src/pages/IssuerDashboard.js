@@ -11,7 +11,7 @@ const IssuerDashboard = () => {
   const [myDiplomas, setMyDiplomas] = useState([]);
   const [selectedDiploma, setSelectedDiploma] = useState(null);
   const [msg, setMsg] = useState({ type: '', text: '' });
-  const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', diplomeFile: null, course_name: '', expiry_date: '', never_expires: true });
+  const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', dateNaissance: '', diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true });
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -110,7 +110,9 @@ const IssuerDashboard = () => {
     data.append('last_name', formData.nom);
     data.append('course_name', formData.course_name);
     data.append('graduation_date', formData.dateObtention);
+    if (formData.dateNaissance) data.append('date_of_birth', formData.dateNaissance);
     data.append('image', formData.diplomeFile);
+    if (formData.photoFile) data.append('photo', formData.photoFile);
     if (!formData.never_expires && formData.expiry_date) {
       data.append('expiry_date', formData.expiry_date);
     }
@@ -279,6 +281,10 @@ const IssuerDashboard = () => {
                 <input className="input-field" type="date" max={today} onChange={e => setFormData({...formData, dateObtention: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
+                <label className="input-label">Date de naissance de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – identification anti-usurpation)</span></label>
+                <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} disabled={isLimitReached}/>
+             </div>
+             <div className="input-group">
                 <label className="input-label">Date d'expiration</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   <input
@@ -302,10 +308,30 @@ const IssuerDashboard = () => {
                 </div>
              </div>
              <div className="input-group">
-                <label className="input-label">Fichier (PDF ou Image)</label>
+                <label className="input-label">Fichier du diplôme (PDF, image…)</label>
                 <div className="file-upload-wrapper">
-                  <input type="file" onChange={e => setFormData({...formData, diplomeFile: e.target.files[0]})} required disabled={isLimitReached}/>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    onChange={e => setFormData({...formData, diplomeFile: e.target.files[0]})}
+                    required
+                    disabled={isLimitReached}
+                  />
                 </div>
+             </div>
+             <div className="input-group">
+                <label className="input-label">Photo d’identité de l’étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – JPEG, PNG)</span></label>
+                <div className="file-upload-wrapper">
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    onChange={e => setFormData({...formData, photoFile: e.target.files[0]})}
+                    disabled={isLimitReached}
+                  />
+                </div>
+                <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
+                  Utilisée pour détecter les usurpations d’identité lors de la vérification.
+                </small>
              </div>
              <button 
                 className="btn btn-primary" 

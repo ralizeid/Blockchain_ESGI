@@ -89,12 +89,37 @@ class DiplomaSerializer(serializers.ModelSerializer):
 # RGPD Art. 5.1.c – minimisation des données : seuls les champs publics sont exposés
 class PublicDiplomaSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    school_name    = serializers.SerializerMethodField()
+    image_url      = serializers.SerializerMethodField()
+    photo_url      = serializers.SerializerMethodField()
+
+    def get_school_name(self, obj):
+        return obj.owner.username if obj.owner_id else None
+
+    def _build_url(self, file_field):
+        if not file_field:
+            return None
+        try:
+            url = file_field.url
+        except Exception:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_image_url(self, obj):
+        return self._build_url(obj.image)
+
+    def get_photo_url(self, obj):
+        return self._build_url(obj.photo)
 
     class Meta:
         model = Diploma
         fields = [
-            'id', 'first_name', 'last_name', 'course_name', 'graduation_date',
-            'expiry_date',
+            'id', 'first_name', 'last_name', 'course_name',
+            'date_of_birth', 'graduation_date', 'expiry_date',
+            'school_name', 'image_url', 'photo_url',
             'status', 'status_display', 'diploma_hash', 'blockchain_tx_hash',
             'blockchain_status', 'created_at', 'verification_uuid',
         ]
