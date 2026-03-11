@@ -528,6 +528,68 @@ class DeleteAccountView(APIView):
         return Response({"message": "Votre compte et vos données personnelles ont été supprimés."})
 
 
+class StudentErasureView(APIView):
+    """
+    RGPD Art. 17 – Droit à l'oubli exercé par l'étudiant lui-même.
+
+    L'étudiant possède son verification_uuid (reçu par QR code / lien).
+    Cet UUID secret sert de preuve d'identité : seul le titulaire légitime le connaît.
+
+    POST /api/student-erasure/
+      { "uuid": "<verification_uuid>", "confirm": true }
+
+    Effet :
+      - Anonymise first_name, last_name, image → '[Supprimé]'
+      - Efface graduation_date → null
+      - Marque data_deleted = True
+      - Conserve diploma_hash + blockchain_* (preuve, Art. 17.3.b)
+      - Invalide l'UUID (rotation) → le lien de vérification ne divulgue plus rien
+    """
+    def post(self, request):
+        import uuid as uuid_lib
+        raw_uuid = request.data.get('uuid')
+        confirm  = request.data.get('confirm', False)
+
+        if not raw_uuid or not confirm:
+            return Response(
+                {"error": "uuid et confirm=true requis."},
+                status=400,
+            )
+
+        try:
+            diploma = Diploma.objects.get(verification_uuid=raw_uuid)
+        except Diploma.DoesNotExist:
+            return Response({"error": "Identifiant de diplôme invalide."}, status=404)
+
+        if diploma.first_name == '[Supprimé]':
+            return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
+
+        # Anonymisation RGPD Art. 17
+        diploma.first_name      = '[Supprimé]'
+        diploma.last_name       = '[Supprimé]'
+        # Suppression de l'image si présente
+        if diploma.image:
+            try:
+                diploma.image.delete(save=False)
+            except Exception:
+                pass
+            diploma.image = None
+        # Rotation de l'UUID : l'ancien lien ne fonctionne plus, le nouveau est opaque
+        diploma.verification_uuid = uuid_lib.uuid4()
+        diploma.save()
+
+        logging.info(
+            f"RGPD Art. 17 – Étudiant a exercé son droit à l'oubli sur le diplôme {diploma.id}."
+        )
+        return Response({
+            "message": (
+                "Vos données personnelles ont été supprimées conformément au RGPD (Art. 17). "
+                "La preuve cryptographique sur la blockchain est conservée (Art. 17.3.b) "
+                "mais ne contient aucune information personnelle."
+            )
+        })
+
+
 class RevokeDiplomaView(APIView):
     """
     Révoque un diplôme ancré sur la blockchain.

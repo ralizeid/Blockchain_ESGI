@@ -14,7 +14,7 @@ Start-Sleep -Seconds 5
 
 # Deploiement
 Write-Host ">>> Deploiement du contrat..." -ForegroundColor Yellow
-$deployOutput = npx hardhat run scripts/deploy.js --network localhost
+$deployOutput = npx hardhat run scripts/deploy.js --network localhost 2>&1 | Out-String
 $contractAddress = [regex]::Match($deployOutput, "0x[a-fA-F0-9]{40}").Value
 Write-Host ">>> ADRESSE : $contractAddress" -ForegroundColor Green
 
@@ -26,21 +26,29 @@ Set-Location "certichain-back"
 # Copie ABI
 $abiPath = "diplomas"
 if (!(Test-Path $abiPath)) { New-Item -ItemType Directory -Path $abiPath }
-Copy-Item "..\certichain-blockchain\artifacts\contracts\CertiChainSBT.sol\CertiChainSBT.json" -Destination "$abiPath\"
+Copy-Item "..\certichain-blockchain\artifacts\contracts\CertiChainSBT.sol\CertiChainSBT.json" -Destination "$abiPath\" -Force
 
-$pyFile = "diplomas\web3_service.py"
-$content = Get-Content $pyFile
-$newContent = $content -replace 'CONTRACT_ADDRESS = .*', "CONTRACT_ADDRESS = `"$contractAddress`""
-$newContent | Set-Content $pyFile
+# Mise a jour de l'adresse du contrat dans .env (plus dans web3_service.py)
+if ($contractAddress -ne "") {
+    $envFile = ".env"
+    $envContent = Get-Content $envFile -Raw
+    $envContent = $envContent -replace 'BLOCKCHAIN_CONTRACT_ADDRESS=.*', "BLOCKCHAIN_CONTRACT_ADDRESS=$contractAddress"
+    Set-Content $envFile $envContent
+    Write-Host ">>> .env mis a jour avec l'adresse $contractAddress" -ForegroundColor Green
+} else {
+    Write-Host ">>> ATTENTION : adresse du contrat non detectee, .env inchange" -ForegroundColor Red
+}
 
-# Lancement Django
-$djangoCmd = "python -m venv venv; " +
-             ".\venv\Scripts\activate; " +
-             "pip install -r requirements.txt web3; " +
-             "python manage.py makemigrations; " +
-             "python manage.py migrate; " +
-             "python manage.py runserver 0.0.0.0:8000"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "$djangoCmd"
+# Lancement Django avec le venv racine (evite les problemes de pydantic_core)
+$rootVenvPython = "C:\Users\psgma\Documents\Blockchain_ESGI\.venv\Scripts\python.exe"
+$rootVenvPip    = "C:\Users\psgma\Documents\Blockchain_ESGI\.venv\Scripts\pip.exe"
+$backendDir     = "C:\Users\psgma\Documents\Blockchain_ESGI\Certichain\certichain-back"
+$djangoCmd = "Set-Location '$backendDir'; " +
+             "& '$rootVenvPip' install -r requirements.txt web3 --no-cache-dir -q; " +
+             "& '$rootVenvPython' manage.py makemigrations; " +
+             "& '$rootVenvPython' manage.py migrate; " +
+             "& '$rootVenvPython' manage.py runserver 0.0.0.0:8000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", $djangoCmd
 
 # 3. FRONTEND (React)
 Set-Location ".."

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import '../App.css';
 
@@ -8,24 +8,52 @@ const VerifyDiploma = () => {
   const [result, setResult]   = useState(null);
   const [error, setError]     = useState(null);
 
-  useEffect(() => {
-    const verify = async () => {
-      try {
-        const res = await fetch(`/api/verify/${uuid}/`);
-        if (res.status === 404) {
-          setError("Ce lien de vérification est invalide ou n'existe pas.");
-        } else {
-          const data = await res.json();
-          setResult(data);
-        }
-      } catch {
-        setError("Impossible de contacter le serveur de vérification.");
-      } finally {
-        setLoading(false);
+  // Droit à l'oubli – état local
+  const [erasureStep, setErasureStep]   = useState('idle'); // 'idle'|'confirm'|'pending'|'done'|'error'
+  const [erasureMsg, setErasureMsg]     = useState('');
+
+  const doVerify = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/verify/${uuid}/`);
+      if (res.status === 404) {
+        setError("Ce lien de vérification est invalide ou n'existe pas.");
+      } else {
+        const data = await res.json();
+        setResult(data);
       }
-    };
-    verify();
+    } catch {
+      setError("Impossible de contacter le serveur de vérification.");
+    } finally {
+      setLoading(false);
+    }
   }, [uuid]);
+
+  useEffect(() => { doVerify(); }, [doVerify]);
+
+  const handleErasure = async () => {
+    setErasureStep('pending');
+    try {
+      const res  = await fetch('/api/student-erasure/', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ uuid, confirm: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setErasureStep('done');
+        setErasureMsg(data.message);
+        // Recharger la page de vérification pour refléter l'état "données supprimées"
+        await doVerify();
+      } else {
+        setErasureStep('error');
+        setErasureMsg(data.error || 'Une erreur est survenue.');
+      }
+    } catch {
+      setErasureStep('error');
+      setErasureMsg('Impossible de contacter le serveur.');
+    }
+  };
 
   if (loading) {
     return (
@@ -199,6 +227,74 @@ const VerifyDiploma = () => {
               demande de l'établissement ou de l'étudiant. Le hash cryptographique
               reste sur la blockchain à titre de preuve historique, mais sans les
               données d'entrée aucune vérification d'identité n'est plus possible.
+            </div>
+          )}
+
+          {/* ── Droit à l'oubli étudiant (RGPD Art. 17) ── */}
+          {!isDeleted && erasureStep !== 'done' && (
+            <div style={{ marginTop: 28, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
+              <details>
+                <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: '#64748b', userSelect: 'none' }}>
+                  🛡️ Exercer mon droit à l'oubli (RGPD Art. 17)
+                </summary>
+                <div style={{ marginTop: 14, fontSize: '0.85rem', color: '#475569' }}>
+                  <p style={{ margin: '0 0 12px' }}>
+                    En tant que titulaire de ce diplôme, vous pouvez demander la suppression
+                    de vos données personnelles (prénom, nom, date d'obtention, photo).
+                    Le hash cryptographique sera conservé sur la blockchain à titre
+                    de preuve historique, conformément à l'Art. 17.3.b du RGPD, mais
+                    sans les données sources il devient intraçable.
+                  </p>
+                  <p style={{ margin: '0 0 16px', color: '#dc2626', fontWeight: 600 }}>
+                    ⚠️ Cette action est irréversible. Le lien de ce diplôme sera aussi invalidé.
+                  </p>
+
+                  {erasureStep === 'idle' && (
+                    <button
+                      onClick={() => setErasureStep('confirm')}
+                      style={{ background: 'none', border: '1px solid #dc2626', color: '#dc2626', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      Demander la suppression de mes données
+                    </button>
+                  )}
+
+                  {erasureStep === 'confirm' && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 16 }}>
+                      <p style={{ margin: '0 0 14px', fontWeight: 600, color: '#991b1b' }}>
+                        Confirmez-vous la suppression définitive de vos données personnelles ?
+                      </p>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={handleErasure}
+                          style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                        >
+                          Oui, supprimer définitivement
+                        </button>
+                        <button
+                          onClick={() => setErasureStep('idle')}
+                          style={{ background: 'none', border: '1px solid #94a3b8', color: '#475569', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontSize: '0.85rem' }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {erasureStep === 'pending' && (
+                    <p style={{ color: '#64748b' }}>⏳ Suppression en cours…</p>
+                  )}
+
+                  {erasureStep === 'error' && (
+                    <p style={{ color: '#dc2626' }}>⚠️ {erasureMsg}</p>
+                  )}
+                </div>
+              </details>
+            </div>
+          )}
+
+          {erasureStep === 'done' && (
+            <div style={{ marginTop: 20, padding: 16, background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, color: '#166534', fontSize: '0.85rem' }}>
+              ✅ {erasureMsg}
             </div>
           )}
         </div>
