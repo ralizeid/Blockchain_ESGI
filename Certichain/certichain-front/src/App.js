@@ -10,6 +10,7 @@ import Validate from './pages/Validate';
 import SchoolProfile from './pages/SchoolProfile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import VerifyDiploma from './pages/VerifyDiploma';
+import RectoratDashboard from './pages/RectoratDashboard';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -55,6 +56,8 @@ function App() {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           {/* Vérification publique par UUID étudiant (QR Code) */}
           <Route path="/verify/:uuid" element={<VerifyDiploma />} />
+          {/* Tableau de bord Rectorat (public, auth via MetaMask) */}
+          <Route path="/rectorat" element={<RectoratDashboard />} />
         </Routes>
       </div>
     </Router>
