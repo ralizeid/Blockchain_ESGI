@@ -78,8 +78,12 @@ class Diploma(models.Model):
     rectorate_email_snapshot = models.EmailField(blank=True, null=True) # On garde une trace de qui a validé
 
     # Lien étudiant – UUID opaque transmis à l'étudiant (QR Code / lien de vérification)
-    # N'est PAS intégré dans le hash : c'est un simple lookuptoken, jamais devinable
+    # N'est PAS intégré dans le hash : c'est un simple lookup token, jamais devinable
     verification_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    # Token privé de suppression RGPD Art. 17 – NE doit PAS apparaître dans le QR Code public.
+    # Seul l'établissement le connaît ; il le transmet directement à l'étudiant (email, courrier…).
+    student_deletion_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     
     # Blockchain
     diploma_hash       = models.CharField(max_length=66, blank=True, null=True, help_text='SHA-256 pseudonymisé des données clés (préfixé 0x) – jamais de données perso en clair')

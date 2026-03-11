@@ -547,12 +547,13 @@ class StudentErasureView(APIView):
     """
     def post(self, request):
         import uuid as uuid_lib
-        raw_uuid = request.data.get('uuid')
-        confirm  = request.data.get('confirm', False)
+        raw_uuid       = request.data.get('uuid')
+        deletion_token = request.data.get('deletion_token')
+        confirm        = request.data.get('confirm', False)
 
-        if not raw_uuid or not confirm:
+        if not raw_uuid or not deletion_token or not confirm:
             return Response(
-                {"error": "uuid et confirm=true requis."},
+                {"error": "uuid, deletion_token et confirm=true requis."},
                 status=400,
             )
 
@@ -560,6 +561,13 @@ class StudentErasureView(APIView):
             diploma = Diploma.objects.get(verification_uuid=raw_uuid)
         except Diploma.DoesNotExist:
             return Response({"error": "Identifiant de diplôme invalide."}, status=404)
+
+        # Vérification du token privé – les recruteurs ne l'ont jamais
+        if str(diploma.student_deletion_token) != str(deletion_token):
+            return Response(
+                {"error": "Token de suppression invalide. Seul l'étudiant titulaire peut exercer ce droit."},
+                status=403,
+            )
 
         if diploma.first_name == '[Supprimé]':
             return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)

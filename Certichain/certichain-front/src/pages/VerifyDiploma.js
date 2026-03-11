@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import '../App.css';
 
 const VerifyDiploma = () => {
-  const { uuid } = useParams();
+  const { uuid }                   = useParams();
+  const [searchParams]             = useSearchParams();
+  // Ce token n'est présent que dans le lien privé transmis à l'étudiant.
+  // Le QR code public ne le contient jamais → les recruteurs ne voient pas le bouton.
+  const erasureToken               = searchParams.get('erase');
+
   const [loading, setLoading] = useState(true);
   const [result, setResult]   = useState(null);
   const [error, setError]     = useState(null);
@@ -37,7 +42,7 @@ const VerifyDiploma = () => {
       const res  = await fetch('/api/student-erasure/', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ uuid, confirm: true }),
+        body:    JSON.stringify({ uuid, deletion_token: erasureToken, confirm: true }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -266,8 +271,8 @@ const VerifyDiploma = () => {
             </div>
           )}
 
-          {/* ── Droit à l'oubli étudiant (RGPD Art. 17) ── */}
-          {!isDeleted && erasureStep !== 'done' && (
+          {/* ── Droit à l'oubli étudiant (RGPD Art. 17) ── visible uniquement avec le lien privé */}
+          {!isDeleted && erasureStep !== 'done' && erasureToken && (
             <div style={{ marginTop: 28, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
               <details>
                 <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: '#64748b', userSelect: 'none' }}>
