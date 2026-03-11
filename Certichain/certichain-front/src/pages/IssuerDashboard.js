@@ -369,10 +369,11 @@ const IssuerDashboard = () => {
 
                     {/* QR Code de vérification étudiant */}
                     {selectedDiploma.verification_uuid && (() => {
-                      const verifyUrl = `${window.location.origin}/verify/${selectedDiploma.verification_uuid}`;
+                      const verifyUrl  = `${window.location.origin}/verify/${selectedDiploma.verification_uuid}`;
+                      const erasureUrl = `${verifyUrl}?erase=${selectedDiploma.student_deletion_token}`;
                       return (
                         <div style={{ margin: '20px 0', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                          <h4 style={{ margin: '0 0 12px', color: '#334155', fontSize: '0.9rem' }}>📱 Lien de vérification étudiant</h4>
+                          <h4 style={{ margin: '0 0 12px', color: '#334155', fontSize: '0.9rem' }}>📱 Lien de vérification étudiant (public)</h4>
                           <QRCodeSVG value={verifyUrl} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
                           <div style={{ fontSize: '0.75rem', color: '#64748b', wordBreak: 'break-all', marginBottom: '10px', fontFamily: 'monospace' }}>{verifyUrl}</div>
                           <button
@@ -382,6 +383,26 @@ const IssuerDashboard = () => {
                           >
                             {copiedLink ? '✅ Copié !' : '📋 Copier le lien'}
                           </button>
+
+                          {/* Lien privé RGPD – à transmettre uniquement à l'étudiant, jamais dans le QR code */}
+                          {selectedDiploma.student_deletion_token && (
+                            <div style={{ marginTop: 16, padding: '12px', background: '#fff7ed', borderRadius: '6px', border: '1px solid #fed7aa', textAlign: 'left' }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#9a3412', marginBottom: 6 }}>
+                                🔐 Lien privé RGPD (droit à l'oubli) — à transmettre uniquement à l'étudiant
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#64748b', wordBreak: 'break-all', fontFamily: 'monospace', marginBottom: 8 }}>{erasureUrl}</div>
+                              <button
+                                className="btn btn-secondary"
+                                style={{ width: 'auto', padding: '4px 12px', fontSize: '0.78rem' }}
+                                onClick={() => navigator.clipboard.writeText(erasureUrl)}
+                              >
+                                📋 Copier le lien privé
+                              </button>
+                              <div style={{ marginTop: 6, fontSize: '0.72rem', color: '#b45309', fontStyle: 'italic' }}>
+                                ⚠️ Ne pas inclure dans le QR code public — ce lien permet la suppression définitive des données.
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
