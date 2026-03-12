@@ -2,165 +2,145 @@
 
 > **La blockchain au service de la fiabilité des diplômes.**
 
-## Présentation
+CertiChain est une plateforme de certification de diplômes basée sur la blockchain. Les établissements émettent des diplômes dont le hash cryptographique est ancré on-chain. N'importe qui peut vérifier l'authenticité d'un diplôme via un lien ou un QR code, sans contacter l'école.
 
-**CertiChain** est une solution conçue pour restaurer la confiance numérique dans les certifications académiques face à la croissance de la falsification de documents.
+**Stack :** React 19 · Django 5 + DRF · Hardhat / Solidity · ethers.js 6 · MetaMask
 
-L'objectif est de fournir une "source unique de vérité" infalsifiable, permettant aux établissements d'enregistrer des diplômes et aux recruteurs d'en vérifier l'authenticité instantanément, en remplaçant des processus manuels longs et coûteux.
+---
 
-## Fonctionnalités clés (MVP)
+## Table des matières
 
-- **Authenticité et intégrité** : Enregistrement de l'empreinte cryptographique (hash) des documents sur blockchain.
-- **Interface émetteur** : Portail d'administration pour les écoles et universités pour certifier les documents.
-- **Interface vérificateur** : Portail public permettant à un recruteur de vérifier la validité d'un diplôme en quelques secondes.
-- **Soulbound Tokens (SBT)** : Tokens non-transférables garantissant que le diplôme reste attaché à son titulaire légitime.
-- **Conformité RGPD** : Aucune donnée personnelle stockée en clair sur la blockchain (Privacy by Design). Droit d'accès, de portabilité et d'effacement disponibles depuis le profil.
+1. [Prérequis](#1-prérequis)
+2. [Lancement](#2-lancement)
+3. [Configuration `.env`](#3-configuration-env)
+4. [MetaMask](#4-metamask)
+5. [Emails et OTP](#5-emails-et-otp)
+6. [Déploiement Docker](#6-déploiement-docker)
+7. [L'équipe](#7-léquipe)
 
-## Stack technique
+---
 
-| Couche | Technologie |
+## 1. Prérequis
+
+| Outil | Version minimale |
 |---|---|
-| Blockchain | Hardhat (local) / Polygon PoS (prod), Solidity |
-| Backend | Django 5 + Django REST Framework |
-| Frontend | React 19, react-router-dom 7, ethers.js 6 |
-| Base de données | SQLite (dev) |
+| Python | 3.11+ |
+| Node.js | 18+ |
+| MetaMask | extension navigateur |
 
 ---
 
-## Lancement du projet
+## 2. Lancement
 
-Les trois composants doivent être démarrés dans l'ordre : **Blockchain → Backend → Frontend**.
-
-### Étape 1 — Blockchain (Hardhat)
-
-Ouvrez **deux terminaux** dans `certichain-blockchain/`.
-
-**Terminal 1 — Démarrer le nœud local :**
-```bash
-cd certichain-blockchain
-npm install
-npx hardhat node --hostname 0.0.0.0
+```powershell
+.\setup_Win.ps1
 ```
-> Ce terminal simule la blockchain et doit rester ouvert. Le compte #0 affiché sera utilisé par le backend pour payer les frais de gaz.
 
-**Terminal 2 — Déployer le smart contract :**
-```bash
-cd certichain-blockchain
-npx hardhat run scripts/deploy.js --network localhost
-```
-> ⚠️ Notez l'adresse du contrat affichée (ex : `0x5FbDB2315678afecb367f032d93F642f64180aa3`).
+Au démarrage, le script demande si vous souhaitez **réinitialiser la base de données**.  
+Répondre `o` / `oui` / `y` supprime `db.sqlite3` et toutes les migrations (sauf `__init__.py`) — utile pour repartir d'une base propre. Toute autre réponse conserve les données existantes.
+
+Le script lance ensuite les trois services dans des fenêtres séparées et met à jour `.env` avec l'adresse du contrat déployé automatiquement.
 
 ---
 
-### Étape 2 — Backend (Django)
+## 3. Configuration `.env`
 
-**1. Installer les dépendances Python :**
-```bash
-cd certichain-back
-python3 -m venv venv
-source venv/bin/activate   # Windows : venv\Scripts\activate
-pip install -r requirements.txt web3
+Fichier : `Certichain/certichain-back/.env`
+
+```env
+DEBUG=True
+ALLOWED_HOSTS=*
+FRONTEND_URL=http://localhost:3000
+
+BLOCKCHAIN_RPC_URL=http://localhost:8545
+BLOCKCHAIN_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+BLOCKCHAIN_CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+# Laisser vide = emails dans le terminal (dev)
+# Remplir = vrai envoi SMTP Gmail (prod) — voir §5
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
+
+# PostgreSQL — uniquement Docker/prod (ignoré en local, SQLite utilisé par défaut)
+# POSTGRES_HOST=db
+# POSTGRES_DB=certichain_db
+# POSTGRES_USER=admin
+# POSTGRES_PASSWORD=
 ```
-
-**2. Configurer le lien Web3 :**
-
-- Copier l'ABI du contrat généré par Hardhat vers le backend :
-  ```bash
-  cp ../certichain-blockchain/artifacts/contracts/CertiChainSBT.sol/CertiChainSBT.json diplomas/
-  ```
-- Dans `diplomas/web3_service.py`, vérifier que `CONTRACT_ADDRESS` correspond bien à l'adresse obtenue à l'étape 1.
-
-**3. Initialiser la base de données et démarrer le serveur :**
-```bash
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
-```
-> Les liens de validation de diplômes s'affichent directement dans ce terminal (simulation d'envoi d'email).
 
 ---
 
-### Étape 3 — Frontend (React)
+## 4. MetaMask
 
-```bash
-cd certichain-front
-npm install
-npm start
-```
+### Ajouter le réseau Hardhat local
 
-L'application est accessible sur [http://localhost:3000](http://localhost:3000). Les appels API sont automatiquement proxifiés vers `http://localhost:8000`.
-
----
-
-## Configuration MetaMask
-
-### Pourquoi MetaMask ?
-
-CertiChain utilise un système de **double signature cryptographique** (école + rectorat). Chaque validateur signe le hash du diplôme avec son propre wallet MetaMask — la clé privée ne quitte jamais le navigateur. Le backend vérifie la signature via `ecrecover` et ancre les deux adresses publiques sur la blockchain.
-
-> **Architecture gasless** : l'école et le rectorat signent gratuitement (hors-chaîne). C'est le compte CertiChain (défini dans `.env`) qui paie les frais de transaction blockchain.
-
----
-
-### 1 — Ajouter le réseau Hardhat local
-
-1. Ouvrez MetaMask → **Paramètres** → **Réseaux** → **Ajouter un réseau manuellement**
-2. Renseignez :
+MetaMask → sélecteur de réseau → **Ajouter un réseau manuellement** :
 
 | Champ | Valeur |
 |---|---|
-| Nom du réseau | `Hardhat Local` |
+| Nom | `Hardhat Local` |
 | URL RPC | `http://127.0.0.1:8545` |
-| ID de chaîne | `31337` |
+| Chain ID | `31337` |
 | Symbole | `ETH` |
 
----
+### Comptes de test
 
-### 2 — Importer les comptes de test Hardhat
+MetaMask → icône compte → **Importer un compte** → coller la clé privée.
 
-Ces comptes sont affichés dans le terminal `npx hardhat node`. Ils ont 10 000 ETH fictifs et sont **publiquement connus** — ne les utilisez jamais en production.
-
-**Importer dans MetaMask :** icône compte → **Ajouter un compte** → **Importer un compte** → coller la clé privée.
-
-| Rôle | Adresse publique | Clé privée (test uniquement) |
+| Rôle | Adresse | Clé privée |
 |---|---|---|
 | École (Account #0) | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
 | Rectorat (Account #1) | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d` |
 
-> **Adresse publique vs clé privée** : l'adresse publique (`0x...` visible dans MetaMask sur l'écran principal) est sans risque à partager. La clé privée ne doit jamais être communiquée.
+> ⚠️ Ces comptes sont publiquement connus — **jamais en production**.
+
+### Problème "Nonce incorrect" après redémarrage Hardhat
+
+MetaMask → Paramètres → Avancé → **Effacer les données d'activité et nonce** (pour chaque compte importé).
 
 ---
 
-### 3 — Renseigner les adresses dans CertiChain
+## 5. Emails et OTP
 
-Lors de l'inscription ou depuis **Profil → Wallet & Profil** :
+Chaque action critique (émettre un diplôme, révoquer, modifier le profil, changer le mot de passe, supprimer le compte…) envoie un **code OTP à 6 chiffres valable 10 minutes** sur l'email du compte.
 
-- **Adresse MetaMask de l'école** : l'adresse publique du wallet qui signera côté école
-- **Adresse MetaMask du Rectorat** : l'adresse publique du wallet partenaire
+**En développement** (pas de SMTP configuré) : le code s'affiche dans le terminal Django, cherchez :
 
-Seul le wallet dont l'adresse est enregistrée pourra valider les diplômes. Toute tentative de signature avec un autre wallet sera rejetée (HTTP 403).
+```
+Votre code de validation est : 483921
+```
 
----
+**En production** (Gmail SMTP) :
 
-## Scénario de test (double signature)
+1. myaccount.google.com → Sécurité → activer la validation en deux étapes
+2. Sécurité → **Mots de passe des applications** → Autre → `CertiChain` → Générer
+3. Copiez le code de 16 caractères dans le `.env` :
 
-1. Créer un compte établissement — renseigner les deux adresses publiques MetaMask.
-2. Se connecter → **IssuerDashboard** → créer un diplôme.
-3. **Validation École** :
-   - Sélectionner Account #0 dans MetaMask
-   - Ouvrir le lien école affiché dans le terminal Django
-   - Cliquer **"🦊 Connecter et Signer"** → approuver dans MetaMask → **"Valider"**
-4. **Validation Rectorat** :
-   - Switcher sur Account #1 dans MetaMask
-   - Ouvrir le lien rectorat → même opération
-5. Le diplôme passe en **VALIDATED + ANCHORED** avec les deux adresses gravées on-chain.
-6. Scanner le QR code ou ouvrir `/verify/<uuid>` → **✅ DIPLÔME AUTHENTIQUE** avec les deux adresses co-signataires.
+```env
+EMAIL_HOST_USER=votre@gmail.com
+EMAIL_HOST_PASSWORD=abcdabcdabcdabcd
+```
 
 ---
 
-## L'équipe
+## 6. Déploiement Docker
 
-- Julien ATTARD
-- Mohammed KADDOURI
-- Ayman GAYES
-- Rayan ALIZEID
-- Aurélien LOGEAIS
+```bash
+# Créer le .env à la racine (voir §3, ajouter SECRET_KEY et POSTGRES_*)
+docker compose up --build -d
+docker compose exec backend python manage.py migrate
+```
+
+Pour la production, déployez le contrat sur Polygon et mettez à jour `BLOCKCHAIN_RPC_URL` et `BLOCKCHAIN_CONTRACT_ADDRESS`.
+
+---
+
+## 7. L'équipe
+
+| Nom |
+|---|
+| Julien ATTARD |
+| Mohammed KADDOURI |
+| Ayman GAYES |
+| Rayan ALIZEID |
+| Aurélien LOGEAIS |

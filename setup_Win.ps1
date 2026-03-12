@@ -2,6 +2,24 @@ $ErrorActionPreference = "Continue"
 
 Write-Host "--- DEMARRAGE DU PROJET CERTICHAIN ---" -ForegroundColor Cyan
 
+# 0. RESET BASE DE DONNEES
+$reset = Read-Host "Reinitialiser la base de donnees ? Cela supprimera les migrations et db.sqlite3 [o/N]"
+if ($reset -match '^(o|oui|y|yes)$') {
+    Write-Host ">>> Suppression des migrations et de la base de donnees..." -ForegroundColor Red
+
+    $migrationsPath = "Certichain\certichain-back\diplomas\migrations"
+    Get-ChildItem -Path $migrationsPath -File |
+        Where-Object { $_.Name -ne "__init__.py" } |
+        Remove-Item -Force
+
+    $dbPath = "Certichain\certichain-back\db.sqlite3"
+    if (Test-Path $dbPath) { Remove-Item $dbPath -Force }
+
+    Write-Host ">>> Base de donnees et migrations supprimees." -ForegroundColor Green
+} else {
+    Write-Host ">>> Base de donnees conservee." -ForegroundColor DarkGray
+}
+
 Set-Location "Certichain"
 
 # Option : reset des donnees locales (DB + medias)
