@@ -1,6 +1,7 @@
 ﻿import React, { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../App.css';
+import OTPModal from '../components/OTPModal';
 
 const PLAN_COLORS = {
   STARTER:  '#3b82f6',
@@ -39,6 +40,8 @@ const SchoolProfile = () => {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [profileMsg, setProfileMsg]       = useState({ type: '', text: '' });
   const [passwordMsg, setPasswordMsg]     = useState({ type: '', text: '' });
+  const [otpModal, setOtpModal]           = useState({ open: false });
+  const closeOTPModal = () => setOtpModal({ open: false });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -99,28 +102,43 @@ const SchoolProfile = () => {
     }
   };
 
-  const handleProfileSave = async () => {
+  const handleProfileSave = () => {
+    setOtpModal({
+      open: true,
+      userId,
+      actionType: 'UPDATE_PROFILE',
+      title: '\uD83D\uDCBE Enregistrer les modifications',
+      message: "Mettre à jour les informations de l'établissement ?",
+      details: 'Un code de validation sera envoyé à votre email.',
+      onConfirm: (otpCode) => doProfileSave(otpCode),
+    });
+  };
+
+  const doProfileSave = async (otpCode) => {
     setProfileSaving(true);
     setProfileMsg({ type: '', text: '' });
     try {
       const res  = await fetch('/api/update-profile/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, ...profileForm }),
+        body: JSON.stringify({ user_id: userId, ...profileForm, otp_code: otpCode }),
       });
       const data = await res.json();
       if (res.ok) {
+        closeOTPModal();
         setProfileMsg({ type: 'success', text: data.message });
+        return { ok: true };
       } else {
-        setProfileMsg({ type: 'error', text: data.error || 'Erreur.' });
+        return { ok: false, error: data.error || 'Erreur.' };
       }
     } catch {
-      setProfileMsg({ type: 'error', text: 'Erreur serveur.' });
+      return { ok: false, error: 'Erreur serveur.' };
+    } finally {
+      setProfileSaving(false);
     }
-    setProfileSaving(false);
   };
 
-  const handlePasswordSave = async () => {
+  const handlePasswordSave = () => {
     setPasswordMsg({ type: '', text: '' });
     if (passwordForm.new_password !== passwordForm.confirm_password) {
       setPasswordMsg({ type: 'error', text: 'Les mots de passe ne correspondent pas.' });
@@ -130,6 +148,18 @@ const SchoolProfile = () => {
       setPasswordMsg({ type: 'error', text: 'Le mot de passe doit contenir au moins 8 caractères.' });
       return;
     }
+    setOtpModal({
+      open: true,
+      userId,
+      actionType: 'CHANGE_PASSWORD',
+      title: '\uD83D\uDD12 Modifier le mot de passe',
+      message: 'Confirmer le changement de mot de passe ?',
+      details: "Assurez-vous d'avoir bien mémorisé votre nouveau mot de passe.",
+      onConfirm: (otpCode) => doPasswordSave(otpCode),
+    });
+  };
+
+  const doPasswordSave = async (otpCode) => {
     setPasswordSaving(true);
     try {
       const res  = await fetch('/api/update-profile/', {
@@ -139,19 +169,23 @@ const SchoolProfile = () => {
           user_id:          userId,
           current_password: passwordForm.current_password,
           new_password:     passwordForm.new_password,
+          otp_code:         otpCode,
         }),
       });
       const data = await res.json();
       if (res.ok) {
+        closeOTPModal();
         setPasswordMsg({ type: 'success', text: 'Mot de passe modifié avec succès.' });
         setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+        return { ok: true };
       } else {
-        setPasswordMsg({ type: 'error', text: data.error || 'Erreur.' });
+        return { ok: false, error: data.error || 'Erreur.' };
       }
     } catch {
-      setPasswordMsg({ type: 'error', text: 'Erreur serveur.' });
+      return { ok: false, error: 'Erreur serveur.' };
+    } finally {
+      setPasswordSaving(false);
     }
-    setPasswordSaving(false);
   };
 
   const handleExportData = async () => {
@@ -171,24 +205,25 @@ const SchoolProfile = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
+  const handleDeleteAccount = async (otpCode) => {
     setDeleteMsg({ type: '', text: '' });
     try {
       const res  = await fetch('/api/delete-account/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, confirm: true }),
+        body: JSON.stringify({ user_id: userId, confirm: true, otp_code: otpCode }),
       });
       const data = await res.json();
       if (res.ok) {
         setDeleteStep(2);
-        setDeleteMsg({ type: 'success', text: data.message });
+        setShowDeleteModal(true);
         setTimeout(() => { localStorage.clear(); navigate('/'); window.location.reload(); }, 3000);
+        return { ok: true };
       } else {
-        setDeleteMsg({ type: 'error', text: data.error || 'Erreur.' });
+        return { ok: false, error: data.error || 'Erreur.' };
       }
     } catch {
-      setDeleteMsg({ type: 'error', text: 'Erreur serveur.' });
+      return { ok: false, error: 'Erreur serveur.' };
     }
   };
 
@@ -881,7 +916,18 @@ const SchoolProfile = () => {
                   <button
                     className="btn"
                     style={{ flex: 1, background: '#dc2626', color: 'white', border: 'none' }}
-                    onClick={handleDeleteAccount}
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setOtpModal({
+                        open: true,
+                        userId,
+                        actionType: 'DELETE_ACCOUNT',
+                        title: '\uD83D\uDDD1\uFE0F Supprimer mon compte',
+                        message: 'Confirmer définitivement la suppression de votre compte.',
+                        details: 'Cette action est irréversible. Toutes vos données personnelles seront effacées. Les diplômes validés seront anonymisés.',
+                        onConfirm: (otpCode) => handleDeleteAccount(otpCode),
+                      });
+                    }}
                   >
                     Confirmer la suppression
                   </button>
@@ -897,6 +943,16 @@ const SchoolProfile = () => {
         </div>
       )}
 
+      <OTPModal
+        open={!!otpModal.open}
+        userId={otpModal.userId}
+        actionType={otpModal.actionType}
+        title={otpModal.title || ''}
+        message={otpModal.message || ''}
+        details={otpModal.details || null}
+        onConfirm={otpModal.onConfirm}
+        onCancel={closeOTPModal}
+      />
     </div>
   );
 };

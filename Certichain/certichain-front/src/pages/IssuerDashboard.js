@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import '../App.css';
+import OTPModal from '../components/OTPModal';
 
 const PLAN_COLORS = { STARTER: '#3b82f6', STANDARD: '#8b5cf6', PREMIUM: '#f59e0b' };
 const today = new Date().toISOString().split('T')[0];
@@ -15,6 +16,8 @@ const IssuerDashboard = () => {
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
   const [schoolErasureMsg, setSchoolErasureMsg] = useState({ type: '', text: '' });
   const [copiedLink, setCopiedLink] = useState(false);
+  const [otpModal, setOtpModal] = useState({ open: false });
+  const closeOTPModal = () => setOtpModal({ open: false });
 
   const [quota, setQuota] = useState({ used: 0, limit: 0, remaining: 0, unlimited: false, has_plan: false, plan_name: '…', plan_level: 0 });
 
@@ -82,7 +85,7 @@ const IssuerDashboard = () => {
     }
   }, [activeTab, userId]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setMsg({ type: '', text: '' });
 
@@ -105,33 +108,102 @@ const IssuerDashboard = () => {
       }
     }
 
+    const snapshot = { ...formData };
+    setOtpModal({
+      open: true,
+      userId,
+      actionType: 'CREATE_DIPLOMA',
+      title: '\uD83C\uDF93 Émettre un diplôme',
+      message: "Confirmez l'émission du diplôme suivant. Un code de validation vous sera envoyé par email.",
+      details: (
+        <div style={{ lineHeight: '1.8' }}>
+          <div><strong>Nom :</strong> {snapshot.nom}</div>
+          <div><strong>Prénom :</strong> {snapshot.prenom}</div>
+          <div><strong>Cursus :</strong> {snapshot.course_name}</div>
+          <div><strong>Date d'obtention :</strong> {snapshot.dateObtention}</div>
+          {snapshot.studentEmail && <div><strong>Email :</strong> {snapshot.studentEmail}</div>}
+        </div>
+      ),
+      onConfirm: (otpCode) => submitCertify(snapshot, otpCode),
+    });
+  };
+
+  const submitCertify = async (snapshot, otpCode) => {
+    setMsg({ type: '', text: '' });
     const data = new FormData();
     data.append('user_id', userId);
-    data.append('first_name', formData.prenom);
-    data.append('last_name', formData.nom);
-    data.append('course_name', formData.course_name);
-    data.append('graduation_date', formData.dateObtention);
-    if (formData.dateNaissance) data.append('date_of_birth', formData.dateNaissance);
-    if (formData.studentEmail)  data.append('student_email', formData.studentEmail);
-    data.append('image', formData.diplomeFile);
-    if (formData.photoFile) data.append('photo', formData.photoFile);
-    if (!formData.never_expires && formData.expiry_date) {
-      data.append('expiry_date', formData.expiry_date);
+    data.append('first_name', snapshot.prenom);
+    data.append('last_name', snapshot.nom);
+    data.append('course_name', snapshot.course_name);
+    data.append('graduation_date', snapshot.dateObtention);
+    if (snapshot.dateNaissance) data.append('date_of_birth', snapshot.dateNaissance);
+    if (snapshot.studentEmail)  data.append('student_email', snapshot.studentEmail);
+    data.append('image', snapshot.diplomeFile);
+    if (snapshot.photoFile) data.append('photo', snapshot.photoFile);
+    if (!snapshot.never_expires && snapshot.expiry_date) {
+      data.append('expiry_date', snapshot.expiry_date);
     }
-
+    data.append('otp_code', otpCode);
     try {
       const res = await fetch('/api/certify/', { method: 'POST', body: data });
       const responseData = await res.json();
-
       if (res.ok) {
+        closeOTPModal();
         setMsg({ type: 'success', text: "Demande créée ! En attente de validation (Voir emails)." });
-        fetchQuota(); 
+        fetchQuota();
         setTimeout(() => setActiveTab('list'), 2000);
+        return { ok: true };
       } else {
-        setMsg({ type: 'error', text: responseData.error || "Erreur lors de l'enregistrement." });
+        return { ok: false, error: responseData.error || "Erreur lors de l'enregistrement." };
       }
     } catch (e) {
-      setMsg({ type: 'error', text: "Erreur serveur." });
+      return { ok: false, error: "Erreur serveur." };
+    }
+  };
+
+  const doErasure = async (diploma) => {
+    setSchoolErasureMsg({ type: '', text: '' });
+    try {
+      const res = await fetch('/api/school-diploma-erasure/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, diploma_id: diploma.id, confirm: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSchoolErasureMsg({ type: 'success', text: '✅ ' + data.message });
+        const erased = { ...diploma, first_name: '[Supprimé]', last_name: '[Supprimé]', image: null, photo: null };
+        setSelectedDiploma(erased);
+        setMyDiplomas(prev => prev.map(d => d.id === diploma.id ? erased : d));
+        return { ok: true };
+      } else {
+        return { ok: false, error: data.error || "Erreur lors de l'effacement." };
+      }
+    } catch {
+      return { ok: false, error: 'Erreur serveur.' };
+    }
+  };
+
+  const doRevoke = async (diploma, otpCode) => {
+    setRevokeMsg({ type: '', text: '' });
+    try {
+      const res = await fetch('/api/revoke-diploma/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, diploma_id: diploma.id, otp_code: otpCode }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeOTPModal();
+        setRevokeMsg({ type: 'success', text: '\u2705 Diplôme révoqué sur la blockchain.' });
+        setSelectedDiploma(prev => ({ ...prev, blockchain_status: 'REVOKED', status: 'REVOKED' }));
+        setMyDiplomas(prev => prev.map(d => d.id === diploma.id ? { ...d, blockchain_status: 'REVOKED', status: 'REVOKED' } : d));
+        return { ok: true };
+      } else {
+        return { ok: false, error: data.error || 'Erreur lors de la révocation.' };
+      }
+    } catch {
+      return { ok: false, error: 'Erreur serveur.' };
     }
   };
   
@@ -467,31 +539,17 @@ const IssuerDashboard = () => {
                           <button
                             className="btn"
                             style={{width:'auto', background:'#b45309', color:'white', border:'none'}}
-                            onClick={async () => {
-                              setSchoolErasureMsg({ type: '', text: '' });
-                              if (!window.confirm(
-                                `Effacer les données personnelles du diplôme de ${selectedDiploma.first_name} ${selectedDiploma.last_name} ?\n\n` +
-                                `Cette action est irréversible : nom, prénom, fichiers et email seront supprimés.\n` +
-                                `La preuve blockchain est conservée (RGPD Art. 17.3.b).`
-                              )) return;
-                              try {
-                                const res = await fetch('/api/school-diploma-erasure/', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ user_id: userId, diploma_id: selectedDiploma.id, confirm: true }),
-                                });
-                                const data = await res.json();
-                                if (res.ok) {
-                                  setSchoolErasureMsg({ type: 'success', text: '✅ ' + data.message });
-                                  const erased = { ...selectedDiploma, first_name: '[Supprimé]', last_name: '[Supprimé]', image: null, photo: null };
-                                  setSelectedDiploma(erased);
-                                  setMyDiplomas(prev => prev.map(d => d.id === selectedDiploma.id ? erased : d));
-                                } else {
-                                  setSchoolErasureMsg({ type: 'error', text: data.error || "Erreur lors de l'effacement." });
-                                }
-                              } catch {
-                                setSchoolErasureMsg({ type: 'error', text: 'Erreur serveur.' });
-                              }
+                            onClick={() => {
+                              const d = selectedDiploma;
+                              setOtpModal({
+                                open: true,
+                                userId,
+                                actionType: 'ERASE_DIPLOMA',
+                                title: '\uD83D\uDDD1\uFE0F Effacer les données RGPD',
+                                message: `Effacer les données personnelles de ${d.first_name} ${d.last_name} ?`,
+                                details: 'Irréversible : nom, prénom, fichiers et email supprimés. La preuve blockchain est conservée (RGPD Art. 17.3.b).',
+                                onConfirm: (otpCode) => doErasure(d, otpCode),
+                              });
                             }}
                           >
                             🗑️ Effacer les données RGPD
@@ -501,26 +559,17 @@ const IssuerDashboard = () => {
                           <button
                             className="btn"
                             style={{width:'auto', background:'#ef4444', color:'white', border:'none'}}
-                            onClick={async () => {
-                              setRevokeMsg({ type: '', text: '' });
-                              if (!window.confirm(`Révoquer le diplôme de ${selectedDiploma.first_name} ${selectedDiploma.last_name} ?\nCette action est irréversible sur la blockchain.`)) return;
-                              try {
-                                const res = await fetch('/api/revoke-diploma/', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ user_id: userId, diploma_id: selectedDiploma.id }),
-                                });
-                                const data = await res.json();
-                                if (res.ok) {
-                                  setRevokeMsg({ type: 'success', text: '✅ Diplôme révoqué sur la blockchain.' });
-                                  setSelectedDiploma(prev => ({ ...prev, blockchain_status: 'REVOKED', status: 'REVOKED' }));
-                                  setMyDiplomas(prev => prev.map(d => d.id === selectedDiploma.id ? { ...d, blockchain_status: 'REVOKED', status: 'REVOKED' } : d));
-                                } else {
-                                  setRevokeMsg({ type: 'error', text: data.error || 'Erreur lors de la révocation.' });
-                                }
-                              } catch {
-                                setRevokeMsg({ type: 'error', text: 'Erreur serveur.' });
-                              }
+                            onClick={() => {
+                              const d = selectedDiploma;
+                              setOtpModal({
+                                open: true,
+                                userId,
+                                actionType: 'REVOKE_DIPLOMA',
+                                title: '\uD83D\uDEAB Révoquer le diplôme',
+                                message: `Révoquer le diplôme de ${d.first_name} ${d.last_name} ?`,
+                                details: 'Cette action est irréversible sur la blockchain.',
+                                onConfirm: (otpCode) => doRevoke(d, otpCode),
+                              });
                             }}
                           >
                             🚫 Révoquer
@@ -567,6 +616,16 @@ const IssuerDashboard = () => {
           )}
         </div>
       )}
+      <OTPModal
+        open={!!otpModal.open}
+        userId={otpModal.userId}
+        actionType={otpModal.actionType}
+        title={otpModal.title || ''}
+        message={otpModal.message || ''}
+        details={otpModal.details || null}
+        onConfirm={otpModal.onConfirm}
+        onCancel={closeOTPModal}
+      />
     </div>
   );
 };

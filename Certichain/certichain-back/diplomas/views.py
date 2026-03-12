@@ -6,7 +6,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 import logging
-from .models import Diploma, UserProfile, SubscriptionPlan
+from .models import Diploma, UserProfile, SubscriptionPlan, ActionOTP
 from .serializers import DiplomaSerializer, UserSerializer, SubscriptionPlanSerializer, PublicDiplomaSerializer
 from .web3_service import (
     compute_diploma_hash,
@@ -16,6 +16,106 @@ from .web3_service import (
     verify_eth_signature,
 )
 logging.basicConfig(level=logging.INFO)
+
+
+def _verify_and_consume_otp(user, action_type, code):
+    """Vérifie un OTP et le marque comme utilisé. Retourne True si valide, False sinon."""
+    try:
+        otp = ActionOTP.objects.get(
+            user=user,
+            action_type=action_type,
+            code=code,
+            used=False,
+            expires_at__gt=timezone.now(),
+        )
+        otp.used = True
+        otp.save(update_fields=['used'])
+        return True
+    except ActionOTP.DoesNotExist:
+        return False
+
+
+class SendActionOTPView(APIView):
+    """
+    Génère un code OTP à 6 chiffres valable 10 minutes et l'envoie par email
+    pour valider une action critique anti-usurpation.
+
+    POST /api/send-action-otp/
+      { "user_id": X, "action_type": "CREATE_DIPLOMA" | ... }
+    """
+    VALID_ACTIONS = {
+        'CREATE_DIPLOMA':  'Émettre un diplôme',
+        'REVOKE_DIPLOMA':  'Révoquer un diplôme',
+        'ERASE_DIPLOMA':   'Effacer des données RGPD',
+        'UPDATE_PROFILE':  'Modifier le profil établissement',
+        'CHANGE_PASSWORD': 'Changer le mot de passe',
+        'DELETE_ACCOUNT':  'Supprimer le compte',
+    }
+
+    def post(self, request):
+        import random
+        from django.contrib.auth.models import User as DjangoUser
+
+        user_id     = request.data.get('user_id')
+        action_type = request.data.get('action_type')
+
+        if not user_id or action_type not in self.VALID_ACTIONS:
+            return Response({"error": "user_id et action_type valide requis."}, status=400)
+
+        try:
+            user = DjangoUser.objects.get(pk=user_id)
+        except DjangoUser.DoesNotExist:
+            return Response({"error": "Utilisateur introuvable."}, status=404)
+
+        if not user.email:
+            return Response({"error": "Aucun email associé à ce compte. Contactez le support."}, status=400)
+
+        # Invalider les OTPs précédents non utilisés pour cette action
+        ActionOTP.objects.filter(user=user, action_type=action_type, used=False).update(used=True)
+
+        # Générer un code OTP à 6 chiffres
+        code = f"{random.randint(0, 999999):06d}"
+        ActionOTP.objects.create(
+            user=user,
+            action_type=action_type,
+            code=code,
+            expires_at=timezone.now() + timezone.timedelta(minutes=10),
+        )
+
+        label = self.VALID_ACTIONS[action_type]
+        email = user.email
+        parts = email.split('@')
+        masked = (parts[0][:2] + '***@' + parts[1]) if len(parts) == 2 else '***'
+
+        try:
+            send_mail(
+                subject=f'[CertiChain] Code de validation – {label}',
+                message=(
+                    f"Bonjour {user.username},\n\n"
+                    f"Vous avez initié l'action : {label}.\n\n"
+                    f"Votre code de validation est : {code}\n\n"
+                    f"Ce code est valable 10 minutes.\n\n"
+                    f"Si vous n'êtes pas à l'origine de cette action, ignorez ce message "
+                    f"et sécurisez immédiatement votre compte.\n\n"
+                    f"— L'équipe CertiChain"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            logging.error(f"Échec envoi OTP action ({action_type}) pour user {user_id}: {e}")
+            ActionOTP.objects.filter(user=user, action_type=action_type, used=False).delete()
+            return Response({"error": "Impossible d'envoyer le code par email. Vérifiez votre adresse email ou la configuration SMTP."}, status=500)
+
+        logging.info(f"OTP action '{action_type}' envoyé à {masked} (user {user_id}).")
+        return Response({
+            "status":       "sent",
+            "email_masked": masked,
+            "message":      f"Code envoyé à {masked}. Valable 10 minutes.",
+        })
+
+
 # --- AUTHENTIFICATION ---
 
 class RegisterView(APIView):
@@ -85,6 +185,14 @@ class UpdateProfileView(APIView):
         profile = self._get_profile(user_id)
         if not profile:
             return Response({"error": "Profil introuvable"}, status=404)
+
+        # Vérification OTP anti-usurpation
+        otp_code    = request.data.get('otp_code', '').strip()
+        if not otp_code:
+            return Response({"error": "Un code de validation par email est requis."}, status=400)
+        _action = 'CHANGE_PASSWORD' if 'new_password' in request.data else 'UPDATE_PROFILE'
+        if not _verify_and_consume_otp(profile.user, _action, otp_code):
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
         # Validation adresses Ethereum (format 0x + 40 hex)
         import re
@@ -208,6 +316,13 @@ class CreateDiplomaView(APIView):
                                f"Veuillez souscrire à un abonnement supérieur."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+
+        # Vérification OTP anti-usurpation
+        otp_code = request.data.get('otp_code', '').strip()
+        if not otp_code:
+            return Response({"error": "Un code de validation par email est requis pour certifier un diplôme."}, status=400)
+        if not _verify_and_consume_otp(profile.user, 'CREATE_DIPLOMA', otp_code):
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
@@ -711,6 +826,13 @@ class DeleteAccountView(APIView):
         except User.DoesNotExist:
             return Response({"error": "Utilisateur introuvable."}, status=404)
 
+        # Vérification OTP anti-usurpation
+        otp_code = request.data.get('otp_code', '').strip()
+        if not otp_code:
+            return Response({"error": "Un code de validation par email est requis pour supprimer le compte."}, status=400)
+        if not _verify_and_consume_otp(user, 'DELETE_ACCOUNT', otp_code):
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
+
         # Anonymiser les diplômes validés (conserver la preuve blockchain – Art. 17.3.b)
         Diploma.objects.filter(owner_id=user_id, status='VALIDATED').update(
             first_name='[Supprimé]',
@@ -907,6 +1029,18 @@ class SchoolDiplomaErasureView(APIView):
         if diploma.first_name == '[Supprimé]':
             return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
 
+        # Vérification OTP anti-usurpation
+        from django.contrib.auth.models import User as _User
+        try:
+            _user = _User.objects.get(pk=user_id)
+        except _User.DoesNotExist:
+            return Response({"error": "Utilisateur introuvable."}, status=404)
+        otp_code = request.data.get('otp_code', '').strip()
+        if not otp_code:
+            return Response({"error": "Un code de validation par email est requis pour cet effacement RGPD."}, status=400)
+        if not _verify_and_consume_otp(_user, 'ERASE_DIPLOMA', otp_code):
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
+
         # Anonymisation RGPD Art. 17
         diploma.first_name    = '[Supprimé]'
         diploma.last_name     = '[Supprimé]'
@@ -960,6 +1094,18 @@ class RevokeDiplomaView(APIView):
                 {"error": "Seuls les diplômes ancrés (ANCHORED) peuvent être révoqués."},
                 status=400,
             )
+
+        # Vérification OTP anti-usurpation
+        from django.contrib.auth.models import User as _User
+        try:
+            _user = _User.objects.get(pk=user_id)
+        except _User.DoesNotExist:
+            return Response({"error": "Utilisateur introuvable."}, status=404)
+        otp_code = request.data.get('otp_code', '').strip()
+        if not otp_code:
+            return Response({"error": "Un code de validation par email est requis pour révoquer un diplôme."}, status=400)
+        if not _verify_and_consume_otp(_user, 'REVOKE_DIPLOMA', otp_code):
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
         tx_hash = revoke_diploma_on_blockchain(diploma.diploma_hash)
         if not tx_hash:
