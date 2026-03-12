@@ -32,10 +32,6 @@ CertiChain est une plateforme de certification de diplômes basée sur la blockc
 
 ## 2. Lancement
 
-Les trois services doivent démarrer **dans l'ordre** : Blockchain → Backend → Frontend.
-
-### Option A — Script automatisé (Windows)
-
 ```powershell
 .\setup_Win.ps1
 ```
@@ -44,54 +40,6 @@ Au démarrage, le script demande si vous souhaitez **réinitialiser la base de d
 Répondre `o` / `oui` / `y` supprime `db.sqlite3` et toutes les migrations (sauf `__init__.py`) — utile pour repartir d'une base propre. Toute autre réponse conserve les données existantes.
 
 Le script lance ensuite les trois services dans des fenêtres séparées et met à jour `.env` avec l'adresse du contrat déployé automatiquement.
-
-### Option B — Lancement manuel
-
-**1. Blockchain**
-
-```bash
-cd Certichain/certichain-blockchain
-npm install
-npx hardhat node --hostname 0.0.0.0   # terminal A — laisser ouvert
-```
-
-Dans un second terminal :
-
-```bash
-npx hardhat run scripts/deploy.js --network localhost
-# → notez l'adresse affichée, à coller dans .env (BLOCKCHAIN_CONTRACT_ADDRESS)
-
-# Copier l'ABI vers le backend
-cp artifacts/contracts/CertiChainSBT.sol/CertiChainSBT.json ../certichain-back/diplomas/
-```
-
-> ⚠️ À chaque redémarrage du nœud Hardhat, le contrat doit être redéployé.
-
-**2. Backend**
-
-```bash
-cd Certichain/certichain-back
-
-python -m venv ../../.venv
-# Windows :
-..\..\venv\Scripts\Activate.ps1
-# macOS/Linux :
-source ../../.venv/bin/activate
-
-pip install -r requirements.txt
-python manage.py migrate          # crée db.sqlite3 + insère les plans d'abonnement
-python manage.py runserver 0.0.0.0:8000
-```
-
-> Sans SMTP configuré, tous les emails (OTP, liens de validation) s'affichent directement dans ce terminal.
-
-**3. Frontend**
-
-```bash
-cd Certichain/certichain-front
-npm install
-npm start   # → http://localhost:3000
-```
 
 ---
 
