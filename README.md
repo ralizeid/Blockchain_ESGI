@@ -123,6 +123,33 @@ Blockchain_ESGI/
 Les trois composants doivent être démarrés **dans l'ordre** : Blockchain → Backend → Frontend.  
 Chaque composant tourne dans son propre terminal.
 
+### Script automatisé Windows (`setup_Win.ps1`)
+
+Un script PowerShell à la racine du projet automatise les trois lancements d'un seul coup.
+
+```powershell
+.\setup_Win.ps1
+```
+
+Au démarrage, le script pose cette question :
+
+```
+Reinitialiser la base de donnees ? Cela supprimera les migrations et db.sqlite3 [o/N]
+```
+
+| Réponse | Effet |
+|---|---|
+| `o`, `oui`, `y`, `yes` | Supprime tous les fichiers de `diplomas/migrations/` **sauf `__init__.py`**, puis supprime `db.sqlite3`. Les migrations sont recréées et appliquées automatiquement au démarrage. |
+| Toute autre réponse (vide, `n`…) | La base et les migrations sont conservées telles quelles. |
+
+> Utile pour repartir d'une base propre après un changement de schéma ou pour réinitialiser les données de test.
+
+---
+
+### Lancement manuel (pas à pas)
+
+Si vous préférez contrôler chaque service séparément, suivez les étapes ci-dessous.
+
 ---
 
 ### Étape 1 — Blockchain Hardhat
