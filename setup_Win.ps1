@@ -4,6 +4,35 @@ Write-Host "--- DEMARRAGE DU PROJET CERTICHAIN ---" -ForegroundColor Cyan
 
 Set-Location "Certichain"
 
+# Option : reset des donnees locales (DB + medias)
+$resetAnswer = Read-Host "Supprimer les donnees locales (db + medias) avant lancement ? (o/N)"
+if ($resetAnswer -match '^(o|oui|y|yes)$') {
+    Write-Host ">>> Suppression des donnees locales..." -ForegroundColor Yellow
+
+    $dbPath = "certichain-back\db.sqlite3"
+    if (Test-Path $dbPath) {
+        Remove-Item $dbPath -Force
+        Write-Host "- db.sqlite3 supprime" -ForegroundColor DarkYellow
+    }
+
+    $mediaFolders = @(
+        "certichain-back\media\diplomas",
+        "certichain-back\media\photos"
+    )
+
+    foreach ($folder in $mediaFolders) {
+        if (Test-Path $folder) {
+            Get-ChildItem -Path $folder -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "- contenu vide : $folder" -ForegroundColor DarkYellow
+        } else {
+            New-Item -ItemType Directory -Path $folder -Force | Out-Null
+            Write-Host "- dossier cree : $folder" -ForegroundColor DarkYellow
+        }
+    }
+
+    Write-Host ">>> Reset local termine (DB + medias)." -ForegroundColor Green
+}
+
 # 1. BLOCKCHAIN (Hardhat)
 Write-Host "[1/3] Preparation Hardhat" -ForegroundColor Yellow
 Set-Location "certichain-blockchain"
