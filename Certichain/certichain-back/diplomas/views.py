@@ -15,6 +15,7 @@ from .web3_service import (
     verify_diploma_on_blockchain,
     verify_eth_signature,
 )
+from .qr_overlay import embed_qr_in_diploma
 logging.basicConfig(level=logging.INFO)
 
 
@@ -288,6 +289,22 @@ class QuotaView(APIView):
 
 class CreateDiplomaView(APIView):
     def post(self, request):
+        def _to_bool(value, default=True):
+            if value is None:
+                return default
+            return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+        def _to_float(name, value, default, min_value, max_value):
+            if value in (None, ''):
+                return default
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"Paramètre invalide: {name}.")
+            if parsed < min_value or parsed > max_value:
+                raise ValueError(f"{name} doit être compris entre {min_value} et {max_value}.")
+            return parsed
+
         user_id = request.data.get('user_id')
         if not user_id:
             return Response({"error": "Non authentifié"}, status=status.HTTP_403_FORBIDDEN)
@@ -324,6 +341,14 @@ class CreateDiplomaView(APIView):
         if not _verify_and_consume_otp(profile.user, 'CREATE_DIPLOMA', otp_code):
             return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
+        try:
+            embed_qr = _to_bool(request.data.get('embed_qr', 'true'), default=True)
+            qr_x_pct = _to_float('qr_x_pct', request.data.get('qr_x_pct'), 72.0, 0.0, 100.0)
+            qr_y_pct = _to_float('qr_y_pct', request.data.get('qr_y_pct'), 72.0, 0.0, 100.0)
+            qr_size_pct = _to_float('qr_size_pct', request.data.get('qr_size_pct'), 18.0, 5.0, 45.0)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
             # Sauvegarde initiale – school_token (UUID) est généré automatiquement par le modèle
@@ -344,6 +369,28 @@ class CreateDiplomaView(APIView):
             diploma.save(update_fields=['diploma_hash'])
 
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000').rstrip('/')
+
+            if embed_qr and diploma.image:
+                verify_url = f"{frontend_url}/verify/{diploma.verification_uuid}"
+                try:
+                    stamped_file = embed_qr_in_diploma(
+                        diploma.image,
+                        verify_url,
+                        qr_x_pct,
+                        qr_y_pct,
+                        qr_size_pct,
+                    )
+                except ValueError as e:
+                    logging.warning(f"QR embed refusé pour diplôme {diploma.id}: {e}")
+                    diploma.delete()
+                    return Response({"error": str(e)}, status=400)
+                except Exception as e:
+                    logging.error(f"QR embed échec pour diplôme {diploma.id}: {e}")
+                    diploma.delete()
+                    return Response({"error": "Impossible d'intégrer le QR code dans le diplôme."}, status=500)
+
+                diploma.image.save(stamped_file.name, stamped_file, save=False)
+                diploma.save(update_fields=['image'])
 
             school_link = f"{frontend_url}/validate/{diploma.school_token}"
             send_mail(
@@ -374,7 +421,15 @@ class CreateDiplomaView(APIView):
                 fail_silently=False,
             )
 
-            return Response({"message": "Diplôme créé. Emails de validation envoyés !"}, status=status.HTTP_201_CREATED)
+            diploma_file_url = request.build_absolute_uri(diploma.image.url) if diploma.image else ''
+            verify_url = f"{frontend_url}/verify/{diploma.verification_uuid}"
+
+            return Response({
+                "message": "Diplôme créé. Emails de validation envoyés !",
+                "diploma_id": diploma.id,
+                "diploma_file_url": diploma_file_url,
+                "verify_url": verify_url,
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -704,7 +759,7 @@ class MyDiplomasView(APIView):
             return Response([])
         _auto_revoke_expired(owner_id=user_id)
         diplomas = Diploma.objects.filter(owner_id=user_id).order_by('-created_at')
-        return Response(DiplomaSerializer(diplomas, many=True).data)
+        return Response(DiplomaSerializer(diplomas, many=True, context={'request': request}).data)
 
 class SearchDiplomaView(APIView):
     def get(self, request):

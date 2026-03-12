@@ -97,6 +97,26 @@ class UserSerializer(serializers.ModelSerializer):
 
 class DiplomaSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    image_url = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
+
+    def _build_url(self, file_field):
+        if not file_field:
+            return None
+        try:
+            url = file_field.url
+        except Exception:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_image_url(self, obj):
+        return self._build_url(obj.image)
+
+    def get_photo_url(self, obj):
+        return self._build_url(obj.photo)
 
     class Meta:
         model = Diploma
