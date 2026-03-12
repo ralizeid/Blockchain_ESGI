@@ -8,6 +8,7 @@ from .views import (
     SchoolDiplomaErasureView,
     RectoratePendingView, RectorateBulkValidateView,
     RevokeDiplomaView, VerifyBlockchainView, VerifyByUUIDView,
+    SendActionOTPView,
 )
 
 urlpatterns = [
@@ -35,4 +36,6 @@ urlpatterns = [
     path('revoke-diploma/',    RevokeDiplomaView.as_view()),
     path('verify-blockchain/', VerifyBlockchainView.as_view()),
     path('verify/<uuid:uuid>/', VerifyByUUIDView.as_view()),
+    # OTP anti-usurpation
+    path('send-action-otp/',   SendActionOTPView.as_view()),
 ]

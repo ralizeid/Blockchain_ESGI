@@ -70,6 +70,31 @@ class UserProfile(models.Model):
         plan = self.subscription_plan.display_name if self.subscription_plan else "Sans abonnement"
         return f"Profil de {self.user.username} – {plan}"
 
+
+class ActionOTP(models.Model):
+    """Code OTP à usage unique envoyé par email pour valider chaque action critique."""
+    ACTION_CHOICES = [
+        ('CREATE_DIPLOMA',  'Émettre un diplôme'),
+        ('REVOKE_DIPLOMA',  'Révoquer un diplôme'),
+        ('ERASE_DIPLOMA',   'Effacer données RGPD'),
+        ('UPDATE_PROFILE',  'Modifier le profil'),
+        ('CHANGE_PASSWORD', 'Changer le mot de passe'),
+        ('DELETE_ACCOUNT',  'Supprimer le compte'),
+    ]
+    user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='action_otps')
+    action_type = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    code        = models.CharField(max_length=6)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    expires_at  = models.DateTimeField()
+    used        = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"OTP {self.action_type} – {self.user.username} ({'utilisé' if self.used else 'actif'})"
+
+
 class Diploma(models.Model):
     STATUS_CHOICES = [
         ('PENDING',   'En attente de validation'),

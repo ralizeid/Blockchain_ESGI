@@ -14,21 +14,26 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 # A changer pour le nom de domaine en prod
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
-# --- CONFIGURATION EMAIL (GMAIL) ---
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True  # Obligatoire pour Gmail (chiffrement)
+# --- CONFIGURATION EMAIL ---
+# Si EMAIL_HOST_USER est défini dans .env → vrai SMTP Gmail
+# Sinon → backend console (les emails s'affichent dans le terminal Django)
+_email_user = os.getenv('EMAIL_HOST_USER', '').strip()
+_email_pass = os.getenv('EMAIL_HOST_PASSWORD', '').strip()
 
-# Ton adresse Gmail complète
-EMAIL_HOST_USER =  ''
+if _email_user and _email_pass:
+    EMAIL_BACKEND      = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST         = 'smtp.gmail.com'
+    EMAIL_PORT         = 587
+    EMAIL_USE_TLS      = True
+    EMAIL_HOST_USER    = _email_user
+    EMAIL_HOST_PASSWORD = _email_pass
+else:
+    # Développement local : les emails s'affichent dans le terminal
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_HOST_USER = ''
+    EMAIL_HOST_PASSWORD = ''
 
-# LE CODE DE 16 CARACTÈRES (sans les espaces) généré à l'étape 1
-# Attention : Ne mets JAMAIS ton vrai mot de passe de connexion ici !
-EMAIL_HOST_PASSWORD = ''
-
-# L'adresse qui apparaîtra comme expéditeur
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+DEFAULT_FROM_EMAIL = _email_user or 'noreply@certichain.local'
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 # Application definition
 INSTALLED_APPS = [
@@ -100,7 +105,7 @@ if DB_HOST:
     }
 else:
     # SI ON EST EN LOCAL (POWERSHELL) -> ON UTILISE SQLITE
-    print("⚠️  Mode Local détecté : Utilisation de SQLite")
+    print("Mode Local detecte : Utilisation de SQLite")
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
