@@ -6,16 +6,34 @@ import OTPModal from '../components/OTPModal';
 const PLAN_COLORS = { STARTER: '#3b82f6', STANDARD: '#8b5cf6', PREMIUM: '#f59e0b' };
 const today = new Date().toISOString().split('T')[0];
 
+const resolveMediaUrl = (rawUrl) => {
+  if (!rawUrl) return '';
+  if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+  if (rawUrl.startsWith('/media/')) {
+    if (window.location.port === '3000') {
+      return `http://localhost:8000${rawUrl}`;
+    }
+    return `${window.location.origin}${rawUrl}`;
+  }
+  return rawUrl;
+};
+
 const IssuerDashboard = () => {
   const userId = localStorage.getItem('user_id');
   const [activeTab, setActiveTab] = useState('create');
   const [myDiplomas, setMyDiplomas] = useState([]);
   const [selectedDiploma, setSelectedDiploma] = useState(null);
   const [msg, setMsg] = useState({ type: '', text: '' });
-  const [formData, setFormData] = useState({ nom: '', prenom: '', dateObtention: '', dateNaissance: '', studentEmail: '', diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true });
+  const [formData, setFormData] = useState({
+    nom: '', prenom: '', dateObtention: '', dateNaissance: '', studentEmail: '',
+    diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true,
+    embed_qr: true, qr_x_pct: 72, qr_y_pct: 72, qr_size_pct: 18,
+  });
+  const [previewUrl, setPreviewUrl] = useState('');
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
   const [schoolErasureMsg, setSchoolErasureMsg] = useState({ type: '', text: '' });
   const [copiedLink, setCopiedLink] = useState(false);
+  const [lastCreated, setLastCreated] = useState(null);
   const [otpModal, setOtpModal] = useState({ open: false });
   const closeOTPModal = () => setOtpModal({ open: false });
 
@@ -85,13 +103,60 @@ const IssuerDashboard = () => {
     }
   }, [activeTab, userId]);
 
+  useEffect(() => {
+    if (!formData.diplomeFile || !formData.diplomeFile.type.startsWith('image/')) {
+      setPreviewUrl('');
+      return;
+    }
+    const objectUrl = URL.createObjectURL(formData.diplomeFile);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [formData.diplomeFile]);
+
+  const handlePreviewClick = (e) => {
+    if (!previewUrl || !formData.embed_qr) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const qrSize = Math.max(5, Math.min(45, Number(formData.qr_size_pct) || 18));
+    const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+    const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+    const maxPos = 100 - qrSize;
+    setFormData(prev => ({
+      ...prev,
+      qr_x_pct: Math.max(0, Math.min(maxPos, Number(xPct.toFixed(2)))),
+      qr_y_pct: Math.max(0, Math.min(maxPos, Number(yPct.toFixed(2)))),
+    }));
+  };
+
+  const parseDecimalInput = (value) => {
+    if (value === null || value === undefined) return NaN;
+    return Number(String(value).trim().replace(',', '.'));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setMsg({ type: '', text: '' });
+    setLastCreated(null);
 
     if (!formData.diplomeFile) {
       setMsg({ type: 'error', text: "Veuillez joindre le fichier du diplôme." });
       return;
+    }
+    if (formData.embed_qr) {
+      const x = parseDecimalInput(formData.qr_x_pct);
+      const y = parseDecimalInput(formData.qr_y_pct);
+      const s = parseDecimalInput(formData.qr_size_pct);
+      if ([x, y, s].some(Number.isNaN)) {
+        setMsg({ type: 'error', text: 'Coordonnées QR invalides.' });
+        return;
+      }
+      if (x < 0 || x > 100 || y < 0 || y > 100) {
+        setMsg({ type: 'error', text: 'Les coordonnées QR doivent être entre 0 et 100.' });
+        return;
+      }
+      if (s < 5 || s > 45) {
+        setMsg({ type: 'error', text: 'La taille QR doit être entre 5% et 45%.' });
+        return;
+      }
     }
     if (formData.dateObtention > today) {
       setMsg({ type: 'error', text: "La date d'obtention ne peut pas être dans le futur." });
@@ -143,6 +208,10 @@ const IssuerDashboard = () => {
     if (!snapshot.never_expires && snapshot.expiry_date) {
       data.append('expiry_date', snapshot.expiry_date);
     }
+    data.append('embed_qr', snapshot.embed_qr ? 'true' : 'false');
+    data.append('qr_x_pct', String(parseDecimalInput(snapshot.qr_x_pct)));
+    data.append('qr_y_pct', String(parseDecimalInput(snapshot.qr_y_pct)));
+    data.append('qr_size_pct', String(parseDecimalInput(snapshot.qr_size_pct)));
     data.append('otp_code', otpCode);
     try {
       const res = await fetch('/api/certify/', { method: 'POST', body: data });
@@ -150,6 +219,11 @@ const IssuerDashboard = () => {
       if (res.ok) {
         closeOTPModal();
         setMsg({ type: 'success', text: "Demande créée ! En attente de validation (Voir emails)." });
+        setLastCreated({
+          diplomaId: responseData.diploma_id,
+          diplomaFileUrl: responseData.diploma_file_url,
+          verifyUrl: responseData.verify_url,
+        });
         fetchQuota();
         setTimeout(() => setActiveTab('list'), 2000);
         return { ok: true };
@@ -219,6 +293,9 @@ const IssuerDashboard = () => {
   const isLimitReached     = quota.has_plan && !quota.unlimited && quota.used >= quota.limit;
   const progressPercentage = (!quota.has_plan || quota.unlimited) ? 0 : Math.min((quota.used / (quota.limit || 1)) * 100, 100);
   const planColor          = PLAN_COLORS[Object.keys(PLAN_COLORS).find(k => quota.plan_name?.toUpperCase().includes(k))] || '#3b82f6';
+  const qrSizePreview = Math.max(5, Math.min(45, Number(formData.qr_size_pct) || 18));
+  const qrXPreview = Math.max(0, Math.min(100 - qrSizePreview, Number(formData.qr_x_pct) || 0));
+  const qrYPreview = Math.max(0, Math.min(100 - qrSizePreview, Number(formData.qr_y_pct) || 0));
 
   return (
     <div className="dashboard-container">
@@ -334,6 +411,36 @@ const IssuerDashboard = () => {
 
       {msg.text && <div className={`msg-box msg-${msg.type}`}>{msg.text}</div>}
 
+      {lastCreated?.diplomaFileUrl && activeTab === 'create' && (
+        <div style={{ marginBottom: 20, background: '#ecfeff', border: '1px solid #67e8f9', borderRadius: 10, padding: 14 }}>
+          <div style={{ fontWeight: 700, color: '#0f766e', marginBottom: 8 }}>
+            ✅ Diplôme généré avec QR code
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <a
+              href={lastCreated.diplomaFileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+              style={{ width: 'auto' }}
+              download
+            >
+              📥 Télécharger le diplôme avec QR
+            </a>
+            {lastCreated.verifyUrl && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: 'auto' }}
+                onClick={() => navigator.clipboard.writeText(lastCreated.verifyUrl)}
+              >
+                📋 Copier le lien de vérification
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'create' ? (
         <div className="form-card">
           <h2>🎓 Émettre un Diplôme</h2>
@@ -407,6 +514,111 @@ const IssuerDashboard = () => {
                   />
                 </div>
              </div>
+
+             <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, marginBottom: 16, background: '#f8fafc' }}>
+               <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                 <input
+                   type="checkbox"
+                   checked={formData.embed_qr}
+                   onChange={e => setFormData({ ...formData, embed_qr: e.target.checked })}
+                   disabled={isLimitReached}
+                 />
+                 Intégrer automatiquement le QR de vérification dans le diplôme
+               </label>
+
+               {formData.embed_qr && (
+                 <>
+                   <p style={{ margin: '8px 0 12px', color: '#64748b', fontSize: '0.85rem' }}>
+                     Placez le QR via coordonnées (%) ou cliquez directement dans l’aperçu.
+                     Le QR encode uniquement le lien public de vérification, jamais le lien privé RGPD.
+                   </p>
+
+                   <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 12 }}>
+                     <div>
+                       <label className="input-label">X (%)</label>
+                       <input
+                         className="input-field"
+                         type="number"
+                         min="0"
+                         max="100"
+                           step="0.01"
+                         value={formData.qr_x_pct}
+                         onChange={e => setFormData({ ...formData, qr_x_pct: e.target.value })}
+                         disabled={isLimitReached}
+                       />
+                     </div>
+                     <div>
+                       <label className="input-label">Y (%)</label>
+                       <input
+                         className="input-field"
+                         type="number"
+                         min="0"
+                         max="100"
+                           step="0.01"
+                         value={formData.qr_y_pct}
+                         onChange={e => setFormData({ ...formData, qr_y_pct: e.target.value })}
+                         disabled={isLimitReached}
+                       />
+                     </div>
+                     <div>
+                       <label className="input-label">Taille QR (%)</label>
+                       <input
+                         className="input-field"
+                         type="number"
+                         min="5"
+                         max="45"
+                           step="0.01"
+                         value={formData.qr_size_pct}
+                         onChange={e => setFormData({ ...formData, qr_size_pct: e.target.value })}
+                         disabled={isLimitReached}
+                       />
+                     </div>
+                   </div>
+
+                   {previewUrl ? (
+                     <div>
+                       <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 6 }}>
+                         Aperçu de placement (clic = repositionnement)
+                       </div>
+                       <div
+                         onClick={handlePreviewClick}
+                         style={{
+                           position: 'relative',
+                           width: '100%',
+                           maxWidth: 620,
+                           border: '1px solid #cbd5e1',
+                           borderRadius: 8,
+                           overflow: 'hidden',
+                           cursor: 'crosshair',
+                           background: 'white',
+                         }}
+                       >
+                         <img src={previewUrl} alt="Aperçu diplôme" style={{ display: 'block', width: '100%' }} />
+                         <div
+                           style={{
+                             position: 'absolute',
+                             left: `${qrXPreview}%`,
+                             top: `${qrYPreview}%`,
+                             width: `${qrSizePreview}%`,
+                             maxWidth: '45%',
+                             border: '2px solid #22c55e',
+                             boxShadow: '0 6px 16px rgba(0,0,0,0.18)',
+                             background: 'white',
+                           }}
+                         >
+                           <QRCodeSVG value={`${window.location.origin}/verify/apercu`} size={220} style={{ width: '100%', height: 'auto', display: 'block' }} />
+                         </div>
+                       </div>
+                     </div>
+                   ) : (
+                     <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem' }}>
+                       Aperçu visuel disponible pour les fichiers image (PNG/JPG/WEBP). Pour les PDF, les coordonnées seront appliquées à la page 1.
+                     </p>
+                   )}
+                 </>
+               )}
+             </div>
+
              <div className="input-group">
                 <label className="input-label">Photo d’identité de l’étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – JPEG, PNG)</span></label>
                 <div className="file-upload-wrapper">
@@ -529,10 +741,16 @@ const IssuerDashboard = () => {
                     {revokeMsg.text && <div className={`msg-box msg-${revokeMsg.type}`} style={{marginTop:'15px'}}>{revokeMsg.text}</div>}
                     {schoolErasureMsg.text && <div className={`msg-box msg-${schoolErasureMsg.type}`} style={{marginTop:'15px'}}>{schoolErasureMsg.text}</div>}
 
+                    {selectedDiploma.image && (
+                      <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#ecfeff', border: '1px solid #67e8f9', color: '#155e75', fontSize: '0.86rem' }}>
+                        Ce fichier contient la version du diplôme avec QR code intégré.
+                      </div>
+                    )}
+
                     <div style={{marginTop: '30px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap'}}>
-                         {selectedDiploma.image && (
-                          <a href={selectedDiploma.image} target="_blank" rel="noopener noreferrer" className="btn-download" download>
-                            📥 Document Original
+                         {(selectedDiploma.image_url || selectedDiploma.image) && (
+                          <a href={resolveMediaUrl(selectedDiploma.image_url || selectedDiploma.image)} target="_blank" rel="noopener noreferrer" className="btn-download" download>
+                            📥 Télécharger le diplôme avec QR
                           </a>
                         )}
                         {selectedDiploma.first_name !== '[Supprimé]' && (

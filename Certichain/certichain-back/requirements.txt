@@ -6,3 +6,6 @@ djangorestframework
 django-cors-headers
 pillow
 web3
+qrcode
+pypdf
+reportlab
