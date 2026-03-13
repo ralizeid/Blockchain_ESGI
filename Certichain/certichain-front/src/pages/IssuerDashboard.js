@@ -414,25 +414,24 @@ const IssuerDashboard = () => {
       {lastCreated?.diplomaFileUrl && activeTab === 'create' && (
         <div style={{ marginBottom: 20, background: '#ecfeff', border: '1px solid #67e8f9', borderRadius: 10, padding: 14 }}>
           <div style={{ fontWeight: 700, color: '#0f766e', marginBottom: 8 }}>
-            ✅ Diplôme généré avec QR code
+            ✅ Diplôme généré (en attente de validations)
           </div>
+          <p style={{ fontSize: '0.86rem', color: '#155e75', margin: '0 0 12px 0' }}>
+            Le QR code et les liens associés seront disponibles une fois le diplôme validé par vous et le rectorat.
+          </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <a
-              href={lastCreated.diplomaFileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <span
               className="btn btn-primary"
-              style={{ width: 'auto' }}
-              download
+              style={{ width: 'auto', opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' }}
             >
               📥 Télécharger le diplôme avec QR
-            </a>
+            </span>
             {lastCreated.verifyUrl && (
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ width: 'auto' }}
-                onClick={() => navigator.clipboard.writeText(lastCreated.verifyUrl)}
+                style={{ width: 'auto', opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' }}
+                disabled
               >
                 📋 Copier le lien de vérification
               </button>
@@ -671,15 +670,34 @@ const IssuerDashboard = () => {
                     {selectedDiploma.verification_uuid && (() => {
                       const verifyUrl  = `${window.location.origin}/verify/${selectedDiploma.verification_uuid}`;
                       const erasureUrl = `${verifyUrl}?erase=${selectedDiploma.student_deletion_token}`;
+                      
+                      const isValidated = selectedDiploma.status === 'VALIDATED';
+
                       return (
                         <div style={{ margin: '20px 0', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                           <h4 style={{ margin: '0 0 12px', color: '#334155', fontSize: '0.9rem' }}>📱 Lien de vérification étudiant (public)</h4>
-                          <QRCodeSVG value={verifyUrl} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
-                          <div style={{ fontSize: '0.75rem', color: '#64748b', wordBreak: 'break-all', marginBottom: '10px', fontFamily: 'monospace' }}>{verifyUrl}</div>
+                          
+                          {!isValidated && (
+                            <div style={{ marginBottom: 10, fontSize: '0.82rem', color: '#b45309', fontWeight: 'bold' }}>
+                               ⚠️ Disponible uniquement après validation complète (École + Rectorat)
+                            </div>
+                          )}
+
+                          <div style={{ filter: isValidated ? 'none' : 'blur(5px)', opacity: isValidated ? 1 : 0.6, pointerEvents: isValidated ? 'auto' : 'none', transition: 'all 0.3s' }}>
+                            <QRCodeSVG value={isValidated ? verifyUrl : 'masqué'} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', wordBreak: 'break-all', marginBottom: '10px', fontFamily: 'monospace' }}>
+                              {isValidated ? verifyUrl : 'Lien masqué (en attente de validation)'}
+                            </div>
+                          </div>
+
                           <button
                             className="btn btn-secondary"
-                            style={{ width: 'auto', padding: '5px 14px', fontSize: '0.8rem' }}
-                            onClick={() => { navigator.clipboard.writeText(verifyUrl); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }}
+                            style={{ width: 'auto', padding: '5px 14px', fontSize: '0.8rem', opacity: isValidated ? 1 : 0.5, cursor: isValidated ? 'pointer' : 'not-allowed' }}
+                            onClick={() => { 
+                              if(!isValidated) return;
+                              navigator.clipboard.writeText(verifyUrl); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); 
+                            }}
+                            disabled={!isValidated}
                           >
                             {copiedLink ? '✅ Copié !' : '📋 Copier le lien'}
                           </button>
@@ -690,11 +708,17 @@ const IssuerDashboard = () => {
                               <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#9a3412', marginBottom: 6 }}>
                                 🔐 Lien privé RGPD (droit à l'oubli) — à transmettre uniquement à l'étudiant
                               </div>
-                              <div style={{ fontSize: '0.72rem', color: '#64748b', wordBreak: 'break-all', fontFamily: 'monospace', marginBottom: 8 }}>{erasureUrl}</div>
+                              <div style={{ filter: isValidated ? 'none' : 'blur(4px)', opacity: isValidated ? 1 : 0.6, fontSize: '0.72rem', color: '#64748b', wordBreak: 'break-all', fontFamily: 'monospace', marginBottom: 8 }}>
+                                {isValidated ? erasureUrl : 'Lien masqué (en attente de validation)'}
+                              </div>
                               <button
                                 className="btn btn-secondary"
-                                style={{ width: 'auto', padding: '4px 12px', fontSize: '0.78rem' }}
-                                onClick={() => navigator.clipboard.writeText(erasureUrl)}
+                                style={{ width: 'auto', padding: '4px 12px', fontSize: '0.78rem', opacity: isValidated ? 1 : 0.5, cursor: isValidated ? 'pointer' : 'not-allowed' }}
+                                onClick={() => {
+                                  if (!isValidated) return;
+                                  navigator.clipboard.writeText(erasureUrl);
+                                }}
+                                disabled={!isValidated}
                               >
                                 📋 Copier le lien privé
                               </button>
@@ -749,7 +773,15 @@ const IssuerDashboard = () => {
 
                     <div style={{marginTop: '30px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap'}}>
                          {(selectedDiploma.image_url || selectedDiploma.image) && (
-                          <a href={resolveMediaUrl(selectedDiploma.image_url || selectedDiploma.image)} target="_blank" rel="noopener noreferrer" className="btn-download" download>
+                          <a 
+                            href={selectedDiploma.status === 'VALIDATED' ? resolveMediaUrl(selectedDiploma.image_url || selectedDiploma.image) : '#'} 
+                            onClick={(e) => { if(selectedDiploma.status !== 'VALIDATED') e.preventDefault(); }}
+                            target={selectedDiploma.status === 'VALIDATED' ? "_blank" : undefined} 
+                            rel="noopener noreferrer" 
+                            className="btn-download" 
+                            download={selectedDiploma.status === 'VALIDATED'}
+                            style={selectedDiploma.status !== 'VALIDATED' ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' } : {}}
+                          >
                             📥 Télécharger le diplôme avec QR
                           </a>
                         )}
