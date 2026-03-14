@@ -73,10 +73,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull des nouvelles images
-        run: docker compose -f docker-compose.yml --env-file /opt/certichain/.env pull
+        run: docker compose -f docker-compose.yml --env-file /opt/Certichain/.env pull
 
       - name: Restart des conteneurs
-        run: docker compose -f docker-compose.yml --env-file /opt/certichain/.env up -d --remove-orphans
+        run: docker compose -f docker-compose.yml --env-file /opt/Certichain/.env up -d --remove-orphans
 
       - name: Déconnexion GHCR & nettoyage des images obsolètes
         if: always()
