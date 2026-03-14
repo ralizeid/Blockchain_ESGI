@@ -87,9 +87,9 @@ if ($contractAddress -ne "") {
 }
 
 # Lancement Django avec le venv racine (evite les problemes de pydantic_core)
-$rootVenvPython = "C:\Users\psgma\Documents\Blockchain_ESGI\.venv\Scripts\python.exe"
-$rootVenvPip    = "C:\Users\psgma\Documents\Blockchain_ESGI\.venv\Scripts\pip.exe"
-$backendDir     = "C:\Users\psgma\Documents\Blockchain_ESGI\Certichain\certichain-back"
+$rootVenvPython = "$PSScriptRoot\Certichain\certichain-back\.venv\Scripts\python.exe"
+$rootVenvPip    = "$PSScriptRoot\Certichain\certichain-back\.venv\Scripts\pip.exe"
+$backendDir     = "$PSScriptRoot\Certichain\certichain-back"
 $djangoCmd = "Set-Location '$backendDir'; " +
              "& '$rootVenvPip' install -r requirements.txt web3 --no-cache-dir -q; " +
              "& '$rootVenvPython' manage.py makemigrations; " +
