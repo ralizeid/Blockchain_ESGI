@@ -182,14 +182,28 @@ const RectoratDashboard = () => {
             <span style={{ color: '#166534', fontWeight: 600 }}>
               🦊 Connecté : <code style={{ fontSize: '0.8rem' }}>{ethAddress}</code>
             </span>
-            <button
-              className="btn btn-secondary"
-              style={{ width: 'auto', padding: '4px 14px', fontSize: '0.85rem' }}
-              onClick={loadPending}
-              disabled={loading}
-            >
-              🔄 Actualiser
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ width: 'auto', padding: '4px 14px', fontSize: '0.85rem' }}
+                onClick={loadPending}
+                disabled={loading}
+              >
+                🔄 Actualiser
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ width: 'auto', padding: '4px 14px', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fca5a5', background: '#fee2e2' }}
+                onClick={() => {
+                  setEthAddress('');
+                  setConnectStatus('idle');
+                  setSchools([]);
+                  setSelected(new Set());
+                }}
+              >
+                🚪 Se déconnecter
+              </button>
+            </div>
           </div>
 
           {/* Message global */}
