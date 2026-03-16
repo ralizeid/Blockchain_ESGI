@@ -81,6 +81,9 @@ jobs:
       - name: Pull des nouvelles images
         run: docker compose -f docker-compose.yml pull
 
+      - name: Down les conteneurs
+        run: docker compose down
+
       - name: Restart des conteneurs
         run: docker compose -f docker-compose.yml up -d --remove-orphans
 
