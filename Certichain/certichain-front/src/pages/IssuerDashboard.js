@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import { QRCodeSVG } from 'qrcode.react';
 import '../App.css';
 import OTPModal from '../components/OTPModal';
@@ -30,6 +31,8 @@ const IssuerDashboard = () => {
     embed_qr: true, qr_x_pct: 72, qr_y_pct: 72, qr_size_pct: 18,
   });
   const [previewUrl, setPreviewUrl] = useState('');
+  const [fileError, setFileError] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
   const [schoolErasureMsg, setSchoolErasureMsg] = useState({ type: '', text: '' });
   const [copiedLink, setCopiedLink] = useState(false);
@@ -104,8 +107,53 @@ const IssuerDashboard = () => {
   }, [activeTab, userId]);
 
   useEffect(() => {
-    if (!formData.diplomeFile || !formData.diplomeFile.type.startsWith('image/')) {
+    if (!formData.diplomeFile) {
       setPreviewUrl('');
+      return;
+    }
+
+    if (formData.diplomeFile.type === 'application/pdf') {
+      const fileReader = new FileReader();
+      fileReader.onload = async function () {
+        const typedarray = new Uint8Array(this.result);
+        try {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+          const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+          if (pdf.numPages > 1) {
+            setFileError('Le diplôme PDF doit contenir exactement 1 page pour être prévisualisé et validé.');
+            setPreviewUrl('');
+            
+            // On vide le fichier invalide pour bloquer la soumission et remettre l'input à zéro
+            setFormData(prev => ({ ...prev, diplomeFile: null }));
+            setFileInputKey(Date.now());
+            return;
+          }
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+          
+          setPreviewUrl(canvas.toDataURL('image/png'));
+        } catch (err) {
+          console.error('Erreur de lecture PDF :', err);
+          setFileError('Impossible de lire ou prévisualiser ce fichier PDF.');
+          setPreviewUrl('');
+          setFormData(prev => ({ ...prev, diplomeFile: null }));
+          setFileInputKey(Date.now());
+        }
+      };
+      fileReader.readAsArrayBuffer(formData.diplomeFile);
+      return;
+    }
+
+    if (!formData.diplomeFile.type.startsWith('image/')) {
+      setPreviewUrl('');
+      setFileError('Format de fichier non supporté. Veuillez fournir une image ou un PDF (1 page).');
+      setFormData(prev => ({ ...prev, diplomeFile: null }));
+      setFileInputKey(Date.now());
       return;
     }
     const objectUrl = URL.createObjectURL(formData.diplomeFile);
@@ -503,11 +551,16 @@ const IssuerDashboard = () => {
              </div>
              <div className="input-group">
                 <label className="input-label">Fichier du diplôme (PDF, image…)</label>
+                {fileError && <div style={{ color: '#991b1b', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px' }}>{fileError}</div>}
                 <div className="file-upload-wrapper">
                   <input
+                    key={fileInputKey}
                     type="file"
                     accept=".pdf,.png,.jpg,.jpeg,.webp"
-                    onChange={e => setFormData({...formData, diplomeFile: e.target.files[0]})}
+                    onChange={e => {
+                        setFileError('');
+                        setFormData({...formData, diplomeFile: e.target.files[0]});
+                    }}
                     required
                     disabled={isLimitReached}
                   />
@@ -773,6 +826,7 @@ const IssuerDashboard = () => {
 
                     <div style={{marginTop: '30px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap'}}>
                          {(selectedDiploma.image_url || selectedDiploma.image) && (
+                          // eslint-disable-next-line jsx-a11y/anchor-is-valid
                           <a 
                             href={selectedDiploma.status === 'VALIDATED' ? resolveMediaUrl(selectedDiploma.image_url || selectedDiploma.image) : '#'} 
                             onClick={(e) => { if(selectedDiploma.status !== 'VALIDATED') e.preventDefault(); }}

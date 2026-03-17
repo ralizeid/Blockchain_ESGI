@@ -193,7 +193,6 @@ const VerifyDiploma = () => {
     );
   };
   // ── Détection de type de fichier pour affichage conditionnel ────────────────
-  const isImageUrl = (url) => url && /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
   const row = (label, value) => (
     <div className="certificate-row" key={label}>
       <span className="certificate-label">{label}</span>
@@ -216,7 +215,7 @@ const VerifyDiploma = () => {
                 <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                   <img
                     src={diploma.photo_url}
-                    alt="Photo d'identité"
+                    alt="Identité visuelle"
                     style={{
                       width: 110, height: 110, objectFit: 'cover',
                       borderRadius: '50%', border: '3px solid #e2e8f0',
