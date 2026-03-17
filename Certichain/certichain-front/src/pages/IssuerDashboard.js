@@ -31,6 +31,7 @@ const IssuerDashboard = () => {
     embed_qr: true, qr_x_pct: 72, qr_y_pct: 72, qr_size_pct: 18,
   });
   const [previewUrl, setPreviewUrl] = useState('');
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [fileError, setFileError] = useState('');
   const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
@@ -160,6 +161,16 @@ const IssuerDashboard = () => {
     setPreviewUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [formData.diplomeFile]);
+
+  useEffect(() => {
+    if (!formData.photoFile || !formData.photoFile.type.startsWith('image/')) {
+      setPhotoPreviewUrl('');
+      return;
+    }
+    const objectUrl = URL.createObjectURL(formData.photoFile);
+    setPhotoPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [formData.photoFile]);
 
   const handlePreviewClick = (e) => {
     if (!previewUrl || !formData.embed_qr) return;
@@ -680,6 +691,11 @@ const IssuerDashboard = () => {
                     onChange={e => setFormData({...formData, photoFile: e.target.files[0]})}
                     disabled={isLimitReached}
                   />
+                  {photoPreviewUrl && (
+                    <div style={{ marginTop: '10px', textAlign: 'center' }}>
+                      <img src={photoPreviewUrl} alt="Aperçu photo d'identité" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #e2e8f0' }} />
+                    </div>
+                  )}
                 </div>
                 <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
                   Utilisée pour détecter les usurpations d’identité lors de la vérification.
