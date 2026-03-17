@@ -693,7 +693,7 @@ const IssuerDashboard = () => {
                   />
                   {photoPreviewUrl && (
                     <div style={{ marginTop: '10px', textAlign: 'center' }}>
-                      <img src={photoPreviewUrl} alt="Aperçu photo d'identité" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #e2e8f0' }} />
+                      <img src={photoPreviewUrl} alt="Aperçu identité" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #e2e8f0' }} />
                     </div>
                   )}
                 </div>

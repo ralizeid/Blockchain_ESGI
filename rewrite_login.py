@@ -1,108 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import '../App.css';
+import os
 
-const Login = ({ onLogin }) => {
-  const [isRegister, setIsRegister] = useState(false);
+path = 'Certichain/certichain-front/src/pages/Login.js'
+with open(path, 'r', encoding='utf-8') as f:
+    original = f.read()
 
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    rectorate_email: '',
-    school_eth_address: '',
-    rectorate_eth_address: '',
-    subscription_plan: '',
-    gdpr_consent: false,
-    // Informations établissement
-    school_name: '',
-    school_type: '',
-    school_address: '',
-    school_zip: '',
-    school_city: '',
-    school_phone: '',
-    school_website: '',
-    director_name: '',
-    uai_code: '',
-    siret: '',
-  });
+# I am going to replace everything inside the `return (` statement.
+# Let's split securely.
 
-  const [step, setStep] = useState(1);
-  const [plans, setPlans]     = useState([]);
-  const [error, setError]     = useState('');
-  const [success, setSuccess] = useState('');
+start_marker = "return ("
+start_idx = original.find(start_marker)
+end_marker = "export default Login;"
+end_idx = original.find(end_marker)
 
-  // Charger les plans disponibles dès l'affichage du formulaire d'inscription
-  useEffect(() => {
-    if (!isRegister) return;
-    if (plans.length > 0) return;
-    fetch('/api/plans/')
-      .then(r => r.json())
-      .then(data => {
-        setPlans(data);
-        if (data.length > 0) {
-          setFormData(prev => ({ ...prev, subscription_plan: data[0].name }));
-        }
-      })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRegister]);
-
-  const handleChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setFormData({ ...formData, [e.target.name]: value });
-  };
-
-  const handleNextStep = (e) => {
-    e.preventDefault();
-    // Validate custom formats if needed here
-    setStep(s => s + 1);
-  };
-
-  const handlePrevStep = () => {
-    setStep(s => s - 1);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isRegister && step < 3) {
-      handleNextStep(e);
-      return;
-    }
-
-    setError('');
-    setSuccess('');
-
-    const endpoint = isRegister ? 'register' : 'login';
-
-    try {
-      const response = await fetch(`/api/${endpoint}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        if (isRegister) {
-          setSuccess("Inscription réussie ! Vous pouvez maintenant vous connecter.");
-          setIsRegister(false);
-        } else {
-          onLogin(data.user_id, data.username);
-        }
-      } else {
-        const errorMsg = typeof data === 'object' ? JSON.stringify(data) : data.error;
-        setError(errorMsg || "Une erreur est survenue.");
-      }
-    } catch (err) {
-      setError("Impossible de contacter le serveur.");
-    }
-  };
-
-  const planColors = { STARTER: '#3b82f6', STANDARD: '#8b5cf6', PREMIUM: '#f59e0b' };
-
-    return (
+new_return = """  return (
     <div className="hero-container">
       <div className="form-card" style={{ maxWidth: '480px' }}>
         <div className="form-header">
@@ -126,13 +36,6 @@ const Login = ({ onLogin }) => {
                 <label className="input-label">Identifiant École</label>
                 <input className="input-field" type="text" name="username" value={formData.username} onChange={handleChange} required />
               </div>
-
-              {(!isRegister) && (
-                <div className="input-group">
-                  <label className="input-label">Mot de passe</label>
-                  <input className="input-field" type="password" name="password" value={formData.password} onChange={handleChange} required />
-                </div>
-              )}
               
               {isRegister && (
                 <>
@@ -144,19 +47,13 @@ const Login = ({ onLogin }) => {
                     <label className="input-label">Nom officiel de l'établissement <span style={{color:'#ef4444'}}>*</span></label>
                     <input className="input-field" type="text" name="school_name" value={formData.school_name} placeholder="ex: Lycée Jules Ferry" onChange={handleChange} required />
                   </div>
-                  <div className="input-group">
-                    <label className="input-label">Adresse MetaMask de l'école</label>
-                    <input className="input-field" type="text" name="school_eth_address" value={formData.school_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" title="Adresse Ethereum valide" required />
-                    <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
-                      🔒 Ce wallet signera les diplômes.
-                    </small>
-                  </div>
-                  <div className="input-group">
-                    <label className="input-label">Mot de passe</label>
-                    <input className="input-field" type="password" name="password" value={formData.password} onChange={handleChange} required />
-                  </div>
                 </>
               )}
+
+              <div className="input-group">
+                <label className="input-label">Mot de passe</label>
+                <input className="input-field" type="password" name="password" value={formData.password} onChange={handleChange} required />
+              </div>
             </>
           )}
 
@@ -172,10 +69,13 @@ const Login = ({ onLogin }) => {
                 <label className="input-label">Type d'établissement</label>
                 <select className="input-field" name="school_type" onChange={handleChange} value={formData.school_type}>
                   <option value="">— Sélectionner —</option>
+                  <option value="LYCEE">Lycée</option>
+                  <option value="BTS_IUT">BTS / IUT</option>
                   <option value="UNIVERSITE">Université</option>
                   <option value="GRANDE_ECOLE">Grande École</option>
                   <option value="INGENIEUR">École d'ingénieurs</option>
                   <option value="COMMERCE">École de commerce</option>
+                  <option value="AUTRE">Autre</option>
                 </select>
               </div>
 
@@ -242,6 +142,11 @@ const Login = ({ onLogin }) => {
               </div>
 
               <div className="input-group">
+                <label className="input-label">Adresse MetaMask de l'école</label>
+                <input className="input-field" type="text" name="school_eth_address" value={formData.school_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" />
+              </div>
+
+              <div className="input-group">
                 <label className="input-label">Adresse MetaMask du Rectorat</label>
                 <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" />
               </div>
@@ -305,5 +210,9 @@ const Login = ({ onLogin }) => {
     </div>
   );
 };
+"""
 
-export default Login;
+new_file = original[:start_idx] + new_return + "\n" + original[end_idx:]
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(new_file)
+print("done rewriting login.js")
