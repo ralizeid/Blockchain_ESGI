@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ethers } from 'ethers';
 import '../App.css';
 
 const Login = ({ onLogin }) => {
@@ -31,6 +32,32 @@ const Login = ({ onLogin }) => {
   const [plans, setPlans]     = useState([]);
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
+  
+  const [hasSchoolWallet, setHasSchoolWallet] = useState(true);
+  const [generatedSchoolPrivateKey, setGeneratedSchoolPrivateKey] = useState('');
+
+  const generateSchoolWallet = () => {
+    try {
+      const wallet = ethers.Wallet.createRandom();
+      setGeneratedSchoolPrivateKey(wallet.privateKey);
+      setFormData(prev => ({ ...prev, school_eth_address: wallet.address }));
+    } catch (err) {
+      setError("Erreur lors de la génération du wallet de l'école.");
+    }
+  };
+
+  const [hasRectorateWallet, setHasRectorateWallet] = useState(true);
+  const [generatedPrivateKey, setGeneratedPrivateKey] = useState('');
+
+  const generateRectorateWallet = () => {
+    try {
+      const wallet = ethers.Wallet.createRandom();
+      setGeneratedPrivateKey(wallet.privateKey);
+      setFormData(prev => ({ ...prev, rectorate_eth_address: wallet.address }));
+    } catch (err) {
+      setError("Erreur lors de la génération du wallet.");
+    }
+  };
 
   // Charger les plans disponibles dès l'affichage du formulaire d'inscription
   useEffect(() => {
@@ -144,12 +171,65 @@ const Login = ({ onLogin }) => {
                     <label className="input-label">Nom officiel de l'établissement <span style={{color:'#ef4444'}}>*</span></label>
                     <input className="input-field" type="text" name="school_name" value={formData.school_name} placeholder="ex: Lycée Jules Ferry" onChange={handleChange} required />
                   </div>
-                  <div className="input-group">
-                    <label className="input-label">Adresse MetaMask de l'école</label>
-                    <input className="input-field" type="text" name="school_eth_address" value={formData.school_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" title="Adresse Ethereum valide" required />
-                    <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
-                      🔒 Ce wallet signera les diplômes.
-                    </small>
+                  <div className="input-group" style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
+                    <label className="input-label">L'école possède-t-elle déjà une adresse MetaMask / Ethereum ?</label>
+                    <div style={{ display: 'flex', gap: '15px', marginTop: '10px', marginBottom: '15px' }}>
+                      <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input type="radio" checked={hasSchoolWallet} onChange={() => setHasSchoolWallet(true)} style={{ accentColor: 'var(--primary)' }} />
+                        Oui
+                      </label>
+                      <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <input type="radio" checked={!hasSchoolWallet} onChange={() => {
+                          setHasSchoolWallet(false);
+                          if (!formData.school_eth_address || generatedSchoolPrivateKey === '') {
+                            generateSchoolWallet();
+                          }
+                        }} style={{ accentColor: 'var(--primary)' }} />
+                        Non, générer pour moi
+                      </label>
+                    </div>
+
+                    {hasSchoolWallet ? (
+                      <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label className="input-label">Adresse MetaMask de l'école</label>
+                        <input className="input-field" type="text" name="school_eth_address" value={formData.school_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" title="Adresse Ethereum valide" required={hasSchoolWallet} />
+                        <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
+                          🔒 Ce wallet signera les diplômes.
+                        </small>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <button type="button" onClick={generateSchoolWallet} className="btn" style={{ backgroundColor: '#e2e8f0', color: '#1e293b', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '0.85rem' }}>
+                          🔄 regénérer une adresse
+                        </button>
+                        <div className="input-group" style={{ marginBottom: 0 }}>
+                          <label className="input-label">Adresse Publique (générée)</label>
+                          <input className="input-field" type="text" name="school_eth_address" value={formData.school_eth_address} readOnly style={{ backgroundColor: '#f1f5f9', color: '#64748b' }} />
+                        </div>
+                        {generatedSchoolPrivateKey && (
+                          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', padding: '10px', borderRadius: '6px', marginTop: '10px' }}>
+                            <p style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: '0.85rem', margin: '0 0 5px 0' }}>⚠️ CLÉ PRIVÉE - TRÈS IMPORTANT</p>
+                            <p style={{ color: '#991b1b', fontSize: '0.75rem', margin: '0 0 10px 0' }}>
+                              Copiez cette clé privée de toute urgence et conservez-la précieusement. Elle ne sera plus <strong>jamais</strong> affichée et est strictement nécessaire pour vous connecter sur MetaMask.
+                            </p>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                              <input type="text" value={generatedSchoolPrivateKey} readOnly style={{ flex: 1, padding: '5px', fontSize: '0.8rem', border: '1px solid #f87171', borderRadius: '4px', backgroundColor: '#fff' }} />
+                              <button type="button" onClick={() => navigator.clipboard.writeText(generatedSchoolPrivateKey)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem' }}>Copier</button>
+                            </div>
+                            <details style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Tutoriel : Comment importer cette clé dans MetaMask ?</summary>
+                              <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', lineHeight: '1.4' }}>
+                                <li>Installez l'extension <strong>MetaMask</strong> sur votre navigateur.</li>
+                                <li>Configurez un portefeuille (créez un mot de passe).</li>
+                                <li>Cliquez sur le sélecteur de compte (en haut au centre), puis sur <strong>Ajouter un compte...</strong>.</li>
+                                <li>Choisissez <strong>Importer le compte</strong>.</li>
+                                <li>Collez la clé privée copiée ci-dessus et cliquez sur <strong>Importer</strong>. C'est prêt !</li>
+                              </ol>
+                            </details>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="input-group">
                     <label className="input-label">Mot de passe</label>
@@ -241,9 +321,60 @@ const Login = ({ onLogin }) => {
                 </small>
               </div>
 
-              <div className="input-group">
-                <label className="input-label">Adresse MetaMask du Rectorat</label>
-                <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" />
+              <div className="input-group" style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
+                <label className="input-label">Le rectorat possède-t-il déjà une adresse MetaMask / Ethereum ?</label>
+                <div style={{ display: 'flex', gap: '15px', marginTop: '10px', marginBottom: '15px' }}>
+                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <input type="radio" checked={hasRectorateWallet} onChange={() => setHasRectorateWallet(true)} style={{ accentColor: 'var(--primary)' }} />
+                    Oui
+                  </label>
+                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <input type="radio" checked={!hasRectorateWallet} onChange={() => {
+                      setHasRectorateWallet(false);
+                      if (!formData.rectorate_eth_address || generatedPrivateKey === '') {
+                        generateRectorateWallet();
+                      }
+                    }} style={{ accentColor: 'var(--primary)' }} />
+                    Non, générer pour eux
+                  </label>
+                </div>
+
+                {hasRectorateWallet ? (
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label className="input-label">Adresse MetaMask du Rectorat</label>
+                    <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" />
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button type="button" onClick={generateRectorateWallet} className="btn" style={{ backgroundColor: '#e2e8f0', color: '#1e293b', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '0.85rem' }}>
+                      🔄 regénérer une adresse
+                    </button>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">Adresse Publique (générée)</label>
+                      <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} readOnly style={{ backgroundColor: '#f1f5f9', color: '#64748b' }} />
+                    </div>
+                    {generatedPrivateKey && (
+                      <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', padding: '10px', borderRadius: '6px', marginTop: '10px' }}>
+                        <p style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: '0.85rem', margin: '0 0 5px 0' }}>⚠️ CLÉ PRIVÉE - TRÈS IMPORTANT</p>
+                        <p style={{ color: '#991b1b', fontSize: '0.75rem', margin: '0 0 10px 0' }}>
+                          Copiez cette clé privée de toute urgence et transmettez-la au rectorat de manière sécurisée. Elle ne sera plus <strong>jamais</strong> affichée et est strictement nécessaire pour qu'ils puissent se connecter sur MetaMask.
+                        </p>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <input type="text" value={generatedPrivateKey} readOnly style={{ flex: 1, padding: '5px', fontSize: '0.8rem', border: '1px solid #f87171', borderRadius: '4px', backgroundColor: '#fff' }} />
+                          <button type="button" onClick={() => navigator.clipboard.writeText(generatedPrivateKey)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem' }}>Copier</button>
+                        </div>                          <details style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
+                            <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Tutoriel : Comment importer cette clé dans MetaMask ?</summary>
+                            <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', lineHeight: '1.4' }}>
+                              <li>Installez l'extension <strong>MetaMask</strong> sur votre navigateur.</li>
+                              <li>Configurez un portefeuille (créez un mot de passe).</li>
+                              <li>Cliquez sur le sélecteur de compte (en haut au centre), puis sur <strong>Ajouter un compte...</strong>.</li>
+                              <li>Choisissez <strong>Importer le compte</strong>.</li>
+                              <li>Collez la clé privée copiée ci-dessus et cliquez sur <strong>Importer</strong>. C'est prêt !</li>
+                            </ol>
+                          </details>                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="input-group">
