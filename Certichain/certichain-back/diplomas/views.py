@@ -244,8 +244,11 @@ class UpdateProfileView(APIView):
                 return Response({"error": "Fournissez le mot de passe actuel et le nouveau mot de passe."}, status=400)
             if not profile.user.check_password(current_password):
                 return Response({"error": "Mot de passe actuel incorrect."}, status=400)
-            if len(new_password) < 8:
-                return Response({"error": "Le nouveau mot de passe doit contenir au moins 8 caractères."}, status=400)
+            
+            import re
+            if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}$', new_password):
+                return Response({"error": "Le nouveau mot de passe doit faire au moins 12 caractères et contenir une majuscule, une minuscule, un chiffre et un caractère spécial."}, status=400)
+                
             profile.user.set_password(new_password)
             profile.user.save(update_fields=['password'])
 
