@@ -82,7 +82,28 @@ const Login = ({ onLogin }) => {
 
   const handleNextStep = (e) => {
     e.preventDefault();
-    // Validate custom formats if needed here
+    setError('');
+
+    if (step === 1) {
+      if (!formData.username || formData.username.trim() === '') return setError("L'identifiant école est requis.");
+      if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) return setError("Un email officiel valide est requis.");
+      if (!formData.school_name || formData.school_name.trim() === '') return setError("Le nom de l'établissement est requis.");
+      if (hasSchoolWallet && (!formData.school_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(formData.school_eth_address))) {
+        return setError("L'adresse MetaMask de l'école est invalide (doit commencer par 0x suivi de 40 caractères hexadécimaux).");
+      }
+      if (!hasSchoolWallet && !formData.school_eth_address) {
+        return setError("Veuillez générer une adresse publique pour l'école.");
+      }
+      const complexPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}$/;
+      if (!formData.password || !complexPasswordRegex.test(formData.password)) {
+        return setError("Le mot de passe doit faire au moins 12 caractères et contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.");
+      }
+    } else if (step === 2) {
+      if (!formData.school_type || formData.school_type.trim() === '') return setError("Prenez soin de sélectionner le type d'établissement.");
+      if (formData.uai_code && formData.uai_code.length !== 8) return setError("Le code UAI / RNE doit contenir exactement 8 caractères.");
+      if (formData.siret && !/^\d{14}$/.test(formData.siret)) return setError("Le numéro SIRET doit contenir exactement 14 chiffres.");
+    }
+
     setStep(s => s + 1);
   };
 
@@ -92,9 +113,23 @@ const Login = ({ onLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isRegister && step < 3) {
-      handleNextStep(e);
-      return;
+    if (isRegister) {
+      if (step < 3) {
+        handleNextStep(e);
+        return;
+      }
+      
+      // Step 3 validation
+      if (!formData.rectorate_email || !/\S+@\S+\.\S+/.test(formData.rectorate_email)) return setError("L'email du rectorat est invalide.");
+      if (hasRectorateWallet && (!formData.rectorate_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(formData.rectorate_eth_address))) {
+        return setError("L'adresse MetaMask du rectorat est invalide.");
+      }
+      if (!hasRectorateWallet && !formData.rectorate_eth_address) {
+        return setError("Veuillez générer une adresse publique pour le rectorat.");
+      }
+      if (!formData.gdpr_consent) {
+        return setError("Vous devez accepter la politique de confidentialité.");
+      }
     }
 
     setError('');

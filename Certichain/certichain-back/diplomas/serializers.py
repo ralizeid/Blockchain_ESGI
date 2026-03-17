@@ -41,6 +41,14 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {'password': {'write_only': True}}
 
+    def validate_password(self, value):
+        import re
+        if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}$', value):
+            raise serializers.ValidationError(
+                "Le mot de passe doit faire au moins 12 caractères et contenir une majuscule, une minuscule, un chiffre et un caractère spécial."
+            )
+        return value
+
     def validate_gdpr_consent(self, value):
         if not value:
             raise serializers.ValidationError(
