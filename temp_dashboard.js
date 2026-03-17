@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { QRCodeSVG } from 'qrcode.react';
 import '../App.css';
@@ -25,8 +25,6 @@ const IssuerDashboard = () => {
   const [myDiplomas, setMyDiplomas] = useState([]);
   const [selectedDiploma, setSelectedDiploma] = useState(null);
   const [msg, setMsg] = useState({ type: '', text: '' });
-  const [qrPresets, setQrPresets] = useState([]);
-  const [newPresetName, setNewPresetName] = useState('');
   const [formData, setFormData] = useState({
     nom: '', prenom: '', dateObtention: '', dateNaissance: '', studentEmail: '',
     diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true,
@@ -43,61 +41,12 @@ const IssuerDashboard = () => {
   const [otpModal, setOtpModal] = useState({ open: false });
   const closeOTPModal = () => setOtpModal({ open: false });
 
-  const [quota, setQuota] = useState({ used: 0, limit: 0, remaining: 0, unlimited: false, has_plan: false, plan_name: '…', plan_level: 0 });
+  const [quota, setQuota] = useState({ used: 0, limit: 0, remaining: 0, unlimited: false, has_plan: false, plan_name: 'â€¦', plan_level: 0 });
 
   // Upgrade modal state
   const [showUpgrade, setShowUpgrade]   = useState(false);
   const [upgradePlans, setUpgradePlans] = useState([]);
   const [upgradeMsg, setUpgradeMsg]     = useState({ type: '', text: '' });
-
-  const fetchQrPresets = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/qr-presets/?user_id=${userId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setQrPresets(data);
-      }
-    } catch(e) {
-      console.error("Erreur récupération presets", e);
-    }
-  }, [userId]);
-
-  const saveQrPreset = async () => {
-    if (!newPresetName.trim()) return;
-    try {
-      const res = await fetch(`/api/qr-presets/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          name: newPresetName.trim(),
-          embed_qr: formData.embed_qr,
-          qr_x_pct: Number(formData.qr_x_pct),
-          qr_y_pct: Number(formData.qr_y_pct),
-          qr_size_pct: Number(formData.qr_size_pct)
-        })
-      });
-      if (res.ok) {
-        setNewPresetName('');
-        fetchQrPresets();
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const deleteQrPreset = async (id) => {
-    try {
-      const res = await fetch(`/api/qr-presets/${id}/?user_id=${userId}`, { method: 'DELETE' });
-      if (res.ok) fetchQrPresets();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    fetchQrPresets();
-  }, [fetchQrPresets]);
 
   const fetchQuota = useCallback(async () => {
     try {
@@ -105,7 +54,7 @@ const IssuerDashboard = () => {
       const data = await res.json();
       if (res.ok) setQuota(data);
     } catch (e) {
-      console.error("Erreur récupération quota");
+      console.error("Erreur rÃ©cupÃ©ration quota");
     }
   }, [userId]);
 
@@ -172,10 +121,10 @@ const IssuerDashboard = () => {
           pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
           const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
           if (pdf.numPages > 1) {
-            setFileError('Le diplôme PDF doit contenir exactement 1 page pour être prévisualisé et validé.');
+            setFileError('Le diplÃ´me PDF doit contenir exactement 1 page pour Ãªtre prÃ©visualisÃ© et validÃ©.');
             setPreviewUrl('');
             
-            // On vide le fichier invalide pour bloquer la soumission et remettre l'input à zéro
+            // On vide le fichier invalide pour bloquer la soumission et remettre l'input Ã  zÃ©ro
             setFormData(prev => ({ ...prev, diplomeFile: null }));
             setFileInputKey(Date.now());
             return;
@@ -191,7 +140,7 @@ const IssuerDashboard = () => {
           setPreviewUrl(canvas.toDataURL('image/png'));
         } catch (err) {
           console.error('Erreur de lecture PDF :', err);
-          setFileError('Impossible de lire ou prévisualiser ce fichier PDF.');
+          setFileError('Impossible de lire ou prÃ©visualiser ce fichier PDF.');
           setPreviewUrl('');
           setFormData(prev => ({ ...prev, diplomeFile: null }));
           setFileInputKey(Date.now());
@@ -203,7 +152,7 @@ const IssuerDashboard = () => {
 
     if (!formData.diplomeFile.type.startsWith('image/')) {
       setPreviewUrl('');
-      setFileError('Format de fichier non supporté. Veuillez fournir une image ou un PDF (1 page).');
+      setFileError('Format de fichier non supportÃ©. Veuillez fournir une image ou un PDF (1 page).');
       setFormData(prev => ({ ...prev, diplomeFile: null }));
       setFileInputKey(Date.now());
       return;
@@ -248,7 +197,7 @@ const IssuerDashboard = () => {
     setLastCreated(null);
 
     if (!formData.diplomeFile) {
-      setMsg({ type: 'error', text: "Veuillez joindre le fichier du diplôme." });
+      setMsg({ type: 'error', text: "Veuillez joindre le fichier du diplÃ´me." });
       return;
     }
     if (formData.embed_qr) {
@@ -256,29 +205,29 @@ const IssuerDashboard = () => {
       const y = parseDecimalInput(formData.qr_y_pct);
       const s = parseDecimalInput(formData.qr_size_pct);
       if ([x, y, s].some(Number.isNaN)) {
-        setMsg({ type: 'error', text: 'Coordonnées QR invalides.' });
+        setMsg({ type: 'error', text: 'CoordonnÃ©es QR invalides.' });
         return;
       }
       if (x < 0 || x > 100 || y < 0 || y > 100) {
-        setMsg({ type: 'error', text: 'Les coordonnées QR doivent être entre 0 et 100.' });
+        setMsg({ type: 'error', text: 'Les coordonnÃ©es QR doivent Ãªtre entre 0 et 100.' });
         return;
       }
       if (s < 5 || s > 45) {
-        setMsg({ type: 'error', text: 'La taille QR doit être entre 5% et 45%.' });
+        setMsg({ type: 'error', text: 'La taille QR doit Ãªtre entre 5% et 45%.' });
         return;
       }
     }
     if (formData.dateObtention > today) {
-      setMsg({ type: 'error', text: "La date d'obtention ne peut pas être dans le futur." });
+      setMsg({ type: 'error', text: "La date d'obtention ne peut pas Ãªtre dans le futur." });
       return;
     }
     if (!formData.never_expires && formData.expiry_date) {
       if (formData.expiry_date <= today) {
-        setMsg({ type: 'error', text: "La date d'expiration doit être strictement dans le futur." });
+        setMsg({ type: 'error', text: "La date d'expiration doit Ãªtre strictement dans le futur." });
         return;
       }
       if (formData.expiry_date <= formData.dateObtention) {
-        setMsg({ type: 'error', text: "La date d'expiration doit être postérieure à la date d'obtention." });
+        setMsg({ type: 'error', text: "La date d'expiration doit Ãªtre postÃ©rieure Ã  la date d'obtention." });
         return;
       }
     }
@@ -288,12 +237,12 @@ const IssuerDashboard = () => {
       open: true,
       userId,
       actionType: 'CREATE_DIPLOMA',
-      title: '\uD83C\uDF93 Émettre un diplôme',
-      message: "Confirmez l'émission du diplôme suivant. Un code de validation vous sera envoyé par email.",
+      title: '\uD83C\uDF93 Ã‰mettre un diplÃ´me',
+      message: "Confirmez l'Ã©mission du diplÃ´me suivant. Un code de validation vous sera envoyÃ© par email.",
       details: (
         <div style={{ lineHeight: '1.8' }}>
           <div><strong>Nom :</strong> {snapshot.nom}</div>
-          <div><strong>Prénom :</strong> {snapshot.prenom}</div>
+          <div><strong>PrÃ©nom :</strong> {snapshot.prenom}</div>
           <div><strong>Cursus :</strong> {snapshot.course_name}</div>
           <div><strong>Date d'obtention :</strong> {snapshot.dateObtention}</div>
           {snapshot.studentEmail && <div><strong>Email :</strong> {snapshot.studentEmail}</div>}
@@ -328,7 +277,7 @@ const IssuerDashboard = () => {
       const responseData = await res.json();
       if (res.ok) {
         closeOTPModal();
-        setMsg({ type: 'success', text: "Demande créée ! En attente de validation (Voir emails)." });
+        setMsg({ type: 'success', text: "Demande crÃ©Ã©e ! En attente de validation (Voir emails)." });
         setLastCreated({
           diplomaId: responseData.diploma_id,
           diplomaFileUrl: responseData.diploma_file_url,
@@ -355,8 +304,8 @@ const IssuerDashboard = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setSchoolErasureMsg({ type: 'success', text: '✅ ' + data.message });
-        const erased = { ...diploma, first_name: '[Supprimé]', last_name: '[Supprimé]', image: null, photo: null };
+        setSchoolErasureMsg({ type: 'success', text: 'âœ… ' + data.message });
+        const erased = { ...diploma, first_name: '[SupprimÃ©]', last_name: '[SupprimÃ©]', image: null, photo: null };
         setSelectedDiploma(erased);
         setMyDiplomas(prev => prev.map(d => d.id === diploma.id ? erased : d));
         return { ok: true };
@@ -379,12 +328,12 @@ const IssuerDashboard = () => {
       const data = await res.json();
       if (res.ok) {
         closeOTPModal();
-        setRevokeMsg({ type: 'success', text: '\u2705 Diplôme révoqué sur la blockchain.' });
+        setRevokeMsg({ type: 'success', text: '\u2705 DiplÃ´me rÃ©voquÃ© sur la blockchain.' });
         setSelectedDiploma(prev => ({ ...prev, blockchain_status: 'REVOKED', status: 'REVOKED' }));
         setMyDiplomas(prev => prev.map(d => d.id === diploma.id ? { ...d, blockchain_status: 'REVOKED', status: 'REVOKED' } : d));
         return { ok: true };
       } else {
-        return { ok: false, error: data.error || 'Erreur lors de la révocation.' };
+        return { ok: false, error: data.error || 'Erreur lors de la rÃ©vocation.' };
       }
     } catch {
       return { ok: false, error: 'Erreur serveur.' };
@@ -392,11 +341,11 @@ const IssuerDashboard = () => {
   };
   
   const getStatusBadge = (status, blockchainStatus) => {
-    if (blockchainStatus === 'REVOKED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fdf4ff', color: '#7c3aed', fontSize: '0.8rem', fontWeight: 'bold'}}>Révoqué 🚫</span>;
-    if (status === 'REVOKED')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fff7ed', color: '#c2410c', fontSize: '0.8rem', fontWeight: 'bold'}}>Expiré 🕒</span>;
-    if (status === 'VALIDATED')        return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontSize: '0.8rem'}}>Validé ✅</span>;
-    if (status === 'PENDING')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#ffedd5', color: '#9a3412', fontSize: '0.8rem'}}>En attente ⏳</span>;
-    if (status === 'REJECTED')         return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fee2e2', color: '#991b1b', fontSize: '0.8rem'}}>Refusé ❌</span>;
+    if (blockchainStatus === 'REVOKED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fdf4ff', color: '#7c3aed', fontSize: '0.8rem', fontWeight: 'bold'}}>RÃ©voquÃ© ðŸš«</span>;
+    if (status === 'REVOKED')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fff7ed', color: '#c2410c', fontSize: '0.8rem', fontWeight: 'bold'}}>ExpirÃ© ðŸ•’</span>;
+    if (status === 'VALIDATED')        return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontSize: '0.8rem'}}>ValidÃ© âœ…</span>;
+    if (status === 'PENDING')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#ffedd5', color: '#9a3412', fontSize: '0.8rem'}}>En attente â³</span>;
+    if (status === 'REJECTED')         return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fee2e2', color: '#991b1b', fontSize: '0.8rem'}}>RefusÃ© âŒ</span>;
     return status;
   };
 
@@ -410,7 +359,7 @@ const IssuerDashboard = () => {
   return (
     <div className="dashboard-container">
 
-      {/* ── Plan & quota banner ── */}
+      {/* â”€â”€ Plan & quota banner â”€â”€ */}
       <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '30px', border: isLimitReached ? '2px solid #ef4444' : `1px solid ${planColor}40` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ margin: 0 }}>
@@ -419,14 +368,14 @@ const IssuerDashboard = () => {
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontWeight: 'bold', color: isLimitReached ? '#ef4444' : '#1e293b' }}>
-              {!quota.has_plan ? 'Aucun abonnement' : quota.unlimited ? `${quota.used} / ∞` : `${quota.used} / ${quota.limit}`} {quota.has_plan ? 'Certifications' : ''}
+              {!quota.has_plan ? 'Aucun abonnement' : quota.unlimited ? `${quota.used} / âˆž` : `${quota.used} / ${quota.limit}`} {quota.has_plan ? 'Certifications' : ''}
             </span>
             <button
               className="btn btn-secondary"
               style={{ padding: '6px 14px', fontSize: '0.8rem', width: 'auto' }}
               onClick={openUpgradeModal}
             >
-              ⬆ Changer de plan
+              â¬† Changer de plan
             </button>
           </div>
         </div>
@@ -444,32 +393,32 @@ const IssuerDashboard = () => {
 
         {isLimitReached ? (
           <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
-            ⚠️ Limite atteinte. Upgradez votre abonnement pour continuer.
+            âš ï¸ Limite atteinte. Upgradez votre abonnement pour continuer.
           </p>
         ) : !quota.has_plan ? (
           <p style={{ color: '#f59e0b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
-            ⚠️ Aucun abonnement actif. Veuillez choisir un plan pour émettre des diplômes.
+            âš ï¸ Aucun abonnement actif. Veuillez choisir un plan pour Ã©mettre des diplÃ´mes.
           </p>
         ) : quota.unlimited ? (
           <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
-            Certifications illimitées avec votre plan {quota.plan_name}.
+            Certifications illimitÃ©es avec votre plan {quota.plan_name}.
           </p>
         ) : (
           <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
-            Il vous reste {quota.remaining} certification(s) pour cette année.
+            Il vous reste {quota.remaining} certification(s) pour cette annÃ©e.
           </p>
         )}
       </div>
 
-      {/* ── Upgrade modal ── */}
+      {/* â”€â”€ Upgrade modal â”€â”€ */}
       {showUpgrade && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '30px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <h3 style={{ marginTop: 0 }}>{quota.has_plan ? "Changer d'abonnement" : "Choisir un abonnement"}</h3>
             <p style={{ color: '#64748b', fontSize: '0.9em' }}>
               {quota.has_plan
-                ? <>Plan actuel : <strong>{quota.plan_name}</strong>. Vous pouvez uniquement upgrader vers un plan supérieur.</>
-                : "Aucun abonnement actif. Choisissez un plan pour commencer à émettre des diplômes."
+                ? <>Plan actuel : <strong>{quota.plan_name}</strong>. Vous pouvez uniquement upgrader vers un plan supÃ©rieur.</>
+                : "Aucun abonnement actif. Choisissez un plan pour commencer Ã  Ã©mettre des diplÃ´mes."
               }
             </p>
 
@@ -478,7 +427,7 @@ const IssuerDashboard = () => {
             )}
 
             {upgradePlans.length === 0 ? (
-              <p style={{ color: '#64748b', textAlign: 'center' }}>Vous êtes déjà sur le plan le plus élevé !</p>
+              <p style={{ color: '#64748b', textAlign: 'center' }}>Vous Ãªtes dÃ©jÃ  sur le plan le plus Ã©levÃ© !</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                 {upgradePlans.map(plan => {
@@ -488,11 +437,11 @@ const IssuerDashboard = () => {
                       <div>
                         <span style={{ fontWeight: 'bold', color }}>{plan.display_name}</span>
                         <span style={{ color: '#64748b', fontSize: '0.85em', marginLeft: '10px' }}>
-                          {plan.max_diplomas === -1 ? 'Illimité' : `${plan.max_diplomas} diplômes/an`}
+                          {plan.max_diplomas === -1 ? 'IllimitÃ©' : `${plan.max_diplomas} diplÃ´mes/an`}
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontWeight: 'bold' }}>{plan.annual_price} €/an</span>
+                        <span style={{ fontWeight: 'bold' }}>{plan.annual_price} â‚¬/an</span>
                         <button
                           className="btn btn-primary"
                           style={{ padding: '6px 16px', fontSize: '0.85rem', width: 'auto', background: color, border: 'none' }}
@@ -515,8 +464,8 @@ const IssuerDashboard = () => {
       )}
 
       <div style={{display: 'flex', gap: '20px', marginBottom: '20px', justifyContent: 'center'}}>
-        <button className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {setActiveTab('create'); setSelectedDiploma(null);}}>Nouveau Diplôme</button>
-        <button className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('list')}>Mes émissions</button>
+        <button className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {setActiveTab('create'); setSelectedDiploma(null);}}>Nouveau DiplÃ´me</button>
+        <button className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('list')}>Mes Ã©missions</button>
       </div>
 
       {msg.text && <div className={`msg-box msg-${msg.type}`}>{msg.text}</div>}
@@ -524,17 +473,17 @@ const IssuerDashboard = () => {
       {lastCreated?.diplomaFileUrl && activeTab === 'create' && (
         <div style={{ marginBottom: 20, background: '#ecfeff', border: '1px solid #67e8f9', borderRadius: 10, padding: 14 }}>
           <div style={{ fontWeight: 700, color: '#0f766e', marginBottom: 8 }}>
-            ✅ Diplôme généré (en attente de validations)
+            âœ… DiplÃ´me gÃ©nÃ©rÃ© (en attente de validations)
           </div>
           <p style={{ fontSize: '0.86rem', color: '#155e75', margin: '0 0 12px 0' }}>
-            Le QR code et les liens associés seront disponibles une fois le diplôme validé par vous et le rectorat.
+            Le QR code et les liens associÃ©s seront disponibles une fois le diplÃ´me validÃ© par vous et le rectorat.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <span
               className="btn btn-primary"
               style={{ width: 'auto', opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' }}
             >
-              📥 Télécharger le diplôme avec QR
+              ðŸ“¥ TÃ©lÃ©charger le diplÃ´me avec QR
             </span>
             {lastCreated.verifyUrl && (
               <button
@@ -543,7 +492,7 @@ const IssuerDashboard = () => {
                 style={{ width: 'auto', opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' }}
                 disabled
               >
-                📋 Copier le lien de vérification
+                ðŸ“‹ Copier le lien de vÃ©rification
               </button>
             )}
           </div>
@@ -552,14 +501,14 @@ const IssuerDashboard = () => {
 
       {activeTab === 'create' ? (
         <div className="form-card">
-          <h2>🎓 Émettre un Diplôme</h2>
+          <h2>ðŸŽ“ Ã‰mettre un DiplÃ´me</h2>
           <form onSubmit={handleSubmit}>
              <div className="input-group">
-                <label className="input-label">Nom de l'étudiant</label>
+                <label className="input-label">Nom de l'Ã©tudiant</label>
                 <input className="input-field" onChange={e => setFormData({...formData, nom: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Prénom</label>
+                <label className="input-label">PrÃ©nom</label>
                 <input className="input-field" onChange={e => setFormData({...formData, prenom: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
@@ -571,11 +520,11 @@ const IssuerDashboard = () => {
                 <input className="input-field" type="date" max={today} onChange={e => setFormData({...formData, dateObtention: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Date de naissance de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – identification anti-usurpation)</span></label>
+                <label className="input-label">Date de naissance de l'Ã©tudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel â€“ identification anti-usurpation)</span></label>
                 <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Email de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – nécessaire pour le droit à l'oubli RGPD)</span></label>
+                <label className="input-label">Email de l'Ã©tudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel â€“ nÃ©cessaire pour le droit Ã  l'oubli RGPD)</span></label>
                 <input
                   className="input-field"
                   type="email"
@@ -585,7 +534,7 @@ const IssuerDashboard = () => {
                   disabled={isLimitReached}
                 />
                 <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
-                  Utilisé uniquement pour envoyer un code de confirmation lors d’une demande de suppression. Non exposé publiquement.
+                  UtilisÃ© uniquement pour envoyer un code de confirmation lors dâ€™une demande de suppression. Non exposÃ© publiquement.
                 </small>
              </div>
              <div className="input-group">
@@ -612,7 +561,7 @@ const IssuerDashboard = () => {
                 </div>
              </div>
              <div className="input-group">
-                <label className="input-label">Fichier du diplôme (PDF, image…)</label>
+                <label className="input-label">Fichier du diplÃ´me (PDF, imageâ€¦)</label>
                 {fileError && <div style={{ color: '#991b1b', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px' }}>{fileError}</div>}
                 <div className="file-upload-wrapper">
                   <input
@@ -637,14 +586,14 @@ const IssuerDashboard = () => {
                    onChange={e => setFormData({ ...formData, embed_qr: e.target.checked })}
                    disabled={isLimitReached}
                  />
-                 Intégrer automatiquement le QR de vérification dans le diplôme
+                 IntÃ©grer automatiquement le QR de vÃ©rification dans le diplÃ´me
                </label>
 
                {formData.embed_qr && (
                  <>
                    <p style={{ margin: '8px 0 12px', color: '#64748b', fontSize: '0.85rem' }}>
-                     Placez le QR via coordonnées (%) ou cliquez directement dans l’aperçu.
-                     Le QR encode uniquement le lien public de vérification, jamais le lien privé RGPD.
+                     Placez le QR via coordonnÃ©es (%) ou cliquez directement dans lâ€™aperÃ§u.
+                     Le QR encode uniquement le lien public de vÃ©rification, jamais le lien privÃ© RGPD.
                    </p>
 
                    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 12 }}>
@@ -689,63 +638,10 @@ const IssuerDashboard = () => {
                      </div>
                    </div>
 
-                   <div style={{ marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
-                     <div style={{ fontWeight: '500', marginBottom: '8px', fontSize: '0.85rem' }}>Sauvegarder et réutiliser ces paramètres (Presets)</div>
-                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                       <input
-                         type="text"
-                         placeholder="Nom du preset (ex: Modèle Licence)"
-                         className="input-field"
-                         style={{ flex: 1, padding: '6px', fontSize: '0.85rem' }}
-                         value={newPresetName}
-                         onChange={e => setNewPresetName(e.target.value)}
-                       />
-                       <button type="button" onClick={saveQrPreset} className="btn" style={{ padding: '6px 12px', fontSize: '0.85rem', width: 'auto' }}>
-                         Enregistrer
-                       </button>
-                     </div>
-                     {qrPresets.length > 0 && (
-                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                         {qrPresets.map(preset => (
-                           <div key={preset.id} style={{ display: 'flex', alignItems: 'center', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                             <button 
-                               type="button"
-                               title="Appliquer ce preset"
-                               onClick={(e) => {
-                                 e.preventDefault();
-                                 setFormData(f => ({
-                                   ...f,
-                                   embed_qr: preset.embed_qr,
-                                   qr_x_pct: preset.qr_x_pct,
-                                   qr_y_pct: preset.qr_y_pct,
-                                   qr_size_pct: preset.qr_size_pct
-                                 }));
-                               }}
-                               style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}
-                             >
-                               {preset.name}
-                             </button>
-                             <button
-                               type="button"
-                               title="Supprimer ce preset"
-                               onClick={(e) => {
-                                 e.preventDefault();
-                                 deleteQrPreset(preset.id);
-                               }}
-                               style={{ padding: '4px 8px', border: 'none', borderLeft: '1px solid #cbd5e1', background: '#f1f5f9', cursor: 'pointer', color: '#ef4444' }}
-                             >
-                               &times;
-                             </button>
-                           </div>
-                         ))}
-                       </div>
-                     )}
-                   </div>
-
                    {previewUrl ? (
                      <div>
                        <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 6 }}>
-                         Aperçu de placement (clic = repositionnement)
+                         AperÃ§u de placement (clic = repositionnement)
                        </div>
                        <div
                          onClick={handlePreviewClick}
@@ -760,7 +656,7 @@ const IssuerDashboard = () => {
                            background: 'white',
                          }}
                        >
-                         <img src={previewUrl} alt="Aperçu diplôme" style={{ display: 'block', width: '100%' }} />
+                         <img src={previewUrl} alt="AperÃ§u diplÃ´me" style={{ display: 'block', width: '100%' }} />
                          <div
                            style={{
                              position: 'absolute',
@@ -779,7 +675,7 @@ const IssuerDashboard = () => {
                      </div>
                    ) : (
                      <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem' }}>
-                       Aperçu visuel disponible pour les fichiers image (PNG/JPG/WEBP). Pour les PDF, les coordonnées seront appliquées à la page 1.
+                       AperÃ§u visuel disponible pour les fichiers image (PNG/JPG/WEBP). Pour les PDF, les coordonnÃ©es seront appliquÃ©es Ã  la page 1.
                      </p>
                    )}
                  </>
@@ -787,7 +683,7 @@ const IssuerDashboard = () => {
              </div>
 
              <div className="input-group">
-                <label className="input-label">Photo d’identité de l’étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – JPEG, PNG)</span></label>
+                <label className="input-label">Photo dâ€™identitÃ© de lâ€™Ã©tudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel â€“ JPEG, PNG)</span></label>
                 <div className="file-upload-wrapper">
                   <input
                     type="file"
@@ -797,12 +693,12 @@ const IssuerDashboard = () => {
                   />
                   {photoPreviewUrl && (
                     <div style={{ marginTop: '10px', textAlign: 'center' }}>
-                      <img src={photoPreviewUrl} alt="Aperçu identité" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #e2e8f0' }} />
+                      <img src={photoPreviewUrl} alt="AperÃ§u identitÃ©" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #e2e8f0' }} />
                     </div>
                   )}
                 </div>
                 <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
-                  Utilisée pour détecter les usurpations d’identité lors de la vérification.
+                  UtilisÃ©e pour dÃ©tecter les usurpations dâ€™identitÃ© lors de la vÃ©rification.
                 </small>
              </div>
              <button 
@@ -811,7 +707,7 @@ const IssuerDashboard = () => {
                 disabled={isLimitReached}
                 style={{ opacity: isLimitReached ? 0.5 : 1, cursor: isLimitReached ? 'not-allowed' : 'pointer' }}
              >
-                {isLimitReached ? "Limite atteinte" : "Lancer la procédure"}
+                {isLimitReached ? "Limite atteinte" : "Lancer la procÃ©dure"}
              </button>
           </form>
         </div>
@@ -819,7 +715,7 @@ const IssuerDashboard = () => {
         <div className="form-card">
           {selectedDiploma ? (
             <div className="certificate-result animate-fade-in">
-                <div className="certificate-header">DÉTAIL DU DIPLÔME</div>
+                <div className="certificate-header">DÃ‰TAIL DU DIPLÃ”ME</div>
                 <div className="certificate-body">
                     <h2 style={{textAlign: 'center'}}>{selectedDiploma.first_name} {selectedDiploma.last_name}</h2>
                     <div style={{textAlign: 'center', margin: '15px 0'}}>
@@ -839,7 +735,7 @@ const IssuerDashboard = () => {
                       <b>{selectedDiploma.expiry_date || <span style={{color:'#64748b',fontStyle:'italic'}}>N'expire jamais</span>}</b>
                     </div>
 
-                    {/* QR Code de vérification étudiant */}
+                    {/* QR Code de vÃ©rification Ã©tudiant */}
                     {selectedDiploma.verification_uuid && (() => {
                       const verifyUrl  = `${window.location.origin}/verify/${selectedDiploma.verification_uuid}`;
                       const erasureUrl = `${verifyUrl}?erase=${selectedDiploma.student_deletion_token}`;
@@ -848,18 +744,18 @@ const IssuerDashboard = () => {
 
                       return (
                         <div style={{ margin: '20px 0', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                          <h4 style={{ margin: '0 0 12px', color: '#334155', fontSize: '0.9rem' }}>📱 Lien de vérification étudiant (public)</h4>
+                          <h4 style={{ margin: '0 0 12px', color: '#334155', fontSize: '0.9rem' }}>ðŸ“± Lien de vÃ©rification Ã©tudiant (public)</h4>
                           
                           {!isValidated && (
                             <div style={{ marginBottom: 10, fontSize: '0.82rem', color: '#b45309', fontWeight: 'bold' }}>
-                               ⚠️ Disponible uniquement après validation complète (École + Rectorat)
+                               âš ï¸ Disponible uniquement aprÃ¨s validation complÃ¨te (Ã‰cole + Rectorat)
                             </div>
                           )}
 
                           <div style={{ filter: isValidated ? 'none' : 'blur(5px)', opacity: isValidated ? 1 : 0.6, pointerEvents: isValidated ? 'auto' : 'none', transition: 'all 0.3s' }}>
-                            <QRCodeSVG value={isValidated ? verifyUrl : 'masqué'} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
+                            <QRCodeSVG value={isValidated ? verifyUrl : 'masquÃ©'} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
                             <div style={{ fontSize: '0.75rem', color: '#64748b', wordBreak: 'break-all', marginBottom: '10px', fontFamily: 'monospace' }}>
-                              {isValidated ? verifyUrl : 'Lien masqué (en attente de validation)'}
+                              {isValidated ? verifyUrl : 'Lien masquÃ© (en attente de validation)'}
                             </div>
                           </div>
 
@@ -872,17 +768,17 @@ const IssuerDashboard = () => {
                             }}
                             disabled={!isValidated}
                           >
-                            {copiedLink ? '✅ Copié !' : '📋 Copier le lien'}
+                            {copiedLink ? 'âœ… CopiÃ© !' : 'ðŸ“‹ Copier le lien'}
                           </button>
 
-                          {/* Lien privé RGPD – à transmettre uniquement à l'étudiant, jamais dans le QR code */}
+                          {/* Lien privÃ© RGPD â€“ Ã  transmettre uniquement Ã  l'Ã©tudiant, jamais dans le QR code */}
                           {selectedDiploma.student_deletion_token && (
                             <div style={{ marginTop: 16, padding: '12px', background: '#fff7ed', borderRadius: '6px', border: '1px solid #fed7aa', textAlign: 'left' }}>
                               <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#9a3412', marginBottom: 6 }}>
-                                🔐 Lien privé RGPD (droit à l'oubli) — à transmettre uniquement à l'étudiant
+                                ðŸ” Lien privÃ© RGPD (droit Ã  l'oubli) â€” Ã  transmettre uniquement Ã  l'Ã©tudiant
                               </div>
                               <div style={{ filter: isValidated ? 'none' : 'blur(4px)', opacity: isValidated ? 1 : 0.6, fontSize: '0.72rem', color: '#64748b', wordBreak: 'break-all', fontFamily: 'monospace', marginBottom: 8 }}>
-                                {isValidated ? erasureUrl : 'Lien masqué (en attente de validation)'}
+                                {isValidated ? erasureUrl : 'Lien masquÃ© (en attente de validation)'}
                               </div>
                               <button
                                 className="btn btn-secondary"
@@ -893,10 +789,10 @@ const IssuerDashboard = () => {
                                 }}
                                 disabled={!isValidated}
                               >
-                                📋 Copier le lien privé
+                                ðŸ“‹ Copier le lien privÃ©
                               </button>
                               <div style={{ marginTop: 6, fontSize: '0.72rem', color: '#b45309', fontStyle: 'italic' }}>
-                                ⚠️ Ne pas inclure dans le QR code public — ce lien permet la suppression définitive des données.
+                                âš ï¸ Ne pas inclure dans le QR code public â€” ce lien permet la suppression dÃ©finitive des donnÃ©es.
                               </div>
                             </div>
                           )}
@@ -909,28 +805,28 @@ const IssuerDashboard = () => {
                         <h4 style={{ marginTop: 0, marginBottom: '15px', textAlign: 'center', color: '#334155' }}>Suivi des validations</h4>
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px dashed #cbd5e1' }}>
-                            <span style={{ color: '#64748b' }}>École (Vous) :</span>
-                            <strong>{selectedDiploma.school_validated ? '✅ Validé' : '⏳ En attente'}</strong>
+                            <span style={{ color: '#64748b' }}>Ã‰cole (Vous) :</span>
+                            <strong>{selectedDiploma.school_validated ? 'âœ… ValidÃ©' : 'â³ En attente'}</strong>
                         </div>
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: '#64748b' }}>Rectorat :</span>
-                            <strong>{selectedDiploma.rectorate_validated ? '✅ Validé' : '⏳ En attente'}</strong>
+                            <strong>{selectedDiploma.rectorate_validated ? 'âœ… ValidÃ©' : 'â³ En attente'}</strong>
                         </div>
                         
                         {selectedDiploma.blockchain_status === 'REVOKED' && (
                             <div style={{ marginTop: '15px', padding: '10px', background: '#fdf4ff', borderRadius: '6px', border: '1px solid #d8b4fe', color: '#7c3aed', textAlign: 'center', fontWeight: 'bold' }}>
-                                🚫 Ce diplôme a été révoqué par l'établissement.
+                                ðŸš« Ce diplÃ´me a Ã©tÃ© rÃ©voquÃ© par l'Ã©tablissement.
                             </div>
                         )}
                         {selectedDiploma.status === 'REVOKED' && selectedDiploma.blockchain_status !== 'REVOKED' && (
                             <div style={{ marginTop: '15px', padding: '10px', background: '#fff7ed', borderRadius: '6px', border: '1px solid #fed7aa', color: '#c2410c', textAlign: 'center', fontWeight: 'bold' }}>
-                                🕒 Ce diplôme a expiré automatiquement.
+                                ðŸ•’ Ce diplÃ´me a expirÃ© automatiquement.
                             </div>
                         )}
                         {selectedDiploma.status === 'REJECTED' && (
                             <div style={{ marginTop: '15px', color: '#dc2626', textAlign: 'center', fontWeight: 'bold' }}>
-                                Ce diplôme a été refusé.
+                                Ce diplÃ´me a Ã©tÃ© refusÃ©.
                             </div>
                         )}
                     </div>
@@ -940,7 +836,7 @@ const IssuerDashboard = () => {
 
                     {selectedDiploma.image && (
                       <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#ecfeff', border: '1px solid #67e8f9', color: '#155e75', fontSize: '0.86rem' }}>
-                        Ce fichier contient la version du diplôme avec QR code intégré.
+                        Ce fichier contient la version du diplÃ´me avec QR code intÃ©grÃ©.
                       </div>
                     )}
 
@@ -956,10 +852,10 @@ const IssuerDashboard = () => {
                             download={selectedDiploma.status === 'VALIDATED'}
                             style={selectedDiploma.status !== 'VALIDATED' ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' } : {}}
                           >
-                            📥 Télécharger le diplôme avec QR
+                            ðŸ“¥ TÃ©lÃ©charger le diplÃ´me avec QR
                           </a>
                         )}
-                        {selectedDiploma.first_name !== '[Supprimé]' && (
+                        {selectedDiploma.first_name !== '[SupprimÃ©]' && (
                           <button
                             className="btn"
                             style={{width:'auto', background:'#b45309', color:'white', border:'none'}}
@@ -969,14 +865,14 @@ const IssuerDashboard = () => {
                                 open: true,
                                 userId,
                                 actionType: 'ERASE_DIPLOMA',
-                                title: '\uD83D\uDDD1\uFE0F Effacer les données RGPD',
-                                message: `Effacer les données personnelles de ${d.first_name} ${d.last_name} ?`,
-                                details: 'Irréversible : nom, prénom, fichiers et email supprimés. La preuve blockchain est conservée (RGPD Art. 17.3.b).',
+                                title: '\uD83D\uDDD1\uFE0F Effacer les donnÃ©es RGPD',
+                                message: `Effacer les donnÃ©es personnelles de ${d.first_name} ${d.last_name} ?`,
+                                details: 'IrrÃ©versible : nom, prÃ©nom, fichiers et email supprimÃ©s. La preuve blockchain est conservÃ©e (RGPD Art. 17.3.b).',
                                 onConfirm: (otpCode) => doErasure(d, otpCode),
                               });
                             }}
                           >
-                            🗑️ Effacer les données RGPD
+                            ðŸ—‘ï¸ Effacer les donnÃ©es RGPD
                           </button>
                         )}
                         {selectedDiploma.blockchain_status === 'ANCHORED' && (
@@ -989,14 +885,14 @@ const IssuerDashboard = () => {
                                 open: true,
                                 userId,
                                 actionType: 'REVOKE_DIPLOMA',
-                                title: '\uD83D\uDEAB Révoquer le diplôme',
-                                message: `Révoquer le diplôme de ${d.first_name} ${d.last_name} ?`,
-                                details: 'Cette action est irréversible sur la blockchain.',
+                                title: '\uD83D\uDEAB RÃ©voquer le diplÃ´me',
+                                message: `RÃ©voquer le diplÃ´me de ${d.first_name} ${d.last_name} ?`,
+                                details: 'Cette action est irrÃ©versible sur la blockchain.',
                                 onConfirm: (otpCode) => doRevoke(d, otpCode),
                               });
                             }}
                           >
-                            🚫 Révoquer
+                            ðŸš« RÃ©voquer
                           </button>
                         )}
                         <button className="btn btn-secondary" style={{width: 'auto'}} onClick={() => { setSelectedDiploma(null); setRevokeMsg({ type: '', text: '' }); setSchoolErasureMsg({ type: '', text: '' }); }}>Retour</button>
@@ -1005,9 +901,9 @@ const IssuerDashboard = () => {
             </div>
           ) : (
             <>
-                <h2>📜 Historique et Statuts</h2>
+                <h2>ðŸ“œ Historique et Statuts</h2>
                 {myDiplomas.length === 0 ? (
-                    <p style={{color: '#94a3b8', textAlign: 'center', marginTop: '20px'}}>Aucun diplôme émis.</p>
+                    <p style={{color: '#94a3b8', textAlign: 'center', marginTop: '20px'}}>Aucun diplÃ´me Ã©mis.</p>
                 ) : (
                     <div style={{marginTop: '20px'}}>
                         {myDiplomas.map(d => (
@@ -1030,7 +926,7 @@ const IssuerDashboard = () => {
                                 </div>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                                     {getStatusBadge(d.status, d.blockchain_status)}
-                                    <span style={{fontSize: '1.2rem', color: '#cbd5e1'}}>›</span>
+                                    <span style={{fontSize: '1.2rem', color: '#cbd5e1'}}>â€º</span>
                                 </div>
                             </div>
                         ))}

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .models import Diploma, UserProfile, SubscriptionPlan
+from .models import Diploma, UserProfile, SubscriptionPlan, QRPreset
 
 
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
@@ -189,3 +189,8 @@ class PublicDiplomaSerializer(serializers.ModelSerializer):
             'status', 'status_display', 'diploma_hash', 'blockchain_tx_hash',
             'blockchain_status', 'created_at', 'verification_uuid',
         ]
+class QRPresetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QRPreset
+        fields = ['id', 'name', 'embed_qr', 'qr_x_pct', 'qr_y_pct', 'qr_size_pct']
+
