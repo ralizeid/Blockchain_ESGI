@@ -39,13 +39,10 @@ class UserProfile(models.Model):
     school_type    = models.CharField(
         max_length=50, blank=True, null=True,
         choices=[
-            ('LYCEE',       'Lycée'),
-            ('BTS_IUT',     'BTS / IUT'),
             ('UNIVERSITE',  'Université'),
             ('GRANDE_ECOLE','Grande École'),
-            ('INGENIEUR',   'École d\'ingénieurs'),
+            ('INGENIEUR',   "École d'ingénieurs"),
             ('COMMERCE',    'École de commerce'),
-            ('AUTRE',       'Autre'),
         ],
         verbose_name="Type d'établissement",
     )
