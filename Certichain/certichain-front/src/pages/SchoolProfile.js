@@ -11,8 +11,8 @@ const PLAN_COLORS = {
 
 const SchoolProfile = () => {
   const navigate = useNavigate();
-  const userId   = localStorage.getItem('user_id');
-  const username = localStorage.getItem('username') || '—';
+  const userId   = sessionStorage.getItem('user_id');
+  const username = sessionStorage.getItem('username') || '—';
 
   const [activeTab, setActiveTab]     = useState('profile');
   const [quota, setQuota]             = useState(null);
@@ -218,7 +218,7 @@ const SchoolProfile = () => {
       if (res.ok) {
         setDeleteStep(2);
         setShowDeleteModal(true);
-        setTimeout(() => { localStorage.clear(); navigate('/'); window.location.reload(); }, 3000);
+        setTimeout(() => { sessionStorage.clear(); navigate('/'); window.location.reload(); }, 3000);
         return { ok: true };
       } else {
         return { ok: false, error: data.error || 'Erreur.' };

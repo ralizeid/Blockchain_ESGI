@@ -20,7 +20,7 @@ const resolveMediaUrl = (rawUrl) => {
 };
 
 const IssuerDashboard = () => {
-  const userId = localStorage.getItem('user_id');
+  const userId = sessionStorage.getItem('user_id');
   const [activeTab, setActiveTab] = useState('create');
   const [myDiplomas, setMyDiplomas] = useState([]);
   const [selectedDiploma, setSelectedDiploma] = useState(null);
