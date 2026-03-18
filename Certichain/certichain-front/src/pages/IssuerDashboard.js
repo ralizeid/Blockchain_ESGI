@@ -265,8 +265,23 @@ const IssuerDashboard = () => {
     setMsg({ type: '', text: '' });
     setLastCreated(null);
 
+    if (!formData.nom || !formData.prenom || !formData.course_name || !formData.dateObtention || !formData.dateNaissance || !formData.studentEmail) {
+      setMsg({ type: 'error', text: "Veuillez remplir tous les champs obligatoires." });
+      return;
+    }
+
+    if (!formData.never_expires && !formData.expiry_date) {
+      setMsg({ type: 'error', text: "Veuillez renseigner une date d'expiration." });
+      return;
+    }
+
     if (!formData.diplomeFile) {
       setMsg({ type: 'error', text: "Veuillez joindre le fichier du diplôme." });
+      return;
+    }
+
+    if (!formData.photoFile) {
+      setMsg({ type: 'error', text: "Veuillez joindre la photo d'identité de l'étudiant." });
       return;
     }
     if (formData.embed_qr) {
@@ -581,33 +596,34 @@ const IssuerDashboard = () => {
           <h2>🎓 Émettre un Diplôme</h2>
           <form onSubmit={handleSubmit}>
              <div className="input-group">
-                <label className="input-label">Nom de l'étudiant</label>
+                <label className="input-label">Nom de l'étudiant <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" onChange={e => setFormData({...formData, nom: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Prénom</label>
+                <label className="input-label">Prénom <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" onChange={e => setFormData({...formData, prenom: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Cursus / Formation</label>
+                <label className="input-label">Cursus / Formation <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" onChange={e => setFormData({...formData, course_name: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Date d'obtention</label>
+                <label className="input-label">Date d'obtention <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" type="date" max={today} onChange={e => setFormData({...formData, dateObtention: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Date de naissance de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – identification anti-usurpation)</span></label>
-                <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} disabled={isLimitReached}/>
+                <label className="input-label">Date de naissance de l'étudiant <span style={{color:'#ef4444'}}>*</span> <span style={{color:'#94a3b8',fontWeight:'normal'}}>(identification anti-usurpation)</span></label>
+                <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Email de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – nécessaire pour le droit à l'oubli RGPD)</span></label>
+                <label className="input-label">Email de l'étudiant <span style={{color:'#ef4444'}}>*</span> <span style={{color:'#94a3b8',fontWeight:'normal'}}>(nécessaire pour le droit à l'oubli RGPD)</span></label>
                 <input
                   className="input-field"
                   type="email"
                   placeholder="etudiant@exemple.fr"
                   value={formData.studentEmail}
                   onChange={e => setFormData({...formData, studentEmail: e.target.value})}
+                  required
                   disabled={isLimitReached}
                 />
                 <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
@@ -638,7 +654,7 @@ const IssuerDashboard = () => {
                 </div>
              </div>
              <div className="input-group">
-                <label className="input-label">Fichier du diplôme (PDF, image…)</label>
+                <label className="input-label">Fichier du diplôme (PDF, image…) <span style={{color:'#ef4444'}}>*</span></label>
                 {fileError && <div style={{ color: '#991b1b', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px' }}>{fileError}</div>}
                 <div className="file-upload-wrapper">
                   <input
@@ -813,13 +829,14 @@ const IssuerDashboard = () => {
              </div>
 
              <div className="input-group">
-                <label className="input-label">Photo d’identité de l’étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – JPEG, PNG)</span></label>
+                <label className="input-label">Photo d’identité de l’étudiant (JPEG, PNG) <span style={{color:'#ef4444'}}>*</span></label>
                 <div className="file-upload-wrapper">
                   <input
                     type="file"
                     accept=".jpg,.jpeg,.png,.webp"
                     onChange={e => setFormData({...formData, photoFile: e.target.files[0]})}
                     disabled={isLimitReached}
+                    required
                   />
                   {photoPreviewUrl && (
                     <div style={{ marginTop: '10px', textAlign: 'center' }}>
