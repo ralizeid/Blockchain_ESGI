@@ -185,13 +185,13 @@ const Login = ({ onLogin }) => {
           {(!isRegister || step === 1) && (
             <>
               <div className="input-group">
-                <label className="input-label">Identifiant École</label>
+                <label className="input-label">Identifiant École <span style={{color: "#ef4444"}}>*</span></label>
                 <input className="input-field" type="text" name="username" value={formData.username} onChange={handleChange} required />
               </div>
 
               {(!isRegister) && (
                 <div className="input-group">
-                  <label className="input-label">Mot de passe</label>
+                  <label className="input-label">Mot de passe <span style={{color: "#ef4444"}}>*</span></label>
                   <input className="input-field" type="password" name="password" value={formData.password} onChange={handleChange} required />
                 </div>
               )}
@@ -199,7 +199,7 @@ const Login = ({ onLogin }) => {
               {isRegister && (
                 <>
                   <div className="input-group">
-                    <label className="input-label">Email officiel de l'école</label>
+                    <label className="input-label">Email officiel de l'école <span style={{color: "#ef4444"}}>*</span></label>
                     <input className="input-field" type="email" name="email" value={formData.email} onChange={handleChange} required />
                   </div>
                   <div className="input-group">
@@ -226,7 +226,7 @@ const Login = ({ onLogin }) => {
 
                     {hasSchoolWallet ? (
                       <div className="input-group" style={{ marginBottom: 0 }}>
-                        <label className="input-label">Adresse MetaMask de l'école</label>
+                        <label className="input-label">Adresse MetaMask de l'école <span style={{color: "#ef4444"}}>*</span></label>
                         <input className="input-field" type="text" name="school_eth_address" value={formData.school_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" title="Adresse Ethereum valide" required={hasSchoolWallet} />
                         <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
                           🔒 Ce wallet signera les diplômes.
@@ -267,7 +267,7 @@ const Login = ({ onLogin }) => {
                     )}
                   </div>
                   <div className="input-group">
-                    <label className="input-label">Mot de passe</label>
+                    <label className="input-label">Mot de passe <span style={{color: "#ef4444"}}>*</span></label>
                     <input className="input-field" type="password" name="password" value={formData.password} onChange={handleChange} required />
                   </div>
                 </>
@@ -284,7 +284,7 @@ const Login = ({ onLogin }) => {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Type d'établissement</label>
+                <label className="input-label">Type d'établissement <span style={{color: "#ef4444"}}>*</span></label>
                 <select className="input-field" name="school_type" onChange={handleChange} value={formData.school_type}>
                   <option value="">— Sélectionner —</option>
                   <option value="UNIVERSITE">Université</option>
@@ -295,29 +295,29 @@ const Login = ({ onLogin }) => {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Nom du drecteur / chef d'établissement</label>
-                <input className="input-field" type="text" name="director_name" value={formData.director_name} placeholder="ex: Marie Dupont" onChange={handleChange} />
+                <label className="input-label">Nom du directeur / chef d'établissement <span style={{color: "#ef4444"}}>*</span></label>
+                <input className="input-field" type="text" name="director_name" required value={formData.director_name} placeholder="ex: Marie Dupont" onChange={handleChange} />
               </div>
 
               <div className="input-group">
-                <label className="input-label">Adresse postale</label>
-                <input className="input-field" type="text" name="school_address" value={formData.school_address} placeholder="ex: 12 rue de la Paix" onChange={handleChange} />
+                <label className="input-label">Adresse postale <span style={{color: "#ef4444"}}>*</span></label>
+                <input className="input-field" type="text" name="school_address" required value={formData.school_address} placeholder="ex: 12 rue de la Paix" onChange={handleChange} />
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div className="input-group" style={{ flex: '0 0 110px' }}>
-                  <label className="input-label">Code postal</label>
-                  <input className="input-field" type="text" name="school_zip" value={formData.school_zip} placeholder="75001" onChange={handleChange} pattern="\d{4,6}" />
+                  <label className="input-label">Code postal <span style={{color: "#ef4444"}}>*</span></label>
+                  <input className="input-field" type="text" name="school_zip" required value={formData.school_zip} placeholder="75001" onChange={handleChange} pattern="\d{4,6}" />
                 </div>
                 <div className="input-group" style={{ flex: 1 }}>
-                  <label className="input-label">Ville</label>
-                  <input className="input-field" type="text" name="school_city" value={formData.school_city} placeholder="Paris" onChange={handleChange} />
+                  <label className="input-label">Ville <span style={{color: "#ef4444"}}>*</span></label>
+                  <input className="input-field" type="text" name="school_city" required value={formData.school_city} placeholder="Paris" onChange={handleChange} />
                 </div>
               </div>
 
               <div className="input-group">
-                <label className="input-label">Téléphone</label>
-                <input className="input-field" type="tel" name="school_phone" value={formData.school_phone} placeholder="01 23 45 67 89" onChange={handleChange} />
+                <label className="input-label">Téléphone <span style={{color: "#ef4444"}}>*</span></label>
+                <input className="input-field" type="tel" name="school_phone" required value={formData.school_phone} placeholder="01 23 45 67 89" onChange={handleChange} />
               </div>
 
               <div className="input-group">
@@ -327,13 +327,13 @@ const Login = ({ onLogin }) => {
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div className="input-group" style={{ flex: '0 0 calc(50% - 5px)' }}>
-                  <label className="input-label">Code UAI / RNE</label>
-                  <input className="input-field" type="text" name="uai_code" value={formData.uai_code} placeholder="0750654E" onChange={handleChange} maxLength={8} />
+                  <label className="input-label">Code UAI / RNE <span style={{color: "#ef4444"}}>*</span></label>
+                  <input className="input-field" type="text" name="uai_code" required value={formData.uai_code} placeholder="0750654E" onChange={handleChange} maxLength={8} />
                   <small style={{ color:'#64748b', fontSize:'0.78em', marginTop:'3px', display:'block' }}>7 chiffres + 1 lettre</small>
                 </div>
                 <div className="input-group" style={{ flex: 1 }}>
-                  <label className="input-label">Numéro SIRET</label>
-                  <input className="input-field" type="text" name="siret" value={formData.siret} placeholder="12345678901234" onChange={handleChange} maxLength={14} pattern="\d{14}" />
+                  <label className="input-label">Numéro SIRET <span style={{color: "#ef4444"}}>*</span></label>
+                  <input className="input-field" type="text" name="siret" required value={formData.siret} placeholder="12345678901234" onChange={handleChange} maxLength={14} pattern="\d{14}" />
                   <small style={{ color:'#64748b', fontSize:'0.78em', marginTop:'3px', display:'block' }}>14 chiffres</small>
                 </div>
               </div>
@@ -349,7 +349,7 @@ const Login = ({ onLogin }) => {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Email du Rectorat (Validateur)</label>
+                <label className="input-label">Email du Rectorat (Validateur) <span style={{color: "#ef4444"}}>*</span></label>
                 <input className="input-field" type="email" name="rectorate_email" value={formData.rectorate_email} placeholder="ex: validation@academie-paris.fr" onChange={handleChange} required />
                 <small style={{ color: '#64748b', fontSize: '0.8em', marginTop: '5px', display: 'block' }}>
                   ⚠️ Ce rectorat devra valider chaque diplôme émis.
