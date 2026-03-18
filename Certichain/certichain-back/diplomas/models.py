@@ -168,3 +168,16 @@ class Diploma(models.Model):
 
     def __str__(self):
         return f"{self.last_name} - {self.status}"
+class QRPreset(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qr_presets')
+    name = models.CharField(max_length=100)
+    embed_qr = models.BooleanField(default=True)
+    qr_x_pct = models.FloatField(default=72.0)
+    qr_y_pct = models.FloatField(default=72.0)
+    qr_size_pct = models.FloatField(default=18.0)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"
