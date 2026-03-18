@@ -21,9 +21,25 @@ const resolveMediaUrl = (rawUrl) => {
 
 const IssuerDashboard = () => {
   const userId = sessionStorage.getItem('user_id');
-  const [activeTab, setActiveTab] = useState('create');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('issuer_active_tab') || 'create');
   const [myDiplomas, setMyDiplomas] = useState([]);
-  const [selectedDiploma, setSelectedDiploma] = useState(null);
+  const [selectedDiploma, setSelectedDiploma] = useState(() => {
+    const saved = sessionStorage.getItem('issuer_selected_diploma');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('issuer_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedDiploma) {
+      sessionStorage.setItem('issuer_selected_diploma', JSON.stringify(selectedDiploma));
+    } else {
+      sessionStorage.removeItem('issuer_selected_diploma');
+    }
+  }, [selectedDiploma]);
+
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [qrPresets, setQrPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
@@ -148,14 +164,16 @@ const IssuerDashboard = () => {
   }, [fetchQuota]);
 
   useEffect(() => {
-    if (activeTab === 'list') {
-      const fetchMyDiplomas = async () => {
+    const fetchMyDiplomas = async () => {
+      try {
         const res = await fetch(`/api/my-diplomas/?user_id=${userId}`);
         const data = await res.json();
         setMyDiplomas(data);
-      };
-      fetchMyDiplomas();
-    }
+      } catch (err) {
+        console.error("Erreur chargement diplomes", err);
+      }
+    };
+    fetchMyDiplomas();
   }, [activeTab, userId]);
 
   useEffect(() => {
@@ -516,7 +534,15 @@ const IssuerDashboard = () => {
 
       <div style={{display: 'flex', gap: '20px', marginBottom: '20px', justifyContent: 'center'}}>
         <button className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {setActiveTab('create'); setSelectedDiploma(null);}}>Nouveau Diplôme</button>
-        <button className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('list')}>Mes émissions</button>
+        <button 
+          className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} 
+          onClick={() => setActiveTab('list')}
+          disabled={myDiplomas.length === 0}
+          style={myDiplomas.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          title={myDiplomas.length === 0 ? "Vous n'avez pas encore émis de diplôme." : ""}
+        >
+          Mes émissions
+        </button>
       </div>
 
       {msg.text && <div className={`msg-box msg-${msg.type}`}>{msg.text}</div>}

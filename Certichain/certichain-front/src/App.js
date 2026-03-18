@@ -61,6 +61,8 @@ function App() {
   };
 
   const handleLogout = () => {
+    sessionStorage.clear();
+    setIsAuthenticated(false);
   };
 
   return (
