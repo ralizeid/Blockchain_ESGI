@@ -791,7 +791,7 @@ class UpgradeSubscriptionView(APIView):
     """Permet Ã  une Ã©cole de passer Ã  un plan supÃ©rieur (jamais infÃ©rieur)."""
     def post(self, request):
         user_id = request.data.get('user_id')
-        new_plan_name = request.data.get('plan')  # 'STARTER' | 'STANDARD' | 'PREMIUM'
+        new_plan_name = request.data.get('plan')  # 'ESSENTIEL' | 'CAMPUS' | 'UNIVERSITE' | 'ACADEMIE'
 
         if not user_id or not new_plan_name:
             return Response({"error": "user_id et plan sont requis."}, status=400)

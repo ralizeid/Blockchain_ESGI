@@ -6,9 +6,10 @@ import uuid
 
 class SubscriptionPlan(models.Model):
     PLAN_CHOICES = [
-        ('STARTER',  'Starter'),
-        ('STANDARD', 'Standard'),
-        ('PREMIUM',  'Premium'),
+        ('ESSENTIEL',  'Essentiel'),
+        ('CAMPUS', 'Campus'),
+        ('UNIVERSITE', 'Université'),
+        ('ACADEMIE', 'Académie'),
     ]
     name         = models.CharField(max_length=20, choices=PLAN_CHOICES, unique=True)
     display_name = models.CharField(max_length=50)

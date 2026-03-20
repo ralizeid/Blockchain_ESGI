@@ -162,7 +162,7 @@ const Login = ({ onLogin }) => {
     }
   };
 
-  const planColors = { STARTER: '#3b82f6', STANDARD: '#8b5cf6', PREMIUM: '#f59e0b' };
+  const planColors = { ESSENTIEL: '#3b82f6', CAMPUS: '#8b5cf6', UNIVERSITE: '#f59e0b', ACADEMIE: '#10b981' };
 
     return (
     <div className="hero-container">
