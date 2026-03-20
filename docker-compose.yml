@@ -33,7 +33,15 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
-
+      
+  cloudflared:
+      image: cloudflare/cloudflared:latest
+      command: tunnel --no-autoupdate run
+      environment:
+        - TUNNEL_TOKEN=${CLOUDFLARE_TOKEN}
+      restart: always
+      depends_on:
+        - frontend
 volumes:
   postgres_data:
   static_volume:
