@@ -12,7 +12,7 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     rectorate_email       = serializers.EmailField(write_only=True, required=True)
-    subscription_plan     = serializers.CharField(write_only=True, required=True)  # e.g. 'STARTER'
+    subscription_plan     = serializers.CharField(write_only=True, required=True)  # e.g. 'ESSENTIEL'
     school_eth_address    = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
     rectorate_eth_address = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
     # RGPD Art. 7 – consentement explicite obligatoire à l'inscription
@@ -60,7 +60,7 @@ class UserSerializer(serializers.ModelSerializer):
         try:
             return SubscriptionPlan.objects.get(name=value.upper())
         except SubscriptionPlan.DoesNotExist:
-            raise serializers.ValidationError(f"Plan inconnu : {value}. Choisissez parmi STARTER, STANDARD, PREMIUM.")
+            raise serializers.ValidationError(f"Plan inconnu : {value}. Choisissez parmi ESSENTIEL, CAMPUS, UNIVERSITE, ACADEMIE.")
 
     def create(self, validated_data):
         rectorate_email       = validated_data.pop('rectorate_email')

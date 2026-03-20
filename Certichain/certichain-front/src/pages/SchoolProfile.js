@@ -4,9 +4,10 @@ import '../App.css';
 import OTPModal from '../components/OTPModal';
 
 const PLAN_COLORS = {
-  STARTER:  '#3b82f6',
-  STANDARD: '#8b5cf6',
-  PREMIUM:  '#f59e0b',
+  ESSENTIEL: '#3b82f6',
+  CAMPUS: '#8b5cf6',
+  UNIVERSITE: '#f59e0b',
+  ACADEMIE: '#10b981',
 };
 
 const SchoolProfile = () => {

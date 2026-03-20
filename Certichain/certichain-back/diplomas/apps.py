@@ -1,9 +1,10 @@
 from django.apps import AppConfig
 
 PLANS_DATA = [
-    dict(name='STARTER',  display_name='Starter',  annual_price='99.00',  max_diplomas=20,  level=1),
-    dict(name='STANDARD', display_name='Standard', annual_price='299.00', max_diplomas=100, level=2),
-    dict(name='PREMIUM',  display_name='Premium',  annual_price='999.00', max_diplomas=-1,  level=3),
+    dict(name='ESSENTIEL',  display_name='Essentiel',  annual_price='250.00',  max_diplomas=100,  level=1),
+    dict(name='CAMPUS', display_name='Campus', annual_price='950.00', max_diplomas=500, level=2),
+    dict(name='UNIVERSITE',  display_name='Université',  annual_price='2800.00', max_diplomas=2000,  level=3),
+    dict(name='ACADEMIE',  display_name='Académie',  annual_price='5500.00', max_diplomas=5000,  level=4),
 ]
 
 
