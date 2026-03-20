@@ -20,12 +20,28 @@ class DiplomasConfig(AppConfig):
 def _seed_plans(sender, **kwargs):
     """Crée ou met à jour les plans d'abonnement après chaque migrate."""
     try:
-        from diplomas.models import SubscriptionPlan
+        from diplomas.models import SubscriptionPlan, UserProfile
         for plan in PLANS_DATA:
             name = plan['name']
             SubscriptionPlan.objects.update_or_create(
                 name=name,
                 defaults={k: v for k, v in plan.items() if k != 'name'},
             )
+
+        # Migration silencieuse des anciens comptes s'il en reste vers les nouveaux plans (sans print)
+        try:
+            essentiel = SubscriptionPlan.objects.get(name='ESSENTIEL')
+            campus = SubscriptionPlan.objects.get(name='CAMPUS')
+            universite = SubscriptionPlan.objects.get(name='UNIVERSITE')
+
+            UserProfile.objects.filter(subscription_plan__name='STARTER').update(subscription_plan=essentiel)
+            UserProfile.objects.filter(subscription_plan__name='STANDARD').update(subscription_plan=campus)
+            UserProfile.objects.filter(subscription_plan__name='PREMIUM').update(subscription_plan=universite)
+
+            # Suppression silencieuse des vieux abonnements qui ne sont plus utilisés
+            SubscriptionPlan.objects.filter(name__in=['STARTER', 'STANDARD', 'PREMIUM']).delete()
+        except Exception:
+            pass
+
     except Exception:
         pass  # Table pas encore créée (première migration)
