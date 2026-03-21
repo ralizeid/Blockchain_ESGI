@@ -13,7 +13,7 @@ import React, { useState, useEffect } from 'react';
  *
  * Props :
  *   open         – boolean
- *   userId       – user_id localStorage
+ *   userId       – user_id sessionStorage
  *   actionType   – 'CREATE_DIPLOMA' | 'REVOKE_DIPLOMA' | 'ERASE_DIPLOMA'
  *                  | 'UPDATE_PROFILE' | 'CHANGE_PASSWORD' | 'DELETE_ACCOUNT'
  *   title        – titre affiché

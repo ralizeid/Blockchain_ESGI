@@ -1,18 +1,19 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../App.css';
 import OTPModal from '../components/OTPModal';
 
 const PLAN_COLORS = {
-  STARTER:  '#3b82f6',
-  STANDARD: '#8b5cf6',
-  PREMIUM:  '#f59e0b',
+  ESSENTIEL: '#3b82f6',
+  CAMPUS: '#8b5cf6',
+  UNIVERSITE: '#f59e0b',
+  ACADEMIE: '#10b981',
 };
 
 const SchoolProfile = () => {
   const navigate = useNavigate();
-  const userId   = localStorage.getItem('user_id');
-  const username = localStorage.getItem('username') || '—';
+  const userId   = sessionStorage.getItem('user_id');
+  const username = sessionStorage.getItem('username') || '—';
 
   const [activeTab, setActiveTab]     = useState('profile');
   const [quota, setQuota]             = useState(null);
@@ -144,8 +145,9 @@ const SchoolProfile = () => {
       setPasswordMsg({ type: 'error', text: 'Les mots de passe ne correspondent pas.' });
       return;
     }
-    if (passwordForm.new_password.length < 8) {
-      setPasswordMsg({ type: 'error', text: 'Le mot de passe doit contenir au moins 8 caractères.' });
+    const complexPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}$/;
+    if (!complexPasswordRegex.test(passwordForm.new_password)) {
+      setPasswordMsg({ type: 'error', text: 'Le mot de passe doit faire au moins 12 caractères, inclure une majuscule, une minuscule, un chiffre et un caractère spécial.' });
       return;
     }
     setOtpModal({
@@ -217,7 +219,7 @@ const SchoolProfile = () => {
       if (res.ok) {
         setDeleteStep(2);
         setShowDeleteModal(true);
-        setTimeout(() => { localStorage.clear(); navigate('/'); window.location.reload(); }, 3000);
+        setTimeout(() => { sessionStorage.clear(); navigate('/'); window.location.reload(); }, 3000);
         return { ok: true };
       } else {
         return { ok: false, error: data.error || 'Erreur.' };

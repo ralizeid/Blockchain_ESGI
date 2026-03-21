@@ -16,18 +16,52 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const userId = localStorage.getItem('user_id');
-    setIsAuthenticated(!!userId);
+    const checkSession = () => {
+      const userId = sessionStorage.getItem('user_id');
+      const loginTime = sessionStorage.getItem('login_time');
+
+      // Vérification de la session : 12 heures en millisecondes = 43200000 ms
+      if (userId && loginTime) {
+        const now = new Date().getTime();
+        const timeElapsed = now - parseInt(loginTime, 10);
+
+        if (timeElapsed > 12 * 60 * 60 * 1000) {
+          // Expiration : Plus de 12h, on déconnecte
+          sessionStorage.clear();
+          setIsAuthenticated(false);
+          // Optionnel : Recharger la page pour rediriger l'utilisateur vers /login immédiatement
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        } else {
+          // Valide : Moins de 12h
+          setIsAuthenticated(true);
+        }
+      } else {
+        // Pas de données valides : on assure la déconnexion initiale
+        sessionStorage.clear();
+        setIsAuthenticated(false);
+      }
+    };
+
+    // Vérifier immédiatement au chargement de l'application
+    checkSession();
+
+    // Vérifier périodiquement (toutes les 5 minutes) au cas où l'utilisateur laisse l'onglet ouvert
+    const intervalId = setInterval(checkSession, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleLogin = (userId, username) => {
-    localStorage.setItem('user_id', userId);
-    localStorage.setItem('username', username);
+    sessionStorage.setItem('user_id', userId);
+    sessionStorage.setItem('username', username);
+    sessionStorage.setItem('login_time', new Date().getTime().toString());
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    sessionStorage.clear();
     setIsAuthenticated(false);
   };
 

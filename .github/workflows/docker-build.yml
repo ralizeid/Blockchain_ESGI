@@ -10,7 +10,7 @@ on:
 
 jobs:
   # ============================================================
-  # 1. BUILD & PUSH des images Docker vers GHCR
+  # 1. BUILD & PUSH
   # ============================================================
   build-and-push:
     name: Build & Push Docker images
@@ -33,23 +33,35 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push – Backend (Django)
+      # On génère des tags intelligents (latest + SHA du commit)
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/certichain-front
+            ghcr.io/${{ github.repository_owner }}/certichain-back
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Build & Push – Backend
         uses: docker/build-push-action@v6
         with:
           context: ./Certichain/certichain-back
           file: ./Certichain/certichain-back/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/certichain-back:latest
+          tags: ghcr.io/${{ github.repository_owner }}/certichain-back:latest,ghcr.io/${{ github.repository_owner }}/certichain-back:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build & Push – Frontend (React + Nginx)
+      - name: Build & Push – Frontend
         uses: docker/build-push-action@v6
         with:
           context: ./Certichain/certichain-front
           file: ./Certichain/certichain-front/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/certichain-front:latest
+          tags: ghcr.io/${{ github.repository_owner }}/certichain-front:latest,ghcr.io/${{ github.repository_owner }}/certichain-front:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -60,10 +72,7 @@ jobs:
     name: Déploiement en production
     runs-on: self-hosted
     needs: build-and-push
-    permissions:
-      contents: read
-      packages: read
-
+    
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
@@ -71,21 +80,17 @@ jobs:
       - name: Copier le fichier .env de production
         run: cp /opt/Certichain/.env ./.env
 
-      - name: Connexion au GHCR pour puller les images
+      - name: Connexion au GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull des nouvelles images
-        run: docker compose -f docker-compose.yml pull
-
-      - name: Restart des conteneurs
-        run: docker compose -f docker-compose.yml up -d --remove-orphans
-
-      - name: Déconnexion GHCR & nettoyage des images obsolètes
-        if: always()
+      - name: Pull & Update
         run: |
-          docker logout ghcr.io
+          docker compose pull
+        
+          docker compose up -d --force-recreate
+          
           docker image prune -f

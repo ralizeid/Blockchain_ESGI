@@ -6,9 +6,10 @@ import uuid
 
 class SubscriptionPlan(models.Model):
     PLAN_CHOICES = [
-        ('STARTER',  'Starter'),
-        ('STANDARD', 'Standard'),
-        ('PREMIUM',  'Premium'),
+        ('ESSENTIEL',  'Essentiel'),
+        ('CAMPUS', 'Campus'),
+        ('UNIVERSITE', 'Université'),
+        ('ACADEMIE', 'Académie'),
     ]
     name         = models.CharField(max_length=20, choices=PLAN_CHOICES, unique=True)
     display_name = models.CharField(max_length=50)
@@ -39,13 +40,10 @@ class UserProfile(models.Model):
     school_type    = models.CharField(
         max_length=50, blank=True, null=True,
         choices=[
-            ('LYCEE',       'Lycée'),
-            ('BTS_IUT',     'BTS / IUT'),
             ('UNIVERSITE',  'Université'),
             ('GRANDE_ECOLE','Grande École'),
-            ('INGENIEUR',   'École d\'ingénieurs'),
+            ('INGENIEUR',   "École d'ingénieurs"),
             ('COMMERCE',    'École de commerce'),
-            ('AUTRE',       'Autre'),
         ],
         verbose_name="Type d'établissement",
     )
@@ -171,3 +169,16 @@ class Diploma(models.Model):
 
     def __str__(self):
         return f"{self.last_name} - {self.status}"
+class QRPreset(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qr_presets')
+    name = models.CharField(max_length=100)
+    embed_qr = models.BooleanField(default=True)
+    qr_x_pct = models.FloatField(default=72.0)
+    qr_y_pct = models.FloatField(default=72.0)
+    qr_size_pct = models.FloatField(default=18.0)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"

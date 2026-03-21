@@ -9,6 +9,7 @@ from .views import (
     RectoratePendingView, RectorateBulkValidateView,
     RevokeDiplomaView, VerifyBlockchainView, VerifyByUUIDView,
     SendActionOTPView,
+    QRPresetsView, QRPresetDetailView,
 )
 
 urlpatterns = [
@@ -38,4 +39,8 @@ urlpatterns = [
     path('verify/<uuid:uuid>/', VerifyByUUIDView.as_view()),
     # OTP anti-usurpation
     path('send-action-otp/',   SendActionOTPView.as_view()),
+    
+    # QR Presets
+    path('qr-presets/', QRPresetsView.as_view()),
+    path('qr-presets/<int:pk>/', QRPresetDetailView.as_view()),
 ]

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import { QRCodeSVG } from 'qrcode.react';
 import '../App.css';
 import OTPModal from '../components/OTPModal';
 
-const PLAN_COLORS = { STARTER: '#3b82f6', STANDARD: '#8b5cf6', PREMIUM: '#f59e0b' };
+const PLAN_COLORS = { ESSENTIEL: '#3b82f6', CAMPUS: '#8b5cf6', UNIVERSITE: '#f59e0b', ACADEMIE: '#10b981' };
 const today = new Date().toISOString().split('T')[0];
 
 const resolveMediaUrl = (rawUrl) => {
@@ -19,17 +20,38 @@ const resolveMediaUrl = (rawUrl) => {
 };
 
 const IssuerDashboard = () => {
-  const userId = localStorage.getItem('user_id');
-  const [activeTab, setActiveTab] = useState('create');
+  const userId = sessionStorage.getItem('user_id');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('issuer_active_tab') || 'create');
   const [myDiplomas, setMyDiplomas] = useState([]);
-  const [selectedDiploma, setSelectedDiploma] = useState(null);
+  const [selectedDiploma, setSelectedDiploma] = useState(() => {
+    const saved = sessionStorage.getItem('issuer_selected_diploma');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('issuer_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedDiploma) {
+      sessionStorage.setItem('issuer_selected_diploma', JSON.stringify(selectedDiploma));
+    } else {
+      sessionStorage.removeItem('issuer_selected_diploma');
+    }
+  }, [selectedDiploma]);
+
   const [msg, setMsg] = useState({ type: '', text: '' });
+  const [qrPresets, setQrPresets] = useState([]);
+  const [newPresetName, setNewPresetName] = useState('');
   const [formData, setFormData] = useState({
     nom: '', prenom: '', dateObtention: '', dateNaissance: '', studentEmail: '',
     diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true,
     embed_qr: true, qr_x_pct: 72, qr_y_pct: 72, qr_size_pct: 18,
   });
   const [previewUrl, setPreviewUrl] = useState('');
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
+  const [fileError, setFileError] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(Date.now());
   const [revokeMsg, setRevokeMsg] = useState({ type: '', text: '' });
   const [schoolErasureMsg, setSchoolErasureMsg] = useState({ type: '', text: '' });
   const [copiedLink, setCopiedLink] = useState(false);
@@ -43,6 +65,55 @@ const IssuerDashboard = () => {
   const [showUpgrade, setShowUpgrade]   = useState(false);
   const [upgradePlans, setUpgradePlans] = useState([]);
   const [upgradeMsg, setUpgradeMsg]     = useState({ type: '', text: '' });
+
+  const fetchQrPresets = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/qr-presets/?user_id=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setQrPresets(data);
+      }
+    } catch(e) {
+      console.error("Erreur récupération presets", e);
+    }
+  }, [userId]);
+
+  const saveQrPreset = async () => {
+    if (!newPresetName.trim()) return;
+    try {
+      const res = await fetch(`/api/qr-presets/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          name: newPresetName.trim(),
+          embed_qr: formData.embed_qr,
+          qr_x_pct: Number(formData.qr_x_pct),
+          qr_y_pct: Number(formData.qr_y_pct),
+          qr_size_pct: Number(formData.qr_size_pct)
+        })
+      });
+      if (res.ok) {
+        setNewPresetName('');
+        fetchQrPresets();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const deleteQrPreset = async (id) => {
+    try {
+      const res = await fetch(`/api/qr-presets/${id}/?user_id=${userId}`, { method: 'DELETE' });
+      if (res.ok) fetchQrPresets();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchQrPresets();
+  }, [fetchQrPresets]);
 
   const fetchQuota = useCallback(async () => {
     try {
@@ -93,25 +164,82 @@ const IssuerDashboard = () => {
   }, [fetchQuota]);
 
   useEffect(() => {
-    if (activeTab === 'list') {
-      const fetchMyDiplomas = async () => {
+    const fetchMyDiplomas = async () => {
+      try {
         const res = await fetch(`/api/my-diplomas/?user_id=${userId}`);
         const data = await res.json();
         setMyDiplomas(data);
-      };
-      fetchMyDiplomas();
-    }
+      } catch (err) {
+        console.error("Erreur chargement diplomes", err);
+      }
+    };
+    fetchMyDiplomas();
   }, [activeTab, userId]);
 
   useEffect(() => {
-    if (!formData.diplomeFile || !formData.diplomeFile.type.startsWith('image/')) {
+    if (!formData.diplomeFile) {
       setPreviewUrl('');
+      return;
+    }
+
+    if (formData.diplomeFile.type === 'application/pdf') {
+      const fileReader = new FileReader();
+      fileReader.onload = async function () {
+        const typedarray = new Uint8Array(this.result);
+        try {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+          const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+          if (pdf.numPages > 1) {
+            setFileError('Le diplôme PDF doit contenir exactement 1 page pour être prévisualisé et validé.');
+            setPreviewUrl('');
+            
+            // On vide le fichier invalide pour bloquer la soumission et remettre l'input à zéro
+            setFormData(prev => ({ ...prev, diplomeFile: null }));
+            setFileInputKey(Date.now());
+            return;
+          }
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+          
+          setPreviewUrl(canvas.toDataURL('image/png'));
+        } catch (err) {
+          console.error('Erreur de lecture PDF :', err);
+          setFileError('Impossible de lire ou prévisualiser ce fichier PDF.');
+          setPreviewUrl('');
+          setFormData(prev => ({ ...prev, diplomeFile: null }));
+          setFileInputKey(Date.now());
+        }
+      };
+      fileReader.readAsArrayBuffer(formData.diplomeFile);
+      return;
+    }
+
+    if (!formData.diplomeFile.type.startsWith('image/')) {
+      setPreviewUrl('');
+      setFileError('Format de fichier non supporté. Veuillez fournir une image ou un PDF (1 page).');
+      setFormData(prev => ({ ...prev, diplomeFile: null }));
+      setFileInputKey(Date.now());
       return;
     }
     const objectUrl = URL.createObjectURL(formData.diplomeFile);
     setPreviewUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [formData.diplomeFile]);
+
+  useEffect(() => {
+    if (!formData.photoFile || !formData.photoFile.type.startsWith('image/')) {
+      setPhotoPreviewUrl('');
+      return;
+    }
+    const objectUrl = URL.createObjectURL(formData.photoFile);
+    setPhotoPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [formData.photoFile]);
 
   const handlePreviewClick = (e) => {
     if (!previewUrl || !formData.embed_qr) return;
@@ -137,8 +265,23 @@ const IssuerDashboard = () => {
     setMsg({ type: '', text: '' });
     setLastCreated(null);
 
+    if (!formData.nom || !formData.prenom || !formData.course_name || !formData.dateObtention || !formData.dateNaissance || !formData.studentEmail) {
+      setMsg({ type: 'error', text: "Veuillez remplir tous les champs obligatoires." });
+      return;
+    }
+
+    if (!formData.never_expires && !formData.expiry_date) {
+      setMsg({ type: 'error', text: "Veuillez renseigner une date d'expiration." });
+      return;
+    }
+
     if (!formData.diplomeFile) {
       setMsg({ type: 'error', text: "Veuillez joindre le fichier du diplôme." });
+      return;
+    }
+
+    if (!formData.photoFile) {
+      setMsg({ type: 'error', text: "Veuillez joindre la photo d'identité de l'étudiant." });
       return;
     }
     if (formData.embed_qr) {
@@ -406,7 +549,15 @@ const IssuerDashboard = () => {
 
       <div style={{display: 'flex', gap: '20px', marginBottom: '20px', justifyContent: 'center'}}>
         <button className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {setActiveTab('create'); setSelectedDiploma(null);}}>Nouveau Diplôme</button>
-        <button className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('list')}>Mes émissions</button>
+        <button 
+          className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} 
+          onClick={() => setActiveTab('list')}
+          disabled={myDiplomas.length === 0}
+          style={myDiplomas.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+          title={myDiplomas.length === 0 ? "Vous n'avez pas encore émis de diplôme." : ""}
+        >
+          Mes émissions
+        </button>
       </div>
 
       {msg.text && <div className={`msg-box msg-${msg.type}`}>{msg.text}</div>}
@@ -445,33 +596,34 @@ const IssuerDashboard = () => {
           <h2>🎓 Émettre un Diplôme</h2>
           <form onSubmit={handleSubmit}>
              <div className="input-group">
-                <label className="input-label">Nom de l'étudiant</label>
+                <label className="input-label">Nom de l'étudiant <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" onChange={e => setFormData({...formData, nom: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Prénom</label>
+                <label className="input-label">Prénom <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" onChange={e => setFormData({...formData, prenom: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Cursus / Formation</label>
+                <label className="input-label">Cursus / Formation <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" onChange={e => setFormData({...formData, course_name: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Date d'obtention</label>
+                <label className="input-label">Date d'obtention <span style={{color:'#ef4444'}}>*</span></label>
                 <input className="input-field" type="date" max={today} onChange={e => setFormData({...formData, dateObtention: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Date de naissance de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – identification anti-usurpation)</span></label>
-                <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} disabled={isLimitReached}/>
+                <label className="input-label">Date de naissance de l'étudiant <span style={{color:'#ef4444'}}>*</span> <span style={{color:'#94a3b8',fontWeight:'normal'}}>(identification anti-usurpation)</span></label>
+                <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} required disabled={isLimitReached}/>
              </div>
              <div className="input-group">
-                <label className="input-label">Email de l'étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – nécessaire pour le droit à l'oubli RGPD)</span></label>
+                <label className="input-label">Email de l'étudiant <span style={{color:'#ef4444'}}>*</span> <span style={{color:'#94a3b8',fontWeight:'normal'}}>(nécessaire pour le droit à l'oubli RGPD)</span></label>
                 <input
                   className="input-field"
                   type="email"
                   placeholder="etudiant@exemple.fr"
                   value={formData.studentEmail}
                   onChange={e => setFormData({...formData, studentEmail: e.target.value})}
+                  required
                   disabled={isLimitReached}
                 />
                 <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
@@ -502,12 +654,17 @@ const IssuerDashboard = () => {
                 </div>
              </div>
              <div className="input-group">
-                <label className="input-label">Fichier du diplôme (PDF, image…)</label>
+                <label className="input-label">Fichier du diplôme (PDF, image…) <span style={{color:'#ef4444'}}>*</span></label>
+                {fileError && <div style={{ color: '#991b1b', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px' }}>{fileError}</div>}
                 <div className="file-upload-wrapper">
                   <input
+                    key={fileInputKey}
                     type="file"
                     accept=".pdf,.png,.jpg,.jpeg,.webp"
-                    onChange={e => setFormData({...formData, diplomeFile: e.target.files[0]})}
+                    onChange={e => {
+                        setFileError('');
+                        setFormData({...formData, diplomeFile: e.target.files[0]});
+                    }}
                     required
                     disabled={isLimitReached}
                   />
@@ -574,6 +731,59 @@ const IssuerDashboard = () => {
                      </div>
                    </div>
 
+                   <div style={{ marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
+                     <div style={{ fontWeight: '500', marginBottom: '8px', fontSize: '0.85rem' }}>Sauvegarder et réutiliser ces paramètres (Presets)</div>
+                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                       <input
+                         type="text"
+                         placeholder="Nom du preset (ex: Modèle Licence)"
+                         className="input-field"
+                         style={{ flex: 1, padding: '6px', fontSize: '0.85rem' }}
+                         value={newPresetName}
+                         onChange={e => setNewPresetName(e.target.value)}
+                       />
+                       <button type="button" onClick={saveQrPreset} className="btn" style={{ padding: '6px 12px', fontSize: '0.85rem', width: 'auto' }}>
+                         Enregistrer
+                       </button>
+                     </div>
+                     {qrPresets.length > 0 && (
+                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                         {qrPresets.map(preset => (
+                           <div key={preset.id} style={{ display: 'flex', alignItems: 'center', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                             <button 
+                               type="button"
+                               title="Appliquer ce preset"
+                               onClick={(e) => {
+                                 e.preventDefault();
+                                 setFormData(f => ({
+                                   ...f,
+                                   embed_qr: preset.embed_qr,
+                                   qr_x_pct: preset.qr_x_pct,
+                                   qr_y_pct: preset.qr_y_pct,
+                                   qr_size_pct: preset.qr_size_pct
+                                 }));
+                               }}
+                               style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}
+                             >
+                               {preset.name}
+                             </button>
+                             <button
+                               type="button"
+                               title="Supprimer ce preset"
+                               onClick={(e) => {
+                                 e.preventDefault();
+                                 deleteQrPreset(preset.id);
+                               }}
+                               style={{ padding: '4px 8px', border: 'none', borderLeft: '1px solid #cbd5e1', background: '#f1f5f9', cursor: 'pointer', color: '#ef4444' }}
+                             >
+                               &times;
+                             </button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </div>
+
                    {previewUrl ? (
                      <div>
                        <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 6 }}>
@@ -619,14 +829,20 @@ const IssuerDashboard = () => {
              </div>
 
              <div className="input-group">
-                <label className="input-label">Photo d’identité de l’étudiant <span style={{color:'#94a3b8',fontWeight:'normal'}}>(optionnel – JPEG, PNG)</span></label>
+                <label className="input-label">Photo d’identité de l’étudiant (JPEG, PNG) <span style={{color:'#ef4444'}}>*</span></label>
                 <div className="file-upload-wrapper">
                   <input
                     type="file"
                     accept=".jpg,.jpeg,.png,.webp"
                     onChange={e => setFormData({...formData, photoFile: e.target.files[0]})}
                     disabled={isLimitReached}
+                    required
                   />
+                  {photoPreviewUrl && (
+                    <div style={{ marginTop: '10px', textAlign: 'center' }}>
+                      <img src={photoPreviewUrl} alt="Aperçu identité" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #e2e8f0' }} />
+                    </div>
+                  )}
                 </div>
                 <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
                   Utilisée pour détecter les usurpations d’identité lors de la vérification.
@@ -773,6 +989,7 @@ const IssuerDashboard = () => {
 
                     <div style={{marginTop: '30px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap'}}>
                          {(selectedDiploma.image_url || selectedDiploma.image) && (
+                          // eslint-disable-next-line jsx-a11y/anchor-is-valid
                           <a 
                             href={selectedDiploma.status === 'VALIDATED' ? resolveMediaUrl(selectedDiploma.image_url || selectedDiploma.image) : '#'} 
                             onClick={(e) => { if(selectedDiploma.status !== 'VALIDATED') e.preventDefault(); }}
