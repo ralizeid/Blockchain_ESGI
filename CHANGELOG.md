@@ -100,6 +100,24 @@
 
 ---
 
-## [À compléter — 16 au 22 mars 2026]
+## [16 au 22 mars 2026] — Déploiement CI/CD avancé & Gouvernance (Release V1.0.1)
+
+### Ajouté — Gestion de Projet (Julien ATTARD)
+- Création et intégration du **Changelog historique complet** sur Git pour assurer la traçabilité du projet.
+
+### Ajouté — Infrastructure & DevOps (Rayan)
+- Déploiement de la **Release V1.0.1**.
+- Refonte des pipelines Docker (CI/CD) : ajout du *intelligent tagging*, déclenchement automatique sur les Pull Requests et copie du `.env`.
+- Optimisation : ajout de la compression GZIP à la configuration Nginx.
+- Sécurisation réseau : ajout du service `cloudflared` au docker-compose.
+- Dockerisation : transition vers des images Docker distinctes pour le Frontend et le Backend.
+- Automatisation : ajout de la commande `makemigrations` au script d'entrypoint.
+
+### Ajouté — Technique (Aurélien)
+- `BE-107` : Modification et correction du système d'abonnements pour les écoles.
+
+
+
+## [À compléter — 23 au 29 mars 2026]
 
 > *Cette section sera mise à jour par Julien ATTARD*
