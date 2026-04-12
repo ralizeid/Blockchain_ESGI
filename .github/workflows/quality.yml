@@ -75,7 +75,7 @@ jobs:
           node-version: '20'
 
       - name: Installation des dépendances
-        run: npm ci
+        run: npm install
 
       - name: Compilation des contrats
         run: npm run build
