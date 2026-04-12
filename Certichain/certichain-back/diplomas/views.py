@@ -38,7 +38,7 @@ def _send_mail_async(subject, message, from_email, recipient_list, on_error=None
             if on_error:
                 on_error(exc)
             else:
-                logging.error(f"Échec envoi email asynchrone : {exc}")
+                logging.error(f"Echec envoi email asynchrone : {exc}", exc_info=True)
 
     threading.Thread(target=_run, daemon=True).start()
 
