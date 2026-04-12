@@ -152,4 +152,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Configurations des sessions (12h + expiration navigateur)
 SESSION_COOKIE_AGE = 43200  # 12 heures en secondes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-
