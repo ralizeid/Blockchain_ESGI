@@ -1,11 +1,13 @@
-﻿from rest_framework.views import APIView
+import threading
+import logging
+
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
-import logging
 from .models import Diploma, UserProfile, SubscriptionPlan, ActionOTP
 from .serializers import DiplomaSerializer, UserSerializer, SubscriptionPlanSerializer, PublicDiplomaSerializer
 from .web3_service import (
@@ -16,8 +18,29 @@ from .web3_service import (
     verify_eth_signature,
 )
 from .qr_overlay import embed_qr_in_diploma
+
 logging.basicConfig(level=logging.INFO)
 
+
+# ---------------------------------------------------------------------------
+# UTILITAIRE EMAIL ASYNCHRONE
+# ---------------------------------------------------------------------------
+
+def _send_mail_async(subject, message, from_email, recipient_list, on_error=None):
+    """
+    Envoie un email dans un thread daemon pour ne pas bloquer le worker Gunicorn.
+    on_error : callable optionnel appelé en cas d'échec, reçoit l'exception.
+    """
+    def _run():
+        try:
+            send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        except Exception as exc:
+            if on_error:
+                on_error(exc)
+            else:
+                logging.error(f"Échec envoi email asynchrone : {exc}")
+
+    threading.Thread(target=_run, daemon=True).start()
 
 def _verify_and_consume_otp(user, action_type, code):
     """VÃ©rifie un OTP et le marque comme utilisÃ©. Retourne True si valide, False sinon."""
@@ -88,26 +111,28 @@ class SendActionOTPView(APIView):
         parts = email.split('@')
         masked = (parts[0][:2] + '***@' + parts[1]) if len(parts) == 2 else '***'
 
-        try:
-            send_mail(
-                subject=f'[CertiChain] Code de validation â€“ {label}',
-                message=(
-                    f"Bonjour {user.username},\n\n"
-                    f"Vous avez initiÃ© l'action : {label}.\n\n"
-                    f"Votre code de validation est : {code}\n\n"
-                    f"Ce code est valable 10 minutes.\n\n"
-                    f"Si vous n'Ãªtes pas Ã  l'origine de cette action, ignorez ce message "
-                    f"et sÃ©curisez immÃ©diatement votre compte.\n\n"
-                    f"â€” L'Ã©quipe CertiChain"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
-        except Exception as e:
-            logging.error(f"Ã‰chec envoi OTP action ({action_type}) pour user {user_id}: {e}")
+# Callback en cas d'échec de l'envoi (thread séparé)
+        def _on_error(e):
+            logging.error(f"Échec envoi OTP action ({action_type}) pour user {user_id}: {e}")
+            # On ne peut pas retourner une Response depuis un thread —
+            # l'OTP reste en base mais expirera naturellement dans 10 min.
             ActionOTP.objects.filter(user=user, action_type=action_type, used=False).delete()
-            return Response({"error": "Impossible d'envoyer le code par email. VÃ©rifiez votre adresse email ou la configuration SMTP."}, status=500)
+
+        _send_mail_async(
+            subject=f'[CertiChain] Code de validation – {label}',
+            message=(
+                f"Bonjour {user.username},\n\n"
+                f"Vous avez initié l'action : {label}.\n\n"
+                f"Votre code de validation est : {code}\n\n"
+                f"Ce code est valable 10 minutes.\n\n"
+                f"Si vous n'êtes pas à l'origine de cette action, ignorez ce message "
+                f"et sécurisez immédiatement votre compte.\n\n"
+                f"— L'équipe CertiChain"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            on_error=_on_error,
+        )
 
         logging.info(f"OTP action '{action_type}' envoyÃ© Ã  {masked} (user {user_id}).")
         return Response({
@@ -396,32 +421,36 @@ class CreateDiplomaView(APIView):
                 diploma.save(update_fields=['image'])
 
             school_link = f"{frontend_url}/validate/{diploma.school_token}"
-            send_mail(
-                'Action Requise : Confirmez votre Ã©mission de diplÃ´me',
-                f'Bonjour,\n\nUn diplÃ´me a Ã©tÃ© gÃ©nÃ©rÃ© pour {diploma.first_name} {diploma.last_name}.\nCliquez sur ce lien pour en voir les dÃ©tails et le valider :\n\n{school_link}\n\nL\'Ã©quipe CertiChain.',
-                settings.EMAIL_HOST_USER,
-                [profile.user.email or 'ecole@test.com'],
-                fail_silently=False,
+            _send_mail_async(
+                subject='Action Requise : Confirmez votre émission de diplôme',
+                message=(
+                    f"Bonjour,\n\n"
+                    f"Un diplôme a été généré pour {diploma.first_name} {diploma.last_name}.\n"
+                    f"Cliquez sur ce lien pour en voir les détails et le valider :\n\n"
+                    f"{school_link}\n\n"
+                    f"L'équipe CertiChain."
+                ),
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[profile.user.email or 'ecole@test.com'],
             )
 
-            rectorate_link   = f"{frontend_url}/validate/{diploma.rectorate_token}"
+            rectorate_link     = f"{frontend_url}/validate/{diploma.rectorate_token}"
             rectorat_dashboard = f"{frontend_url}/rectorat"
-            send_mail(
-                'Action Requise : Validation Rectorat â€“ CertiChain',
-                (
-                    f'Bonjour,\n\n'
-                    f'L\'Ã©tablissement {profile.user.username} a Ã©mis un diplÃ´me pour '
-                    f'{diploma.first_name} {diploma.last_name} ({diploma.course_name}).\n\n'
-                    f'â”€â”€â”€ OPTION 1 â€“ Valider uniquement ce diplÃ´me â”€â”€â”€\n'
-                    f'{rectorate_link}\n\n'
-                    f'â”€â”€â”€ OPTION 2 â€“ AccÃ©der au tableau de bord Rectorat â”€â”€â”€\n'
-                    f'Signez tous les diplÃ´mes en attente en une seule session MetaMask :\n'
-                    f'{rectorat_dashboard}\n\n'
-                    f'L\'Ã©quipe CertiChain.'
+            _send_mail_async(
+                subject='Action Requise : Validation Rectorat – CertiChain',
+                message=(
+                    f"Bonjour,\n\n"
+                    f"L'établissement {profile.user.username} a émis un diplôme pour "
+                    f"{diploma.first_name} {diploma.last_name} ({diploma.course_name}).\n\n"
+                    f"─── OPTION 1 – Valider uniquement ce diplôme ───\n"
+                    f"{rectorate_link}\n\n"
+                    f"─── OPTION 2 – Accéder au tableau de bord Rectorat ───\n"
+                    f"Signez tous les diplômes en attente en une seule session MetaMask :\n"
+                    f"{rectorat_dashboard}\n\n"
+                    f"L'équipe CertiChain."
                 ),
-                settings.EMAIL_HOST_USER,
-                [profile.rectorate_email],
-                fail_silently=False,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[profile.rectorate_email],
             )
 
             diploma_file_url = request.build_absolute_uri(diploma.image.url) if diploma.image else ''
@@ -957,25 +986,24 @@ class StudentErasureView(APIView):
         parts = email.split('@')
         masked = parts[0][:2] + '***@' + parts[1] if len(parts) == 2 else '***'
 
-        try:
-            send_mail(
-                subject='[CertiChain] Code de confirmation â€“ Droit Ã  l\'oubli (RGPD Art. 17)',
-                message=(
-                    f"Bonjour,\n\n"
-                    f"Vous avez demandÃ© la suppression dÃ©finitive de vos donnÃ©es personnelles "
-                    f"associÃ©es au diplÃ´me Â« {diploma.course_name } Â».\n\n"
-                    f"Votre code de confirmation est : {otp}\n\n"
-                    f"Ce code est valable 30 minutes.\n\n"
-                    f"Si vous n'Ãªtes pas Ã  l'origine de cette demande, ignorez ce message.\n\n"
-                    f"â€” L'Ã©quipe CertiChain"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
-        except Exception as e:
-            logging.error(f"Ã‰chec envoi email OTP erasure: {e}")
-            return Response({"error": "Impossible d'envoyer le code de confirmation par email."}, status=500)
+        def _on_erasure_error(exc):
+            logging.error(f"Échec envoi email OTP erasure: {exc}")
+
+        _send_mail_async(
+            subject="[CertiChain] Code de confirmation – Droit à l'oubli (RGPD Art. 17)",
+            message=(
+                f"Bonjour,\n\n"
+                f"Vous avez demandé la suppression définitive de vos données personnelles "
+                f"associées au diplôme « {diploma.course_name} ».\n\n"
+                f"Votre code de confirmation est : {otp}\n\n"
+                f"Ce code est valable 30 minutes.\n\n"
+                f"Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\n"
+                f"-- L'équipe CertiChain"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            on_error=_on_erasure_error,
+        )
 
         logging.info(f"RGPD â€“ OTP envoyÃ© Ã  {masked} pour le diplÃ´me {diploma.id}.")
         return Response({
@@ -1281,4 +1309,3 @@ class QRPresetDetailView(APIView):
             return Response({'message': 'Preset supprimé'})
         except QRPreset.DoesNotExist:
             return Response({'error': 'Introuvable'}, status=404)
-
