@@ -34,6 +34,14 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       
+  blockchain:
+    image: ghcr.io/ralizeid/certichain-blockchain:latest
+    restart: always
+    ports:
+      - "8545:8545"
+    volumes:
+      - blockchain_artifacts:/app/artifacts
+
   cloudflared:
       image: cloudflare/cloudflared:latest
       command: tunnel --no-autoupdate run
@@ -42,7 +50,9 @@ services:
       restart: always
       depends_on:
         - frontend
+
 volumes:
   postgres_data:
   static_volume:
   media_volume:
+  blockchain_artifacts:
