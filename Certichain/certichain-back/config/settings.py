@@ -21,7 +21,8 @@ ANYMAIL = {
 }
 if os.getenv('RESEND_API_KEY'):
     EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
-    DEFAULT_FROM_EMAIL = "onboarding@resend.dev"
+    DEFAULT_FROM_EMAIL = "contact@pmvix.com"
+    EMAIL_HOST_USER = "contact@pmvix.com"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = "noreply@certichain.local"
