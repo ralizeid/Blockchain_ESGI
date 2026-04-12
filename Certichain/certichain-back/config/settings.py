@@ -145,3 +145,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Configurations des sessions (12h + expiration navigateur)
 SESSION_COOKIE_AGE = 43200  # 12 heures en secondes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+    'loggers': {
+        'anymail': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
