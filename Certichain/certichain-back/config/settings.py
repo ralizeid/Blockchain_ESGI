@@ -149,8 +149,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
 # Configurations des sessions (12h + expiration navigateur)
 SESSION_COOKIE_AGE = 43200  # 12 heures en secondes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
