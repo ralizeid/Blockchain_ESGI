@@ -28,19 +28,27 @@ logging.basicConfig(level=logging.INFO)
 
 def _send_mail_async(subject, message, from_email, recipient_list, on_error=None):
     """
-    Envoie un email dans un thread daemon pour ne pas bloquer le worker Gunicorn.
-    on_error : callable optionnel appelé en cas d'échec, reçoit l'exception.
+    VERSION DEBOGAGE SYNCHRONE : Envoie l'email en direct pour faire exploser l'API
+    en cas d'erreur locale et afficher TOUS les logs dans la console.
     """
-    def _run():
-        try:
-            send_mail(subject, message, from_email, recipient_list, fail_silently=False)
-        except Exception as exc:
-            if on_error:
-                on_error(exc)
-            else:
-                logging.error(f"Echec envoi email asynchrone : {exc}", exc_info=True)
+    print(f"\n================ EMAIL DEBUG ================")
+    print(f"Destinataire : {recipient_list}")
+    print(f"De : {from_email}")
+    print(f"Sujet : {subject}")
 
-    threading.Thread(target=_run, daemon=True).start()
+    try:
+        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        print("========> SUCCES ABSOLU DE L'ENVOI ! <========")
+    except Exception as exc:
+        print("========> CRASH LORS DE L'ENVOI <========")
+        import traceback
+        traceback.print_exc()
+        if on_error:
+            on_error(exc)
+        else:
+            logging.error(f"Echec envoi email synchrone : {exc}", exc_info=True)
+        # On remonte l'erreur pour que l'API renvoie une vraie erreur 500
+        raise exc
 
 def _verify_and_consume_otp(user, action_type, code):
     """VÃ©rifie un OTP et le marque comme utilisÃ©. Retourne True si valide, False sinon."""
