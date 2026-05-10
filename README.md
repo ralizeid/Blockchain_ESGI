@@ -17,6 +17,7 @@ CertiChain est une plateforme de certification de diplômes basée sur la blockc
 5. [Emails et OTP](#5-emails-et-otp)
 6. [Déploiement Docker](#6-déploiement-docker)
 7. [L'équipe](#7-léquipe)
+8. [Changelog](./CHANGELOG.md)
 
 ---
 
@@ -137,10 +138,10 @@ Pour la production, déployez le contrat sur Polygon et mettez à jour `BLOCKCHA
 
 ## 7. L'équipe
 
-| Nom |
-|---|
-| Julien ATTARD |
-| Mohammed KADDOURI |
-| Ayman GAYES |
-| Rayan ALIZEID |
-| Aurélien LOGEAIS |
+| Nom | Rôle |
+|---|---|
+| Julien ATTARD | Chef de Projet / PM |
+| Rayan ALIZEID | DevOps / Blockchain |
+| Aurélien LOGEAIS | Développeur Full Stack |
+| Ayman GAYES | Développeur Full Stack |
+| Mohammed KADDOURI | Développeur Blockchain |
