@@ -100,23 +100,28 @@
 
 ---
 
-## [16 au 22 mars 2026] — Déploiement CI/CD avancé & Gouvernance (Release V1.0.1)
+## [16 au 20 mars 2026] — Mise en production V1.0 & Sécurisation
+
+### Ajouté — Technique
+- `BE-96` : Correction bug script Windows (Aurélien)
+- **Déploiement V1.0** — mise en production officielle, merge main ← develop (Rayan)
+- Configuration Nginx pour servir les fichiers statiques React (Rayan)
+- `BE-98` : Sécurité diplôme — accès restreint à une seule page + correction (Aurélien)
+- `BE-99` : Aperçu (preview) photo d'identité de l'étudiant (Aurélien)
+- `BE-100` : Restructuration du formulaire d'inscription établissement (Aurélien)
+- `BE-101` : Guide d'aide à l'utilisation de MetaMask — V1 (Aurélien)
+- `BE-102` : Vérification des inputs + durcissement des mots de passe (Aurélien)
+- `BE-103` : Sauvegarde des coordonnées du QR code (Aurélien)
+- `BE-104` : Réglage de l'expiration de session (Aurélien)
+- `BE-105` : Amélioration navigation page diplôme (Aurélien)
+- `BE-106` : Champs obligatoires au processus de création diplôme et profil (Aurélien)
+- `BE-107` : Modification + correction système d'abonnements (Aurélien)
+- Pipeline Docker améliorée : tagging intelligent, déclenchement sur PR, migration vers images Docker, ajout service Cloudflared (Rayan)
 
 ### Ajouté — Gestion de Projet (Julien ATTARD)
-- Création et intégration du **Changelog historique complet** sur Git pour assurer la traçabilité du projet.
+- Rédaction et publication du **CHANGELOG historique complet** du projet CertiChain
 
-### Ajouté — Infrastructure & DevOps (Rayan)
-- Déploiement de la **Release V1.0.1**.
-- Refonte des pipelines Docker (CI/CD) : ajout du *intelligent tagging*, déclenchement automatique sur les Pull Requests et copie du `.env`.
-- Optimisation : ajout de la compression GZIP à la configuration Nginx.
-- Sécurisation réseau : ajout du service `cloudflared` au docker-compose.
-- Dockerisation : transition vers des images Docker distinctes pour le Frontend et le Backend.
-- Automatisation : ajout de la commande `makemigrations` au script d'entrypoint.
-
-### Ajouté — Technique (Aurélien)
-- `BE-107` : Modification et correction du système d'abonnements pour les écoles.
-
-
+---
 
 ## [À compléter — 23 au 29 mars 2026]
 
