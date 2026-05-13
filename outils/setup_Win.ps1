@@ -1,5 +1,11 @@
 $ErrorActionPreference = "Continue"
 
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$certichainDir = Join-Path $repoRoot 'Certichain'
+$backendDir = Join-Path $certichainDir 'certichain-back'
+$blockchainDir = Join-Path $certichainDir 'certichain-blockchain'
+$frontendDir = Join-Path $certichainDir 'certichain-front'
+
 Write-Host "--- DEMARRAGE DU PROJET CERTICHAIN ---" -ForegroundColor Cyan
 
 # 0. RESET BASE DE DONNEES
@@ -7,12 +13,12 @@ $reset = Read-Host "Reinitialiser la base de donnees ? Cela supprimera les migra
 if ($reset -match '^(o|oui|y|yes)$') {
     Write-Host ">>> Suppression des migrations et de la base de donnees..." -ForegroundColor Red
 
-    $migrationsPath = "Certichain\certichain-back\diplomas\migrations"
+    $migrationsPath = Join-Path $backendDir 'diplomas\migrations'
     Get-ChildItem -Path $migrationsPath -File |
         Where-Object { $_.Name -ne "__init__.py" } |
         Remove-Item -Force
 
-    $dbPath = "Certichain\certichain-back\db.sqlite3"
+    $dbPath = Join-Path $backendDir 'db.sqlite3'
     if (Test-Path $dbPath) { Remove-Item $dbPath -Force }
 
     Write-Host ">>> Base de donnees et migrations supprimees." -ForegroundColor Green
@@ -20,22 +26,22 @@ if ($reset -match '^(o|oui|y|yes)$') {
     Write-Host ">>> Base de donnees conservee." -ForegroundColor DarkGray
 }
 
-Set-Location "Certichain"
+Set-Location $certichainDir
 
 # Option : reset des donnees locales (DB + medias)
 $resetAnswer = Read-Host "Supprimer les donnees locales (db + medias) avant lancement ? (o/N)"
 if ($resetAnswer -match '^(o|oui|y|yes)$') {
     Write-Host ">>> Suppression des donnees locales..." -ForegroundColor Yellow
 
-    $dbPath = "certichain-back\db.sqlite3"
+    $dbPath = Join-Path $backendDir 'db.sqlite3'
     if (Test-Path $dbPath) {
         Remove-Item $dbPath -Force
         Write-Host "- db.sqlite3 supprime" -ForegroundColor DarkYellow
     }
 
     $mediaFolders = @(
-        "certichain-back\media\diplomas",
-        "certichain-back\media\photos"
+        (Join-Path $backendDir 'media\diplomas'),
+        (Join-Path $backendDir 'media\photos')
     )
 
     foreach ($folder in $mediaFolders) {
@@ -53,7 +59,7 @@ if ($resetAnswer -match '^(o|oui|y|yes)$') {
 
 # 1. BLOCKCHAIN (Hardhat)
 Write-Host "[1/3] Preparation Hardhat" -ForegroundColor Yellow
-Set-Location "certichain-blockchain"
+Set-Location $blockchainDir
 npm install
 # Ouvre le process dans un nouveau shell
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "npx hardhat node --hostname 0.0.0.0"
@@ -66,14 +72,14 @@ $contractAddress = [regex]::Match($deployOutput, "0x[a-fA-F0-9]{40}").Value
 Write-Host ">>> ADRESSE : $contractAddress" -ForegroundColor Green
 
 # 2. BACKEND (Django)
-Set-Location ".."
+Set-Location $certichainDir
 Write-Host "[2/3] Preparation Backend" -ForegroundColor Yellow
-Set-Location "certichain-back"
+Set-Location $backendDir
 
 # Copie ABI
-$abiPath = "diplomas"
+$abiPath = Join-Path $backendDir 'diplomas'
 if (!(Test-Path $abiPath)) { New-Item -ItemType Directory -Path $abiPath }
-Copy-Item "..\certichain-blockchain\artifacts\contracts\CertiChainSBT.sol\CertiChainSBT.json" -Destination "$abiPath\" -Force
+Copy-Item (Join-Path $blockchainDir 'artifacts\contracts\CertiChainSBT.sol\CertiChainSBT.json') -Destination "$abiPath\" -Force
 
 # Mise a jour de l'adresse du contrat dans .env (plus dans web3_service.py)
 if ($contractAddress -ne "") {
@@ -87,13 +93,12 @@ if ($contractAddress -ne "") {
 }
 
 # Lancement Django avec le venv racine (evite les problemes de pydantic_core)
-$venvDir = "$PSScriptRoot\.venv"
-if (-not (Test-Path "$venvDir\Scripts\python.exe")) {
-    $venvDir = "$PSScriptRoot\venv"
+$venvDir = Join-Path $repoRoot '.venv'
+if (-not (Test-Path (Join-Path $venvDir 'Scripts\python.exe'))) {
+    $venvDir = Join-Path $repoRoot 'venv'
 }
-$rootVenvPython = "$venvDir\Scripts\python.exe"
-$rootVenvPip    = "$venvDir\Scripts\pip.exe"
-$backendDir     = "$PSScriptRoot\Certichain\certichain-back"
+$rootVenvPython = Join-Path $venvDir 'Scripts\python.exe'
+$rootVenvPip    = Join-Path $venvDir 'Scripts\pip.exe'
 $djangoCmd = "Set-Location '$backendDir'; " +
              "& '$rootVenvPip' install -r requirements.txt web3 --no-cache-dir -q; " +
              "& '$rootVenvPython' manage.py makemigrations; " +
@@ -102,12 +107,12 @@ $djangoCmd = "Set-Location '$backendDir'; " +
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $djangoCmd
 
 # 3. FRONTEND (React)
-Set-Location ".."
+Set-Location $certichainDir
 Write-Host "[3/3] Preparation Frontend" -ForegroundColor Yellow
-Set-Location "certichain-front"
+Set-Location $frontendDir
 npm install
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm start"
 
-Set-Location "../.."
+Set-Location $repoRoot
 
 Write-Host "--- Lancement termine ---" -ForegroundColor Cyan
