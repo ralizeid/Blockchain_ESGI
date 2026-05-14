@@ -287,6 +287,38 @@ class UpdateProfileView(APIView):
 
         return Response({"message": "Profil mis Ã  jour avec succÃ¨s."})
 
+from .models import DiplomaPack, UserPack
+from .serializers import DiplomaPackSerializer
+
+class AvailablePacksView(APIView):
+    def get(self, request):
+        packs = DiplomaPack.objects.all().order_by('diplomas_amount')
+        serializer = DiplomaPackSerializer(packs, many=True)
+        return Response(serializer.data)
+
+class BuyPackView(APIView):
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        pack_id = request.data.get('pack_id')
+        if not user_id or not pack_id:
+            return Response({"error": "Parametres manquants (user_id, pack_id)"}, status=400)
+            
+        try:
+            profile = UserProfile.objects.get(user_id=user_id)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "Profil introuvable"}, status=404)
+            
+        try:
+            pack = DiplomaPack.objects.get(id=pack_id)
+        except DiplomaPack.DoesNotExist:
+            return Response({"error": "Pack introuvable"}, status=404)
+            
+        # Acheter le pack
+        UserPack.objects.create(user_profile=profile, pack=pack)
+        
+        return Response({"message": f"Pack '{pack.name}' achete avec succes !"}, status=status.HTTP_201_CREATED)
+
+
 class QuotaView(APIView):
     def get(self, request):
         user_id = request.query_params.get('user_id')
@@ -300,6 +332,17 @@ class QuotaView(APIView):
 
         plan = profile.subscription_plan
         limit = plan.max_diplomas if plan else 0  # 0 si aucun abonnement
+
+        
+        # --- AJOUT DES PACKS ---
+        extra_diplomas = 0
+        if profile:
+            from django.db.models import Sum
+            extra_diplomas = profile.purchased_packs.aggregate(total=Sum('pack__diplomas_amount'))['total'] or 0
+
+        # La nouvelle limite de base + les extras du pack
+        if limit != -1:
+            limit += extra_diplomas
 
         current_year = timezone.now().year
         used_quota = Diploma.objects.filter(

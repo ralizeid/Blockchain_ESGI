@@ -69,6 +69,19 @@ class UserProfile(models.Model):
         return f"Profil de {self.user.username} – {plan}"
 
 
+class DiplomaPack(models.Model):
+    name = models.CharField(max_length=50, unique=True, verbose_name="Nom du Pack")
+    diplomas_amount = models.IntegerField(verbose_name="Nombre de diplômes suppl.")
+    price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Prix (€)")
+
+    def __str__(self):
+        return f"{self.name} (+{self.diplomas_amount} diplômes)"
+
+class UserPack(models.Model):
+    user_profile = models.ForeignKey('UserProfile', on_delete=models.CASCADE, related_name='purchased_packs')
+    pack = models.ForeignKey(DiplomaPack, on_delete=models.PROTECT)
+    purchased_at = models.DateTimeField(auto_now_add=True)
+
 class ActionOTP(models.Model):
     """Code OTP à usage unique envoyé par email pour valider chaque action critique."""
     ACTION_CHOICES = [

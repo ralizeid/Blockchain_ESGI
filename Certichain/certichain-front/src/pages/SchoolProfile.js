@@ -18,6 +18,7 @@ const SchoolProfile = () => {
   const [activeTab, setActiveTab]     = useState('profile');
   const [quota, setQuota]             = useState(null);
   const [plans, setPlans]             = useState([]);
+  const [packs, setPacks]             = useState([]);
   const [loading, setLoading]         = useState(true);
 
   // Upgrade modal
@@ -73,6 +74,8 @@ const SchoolProfile = () => {
         uai_code:       prData.uai_code       || '',
         siret:          prData.siret          || '',
       });
+      const packsRes = await fetch('/api/packs/');
+      if (packsRes.ok) setPacks(await packsRes.json());
     } catch (e) {
       console.error('Erreur chargement profil', e);
     }
@@ -100,6 +103,26 @@ const SchoolProfile = () => {
       }
     } catch (e) {
       setUpgradeMsg({ type: 'error', text: 'Erreur serveur.' });
+    }
+  };
+
+  const handleBuyPack = async (pack) => {
+    if (!window.confirm(`Vous allez acheter le ${pack.name} au prix de ${pack.price} €. Confirmez-vous ?`)) return;
+    try {
+      const res = await fetch('/api/buy-pack/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, pack_id: pack.id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Pack acheté avec succès !");
+        fetchData();
+      } else {
+        alert(data.error || "Erreur lors de l'achat.");
+      }
+    } catch (e) {
+      alert("Erreur réseau.");
     }
   };
 
@@ -246,6 +269,7 @@ const SchoolProfile = () => {
     { id: 'profile', label: 'Informations' },
     { id: 'wallet',  label: '🔒 Wallet & Profil' },
     { id: 'quota',   label: 'Quota & Usage' },
+    { id: 'packs',   label: 'Acheter un Pack' },
     { id: 'plans',   label: 'Abonnement' },
     { id: 'rgpd',    label: 'Mes droits RGPD' },
   ];
@@ -712,16 +736,50 @@ const SchoolProfile = () => {
             </p>
           </div>
 
-          <div className="form-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div className="form-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
             <div>
               <div style={{ fontWeight: 600, color: 'var(--dark)' }}>Besoin de plus de certifications ?</div>
               <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginTop: 4, marginBottom: 0 }}>
-                Passez a un plan superieur depuis l'onglet Abonnement.
+                Passez a un plan superieur depuis l'onglet Abonnement ou choisissez un Pack.
               </p>
             </div>
-            <button className="btn btn-primary" style={{ width: 'auto' }} onClick={() => setActiveTab('plans')}>
-              Voir les plans
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-outline" style={{ width: 'auto' }} onClick={() => setActiveTab('packs')}>
+                Voir les Packs
+              </button>
+              <button className="btn btn-primary" style={{ width: 'auto' }} onClick={() => setActiveTab('plans')}>
+                Voir les Abonnements
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* PACKS */}
+      {activeTab === 'packs' && (
+        <>
+          <div style={{ marginTop: 24, marginBottom: 24 }}>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--dark)' }}>Acheter des Packs supplémentaires</h2>
+            <p style={{ color: 'var(--gray)', marginTop: 4, fontSize: '0.875rem' }}>
+              Achetez un volume de certifications directement sans modifier votre abonnement annuel principal.
+            </p>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            {packs.map(pack => (
+              <div key={pack.id} className="form-card" style={{ padding: 24, marginBottom: 0, border: '2px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem', color: 'var(--dark)' }}>{pack.name}</h3>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginBottom: 4 }}>+{pack.diplomas_amount} <span style={{fontSize: '0.9rem', color: 'var(--gray)', fontWeight: 500}}>diplômes</span></div>
+                <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--dark)', marginBottom: 16 }}>{pack.price} &euro;</div>
+                <button 
+                  className="btn btn-outline" 
+                  style={{ marginTop: 'auto', width: '100%', borderColor: 'var(--primary)', color: 'var(--primary)', padding: '0.5rem', borderRadius: '4px', background: 'transparent', cursor: 'pointer' }} 
+                  onClick={() => handleBuyPack(pack)}
+                >
+                  Acheter
+                </button>
+              </div>
+            ))}
           </div>
         </>
       )}
