@@ -4,6 +4,14 @@ from django.utils import timezone
 from .models import Diploma, UserProfile, SubscriptionPlan, QRPreset
 
 
+
+from .models import DiplomaPack, UserPack
+
+class DiplomaPackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiplomaPack
+        fields = ['id', 'name', 'diplomas_amount', 'price']
+
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionPlan

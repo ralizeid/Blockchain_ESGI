@@ -4,6 +4,7 @@ from .views import (
     CreateDiplomaView, SearchDiplomaView, MyDiplomasView, ValidateDiplomaView,
     QuotaView, UpdateProfileView,
     SubscriptionPlansView, UpgradeSubscriptionView,
+    AvailablePacksView, BuyPackView,
     ExportDataView, DeleteAccountView, StudentErasureView, StudentErasureConfirmView,
     SchoolDiplomaErasureView,
     RectoratePendingView, RectorateBulkValidateView,
@@ -24,6 +25,8 @@ urlpatterns = [
     # Abonnements
     path('plans/',      SubscriptionPlansView.as_view()),
     path('upgrade/',    UpgradeSubscriptionView.as_view()),
+    path('packs/',      AvailablePacksView.as_view()),
+    path('buy-pack/',   BuyPackView.as_view()),
     # RGPD
     path('export-data/',             ExportDataView.as_view()),
     path('delete-account/',          DeleteAccountView.as_view()),
