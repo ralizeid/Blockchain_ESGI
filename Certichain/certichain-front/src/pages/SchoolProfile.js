@@ -705,7 +705,14 @@ const SchoolProfile = () => {
       {activeTab === 'quota' && (
         <>
           <div className="form-card" style={{ marginBottom: 16 }}>
-            <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Utilisation annuelle</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Utilisation annuelle</h2>
+              {quota?.renewal_date && (
+                <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, background: '#eff6ff', padding: '4px 10px', borderRadius: 99 }}>
+                  Renouvellement le {new Date(quota.renewal_date).toLocaleDateString('fr-FR')}
+                </span>
+              )}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
               <span style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>
                 Plan <strong style={{ color: planColor }}>{currentPlanName}</strong>
