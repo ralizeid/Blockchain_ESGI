@@ -1,7 +1,9 @@
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from .models import SubscriptionPlan, UserProfile
+from .models import ActionOTP, Diploma, SubscriptionPlan, UserProfile
 
 
 class RegisterViewTests(APITestCase):
@@ -96,3 +98,80 @@ class LoginViewTests(APITestCase):
 		self.assertEqual(response.status_code, 401)
 		self.assertIn("error", response.data)
 		self.assertEqual(response.data["error"], "Identifiants invalides")
+
+
+class CreateDiplomaViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.subscription_plan, _ = SubscriptionPlan.objects.get_or_create(
+			name="ESSENTIEL",
+			defaults={
+				"display_name": "Essentiel",
+				"annual_price": "990.00",
+				"max_diplomas": 50,
+				"level": 1,
+			},
+		)
+		cls.user = User.objects.create_user(
+			username="ecole-diploma",
+			email="contact@ecole-diploma.fr",
+			password="StrongPass!123",
+		)
+		UserProfile.objects.create(
+			user=cls.user,
+			rectorate_email="rectorat@ecole-diploma.fr",
+			subscription_plan=cls.subscription_plan,
+			gdpr_consent=True,
+			gdpr_consent_date=timezone.now(),
+		)
+
+	def test_create_diploma_successfully(self):
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="CREATE_DIPLOMA",
+			code="123456",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+		payload = {
+			"user_id": str(self.user.id),
+			"otp_code": "123456",
+			"first_name": "Jean",
+			"last_name": "Dupont",
+			"course_name": "Master Blockchain",
+			"image": SimpleUploadedFile("diploma.png", b"fake image content", content_type="image/png"),
+			"embed_qr": "false",
+		}
+
+		response = self.client.post("/api/certify/", payload, format="multipart")
+
+		self.assertEqual(response.status_code, 201)
+		self.assertIn("validation envoy", response.data["message"])
+		self.assertIn("diploma_id", response.data)
+		self.assertIn("verify_url", response.data)
+
+		diploma = Diploma.objects.get(pk=response.data["diploma_id"])
+		otp = ActionOTP.objects.get(user=self.user, action_type="CREATE_DIPLOMA", code="123456")
+
+		self.assertEqual(diploma.owner, self.user)
+		self.assertEqual(diploma.first_name, "Jean")
+		self.assertEqual(diploma.last_name, "Dupont")
+		self.assertEqual(diploma.course_name, "Master Blockchain")
+		self.assertEqual(diploma.rectorate_email_snapshot, "rectorat@ecole-diploma.fr")
+		self.assertTrue(diploma.diploma_hash)
+		self.assertEqual(diploma.status, "PENDING")
+		self.assertTrue(otp.used)
+
+	def test_create_diploma_without_user_id_returns_forbidden(self):
+		response = self.client.post(
+			"/api/certify/",
+			{
+				"otp_code": "123456",
+				"first_name": "Jean",
+				"last_name": "Dupont",
+				"course_name": "Master Blockchain",
+			},
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, 403)
+		self.assertIn("authentifi", response.data["error"])
