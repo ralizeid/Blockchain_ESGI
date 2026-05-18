@@ -175,3 +175,149 @@ class CreateDiplomaViewTests(APITestCase):
 
 		self.assertEqual(response.status_code, 403)
 		self.assertIn("authentifi", response.data["error"])
+
+
+class UpdateProfileViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.subscription_plan, _ = SubscriptionPlan.objects.get_or_create(
+			name="ESSENTIEL",
+			defaults={
+				"display_name": "Essentiel",
+				"annual_price": "990.00",
+				"max_diplomas": 50,
+				"level": 1,
+			},
+		)
+		cls.user = User.objects.create_user(
+			username="ecole-profile",
+			email="contact@ecole-profile.fr",
+			password="StrongPass!123",
+		)
+		cls.profile = UserProfile.objects.create(
+			user=cls.user,
+			rectorate_email="rectorat@ecole-profile.fr",
+			subscription_plan=cls.subscription_plan,
+			gdpr_consent=True,
+			gdpr_consent_date=timezone.now(),
+		)
+
+	def test_get_profile_with_valid_user_id(self):
+		"""Test retrieving profile data with valid user_id"""
+		response = self.client.get(f"/api/update-profile/?user_id={self.user.id}")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.data["email"], "contact@ecole-profile.fr")
+		self.assertEqual(response.data["rectorate_email"], "rectorat@ecole-profile.fr")
+		self.assertIn("school_eth_address", response.data)
+		self.assertIn("rectorate_eth_address", response.data)
+
+	def test_get_profile_without_user_id(self):
+		"""Test get profile without user_id returns 400"""
+		response = self.client.get("/api/update-profile/")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("error", response.data)
+
+	def test_get_profile_with_nonexistent_user(self):
+		"""Test get profile with non-existent user_id returns 404"""
+		response = self.client.get("/api/update-profile/?user_id=9999")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertIn("error", response.data)
+
+	def test_patch_profile_with_valid_otp(self):
+		"""Test updating profile with valid OTP code"""
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="UPDATE_PROFILE",
+			code="654321",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+
+		payload = {
+			"user_id": str(self.user.id),
+			"otp_code": "654321",
+			"email": "newemail@ecole-profile.fr",
+			"rectorate_email": "new-rectorat@ecole-profile.fr",
+		}
+
+		response = self.client.patch("/api/update-profile/", payload, format="json")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("jour", response.data["message"])
+
+		self.user.refresh_from_db()
+		self.profile.refresh_from_db()
+		self.assertEqual(self.user.email, "newemail@ecole-profile.fr")
+		self.assertEqual(self.profile.rectorate_email, "new-rectorat@ecole-profile.fr")
+
+		otp = ActionOTP.objects.get(code="654321")
+		self.assertTrue(otp.used)
+
+	def test_patch_profile_without_otp_code(self):
+		"""Test patch profile without OTP code returns 400"""
+		payload = {
+			"user_id": str(self.user.id),
+			"email": "newemail@ecole.fr",
+		}
+
+		response = self.client.patch("/api/update-profile/", payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("validation par email", response.data["error"])
+
+	def test_patch_profile_with_invalid_otp(self):
+		"""Test patch profile with wrong OTP code returns 400"""
+		payload = {
+			"user_id": str(self.user.id),
+			"otp_code": "999999",
+			"email": "newemail@ecole.fr",
+		}
+
+		response = self.client.patch("/api/update-profile/", payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("validation incorrect", response.data["error"])
+
+	def test_patch_profile_with_invalid_ethereum_address(self):
+		"""Test patch profile with malformed Ethereum address returns 400"""
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="UPDATE_PROFILE",
+			code="654321",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+
+		payload = {
+			"user_id": str(self.user.id),
+			"otp_code": "654321",
+			"school_eth_address": "0xinvalid",
+		}
+
+		response = self.client.patch("/api/update-profile/", payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("MetaMask", response.data["error"])
+
+	def test_patch_profile_with_valid_ethereum_address(self):
+		"""Test updating profile with valid Ethereum address"""
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="UPDATE_PROFILE",
+			code="654321",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+
+		valid_eth_address = "0x1234567890123456789012345678901234567890"
+		payload = {
+			"user_id": str(self.user.id),
+			"otp_code": "654321",
+			"school_eth_address": valid_eth_address,
+		}
+
+		response = self.client.patch("/api/update-profile/", payload, format="json")
+
+		self.assertEqual(response.status_code, 200)
+		self.profile.refresh_from_db()
+		self.assertEqual(self.profile.school_eth_address, valid_eth_address)
