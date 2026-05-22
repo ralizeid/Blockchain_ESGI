@@ -25,12 +25,25 @@ const RectoratDashboard = () => {
     setConnectError('');
     try {
       if (!window.ethereum) throw new Error("MetaMask n'est pas installé. Veuillez installer l'extension.");
+      
+      // On demande explicitement la permission pour ouvrir le popup de choix de compte
+      // Cela évite que MetaMask connecte automatiquement le compte précédent
+      await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }]
+      });
+
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       setEthAddress(accounts[0]);
       setConnectStatus('connected');
     } catch (err) {
       setConnectStatus('error');
-      setConnectError(err.message || 'Erreur de connexion MetaMask.');
+      // Si l'utilisateur annule la sélection, MetaMask renvoie l'erreur 4001
+      if (err.code === 4001) {
+        setConnectError('Connexion annulée par l\'utilisateur.');
+      } else {
+        setConnectError(err.message || 'Erreur de connexion MetaMask.');
+      }
     }
   };
 
