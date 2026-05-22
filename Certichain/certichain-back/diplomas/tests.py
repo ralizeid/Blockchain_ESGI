@@ -513,7 +513,6 @@ class ValidateDiplomaViewTests(APITestCase):
 class SubscriptionPlansViewTests(APITestCase):
 	@classmethod
 	def setUpTestData(cls):
-		# Ensure at least two plans exist for the list endpoint
 		SubscriptionPlan.objects.get_or_create(
 			name="ESSENTIEL",
 			defaults={
@@ -537,11 +536,9 @@ class SubscriptionPlansViewTests(APITestCase):
 		response = self.client.get("/api/plans/")
 
 		self.assertEqual(response.status_code, 200)
-		# The view returns a list of plan objects
 		self.assertIsInstance(response.data, list)
 		self.assertGreaterEqual(len(response.data), 1)
 
-		# Check required serializer fields on each plan
 		for plan in response.data:
 			self.assertIn("id", plan)
 			self.assertIn("name", plan)
