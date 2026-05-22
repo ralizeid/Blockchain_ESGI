@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
+from unittest.mock import patch
 from rest_framework.test import APITestCase
 
 from .models import ActionOTP, Diploma, SubscriptionPlan, UserProfile
@@ -321,3 +322,122 @@ class UpdateProfileViewTests(APITestCase):
 		self.assertEqual(response.status_code, 200)
 		self.profile.refresh_from_db()
 		self.assertEqual(self.profile.school_eth_address, valid_eth_address)
+
+
+class ValidateDiplomaViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.subscription_plan, _ = SubscriptionPlan.objects.get_or_create(
+			name="ESSENTIEL",
+			defaults={
+				"display_name": "Essentiel",
+				"annual_price": "990.00",
+				"max_diplomas": 50,
+				"level": 1,
+			},
+		)
+		cls.user = User.objects.create_user(
+			username="ecole-validate",
+			email="contact@ecole-validate.fr",
+			password="StrongPass!123",
+		)
+		cls.profile = UserProfile.objects.create(
+			user=cls.user,
+			rectorate_email="rectorat@ecole-validate.fr",
+			subscription_plan=cls.subscription_plan,
+			gdpr_consent=True,
+			gdpr_consent_date=timezone.now(),
+			school_eth_address="0x1111111111111111111111111111111111111111",
+			rectorate_eth_address="0x2222222222222222222222222222222222222222",
+		)
+
+	def _create_diploma(self):
+		return Diploma.objects.create(
+			owner=self.user,
+			first_name="Jean",
+			last_name="Dupont",
+			course_name="Master Blockchain",
+			graduation_date=timezone.now().date(),
+			image=SimpleUploadedFile("diploma.png", b"fake image content", content_type="image/png"),
+			diploma_hash="0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+		)
+
+	@patch("diplomas.views.verify_eth_signature", return_value=True)
+	def test_get_school_validation_payload(self, mock_verify_eth_signature):
+		diploma = self._create_diploma()
+
+		response = self.client.get(f"/api/validate/{diploma.school_token}/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.data["validation_type"], "Ã‰cole")
+		self.assertFalse(response.data["already_validated"])
+		self.assertEqual(response.data["first_name"], "Jean")
+		self.assertEqual(response.data["last_name"], "Dupont")
+
+	def test_get_invalid_validation_token_returns_404(self):
+		response = self.client.get("/api/validate/11111111-1111-1111-1111-111111111111/")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertIn("error", response.data)
+
+	@patch("diplomas.views.verify_eth_signature", return_value=True)
+	@patch("diplomas.views.certify_diploma_on_blockchain", return_value="0xdeadbeef")
+	def test_school_then_rectorate_validation_moves_to_validated(self, mock_certify, mock_verify_eth_signature):
+		diploma = self._create_diploma()
+		school_payload = {
+			"action": "validate",
+			"eth_signature": "0xschool-signature",
+			"eth_address": self.profile.school_eth_address,
+		}
+
+		school_response = self.client.post(f"/api/validate/{diploma.school_token}/", school_payload, format="json")
+
+		self.assertEqual(school_response.status_code, 200)
+		self.assertIn("validation (Ã‰cole)", school_response.data["message"])
+		diploma.refresh_from_db()
+		self.assertTrue(diploma.school_validated)
+		self.assertEqual(diploma.status, "PENDING")
+
+		rectorate_payload = {
+			"action": "validate",
+			"eth_signature": "0xrectorat-signature",
+			"eth_address": self.profile.rectorate_eth_address,
+		}
+		rectorate_response = self.client.post(f"/api/validate/{diploma.rectorate_token}/", rectorate_payload, format="json")
+
+		self.assertEqual(rectorate_response.status_code, 200)
+		self.assertIn("validation (Rectorat)", rectorate_response.data["message"])
+		diploma.refresh_from_db()
+		self.assertTrue(diploma.rectorate_validated)
+		self.assertEqual(diploma.status, "VALIDATED")
+		self.assertEqual(diploma.blockchain_status, "ANCHORED")
+		self.assertEqual(diploma.blockchain_tx_hash, "0xdeadbeef")
+		mock_certify.assert_called_once()
+
+	@patch("diplomas.views.verify_eth_signature", return_value=False)
+	def test_validation_rejects_invalid_signature(self, mock_verify_eth_signature):
+		diploma = self._create_diploma()
+		payload = {
+			"action": "validate",
+			"eth_signature": "0xbad-signature",
+			"eth_address": self.profile.school_eth_address,
+		}
+
+		response = self.client.post(f"/api/validate/{diploma.school_token}/", payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("Signature invalide", response.data["error"])
+
+	@patch("diplomas.views.verify_eth_signature", return_value=True)
+	def test_validation_rejects_wrong_registered_address(self, mock_verify_eth_signature):
+		diploma = self._create_diploma()
+		payload = {
+			"action": "validate",
+			"eth_signature": "0xschool-signature",
+			"eth_address": "0x3333333333333333333333333333333333333333",
+		}
+
+		response = self.client.post(f"/api/validate/{diploma.school_token}/", payload, format="json")
+
+		self.assertEqual(response.status_code, 403)
+		self.assertIn("non autoris", response.data["error"])
