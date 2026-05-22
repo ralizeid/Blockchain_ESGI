@@ -53,6 +53,7 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
         <Link to="/" className="sidebar-link" onClick={() => setIsOpen(false)}>🏠 Accueil</Link>
         <Link to="/verify" className="sidebar-link" onClick={() => setIsOpen(false)}>🔍 Vérification Publique</Link>
         <Link to="/rectorat" className="sidebar-link" onClick={() => setIsOpen(false)}>🏛️ Espace Rectorat</Link>
+        <Link to="/support" className="sidebar-link" onClick={() => setIsOpen(false)}>📖 Guide & Support</Link>
 
         {isAuthenticated && (
           <>
