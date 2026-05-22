@@ -507,3 +507,46 @@ class ValidateDiplomaViewTests(APITestCase):
 
 		self.assertEqual(response.status_code, 403)
 		self.assertIn("non autoris", response.data["error"])
+
+
+
+class SubscriptionPlansViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		SubscriptionPlan.objects.get_or_create(
+			name="ESSENTIEL",
+			defaults={
+				"display_name": "Essentiel",
+				"annual_price": "990.00",
+				"max_diplomas": 50,
+				"level": 1,
+			},
+		)
+		SubscriptionPlan.objects.get_or_create(
+			name="CAMPUS",
+			defaults={
+				"display_name": "Campus",
+				"annual_price": "1990.00",
+				"max_diplomas": 200,
+				"level": 2,
+			},
+		)
+
+	def test_get_plans_returns_list_with_expected_fields(self):
+		response = self.client.get("/api/plans/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+		self.assertGreaterEqual(len(response.data), 1)
+
+		for plan in response.data:
+			self.assertIn("id", plan)
+			self.assertIn("name", plan)
+			self.assertIn("display_name", plan)
+			self.assertIn("annual_price", plan)
+			self.assertIn("max_diplomas", plan)
+			self.assertIn("level", plan)
+
+		# At least one known plan should be present
+		names = [p["name"] for p in response.data]
+		self.assertIn("ESSENTIEL", names)
