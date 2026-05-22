@@ -101,6 +101,72 @@ class LoginViewTests(APITestCase):
 		self.assertEqual(response.data["error"], "Identifiants invalides")
 
 
+class SendActionOTPViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.user = User.objects.create_user(
+			username="ecole-otp",
+			email="contact@ecole-otp.fr",
+			password="StrongPass!123",
+		)
+
+	@patch("diplomas.views._send_mail_async")
+	@patch("random.randint", return_value=123456)
+	def test_send_action_otp_creates_code_and_invalidates_previous_ones(self, mock_randint, mock_send_mail_async):
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="UPDATE_PROFILE",
+			code="111111",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+
+		response = self.client.post(
+			"/api/send-action-otp/",
+			{
+				"user_id": self.user.id,
+				"action_type": "UPDATE_PROFILE",
+			},
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.data["status"], "sent")
+		self.assertEqual(response.data["email_masked"], "co***@ecole-otp.fr")
+		self.assertIn("10 minutes", response.data["message"])
+		self.assertEqual(ActionOTP.objects.filter(user=self.user, action_type="UPDATE_PROFILE").count(), 2)
+		self.assertTrue(ActionOTP.objects.get(user=self.user, action_type="UPDATE_PROFILE", code="111111").used)
+		new_otp = ActionOTP.objects.get(user=self.user, action_type="UPDATE_PROFILE", code="123456")
+		self.assertFalse(new_otp.used)
+		self.assertGreater(new_otp.expires_at, timezone.now())
+		mock_send_mail_async.assert_called_once()
+
+	def test_send_action_otp_rejects_invalid_action(self):
+		response = self.client.post(
+			"/api/send-action-otp/",
+			{
+				"user_id": self.user.id,
+				"action_type": "INVALID_ACTION",
+			},
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("action_type", response.data["error"])
+
+	def test_send_action_otp_rejects_unknown_user(self):
+		response = self.client.post(
+			"/api/send-action-otp/",
+			{
+				"user_id": 9999,
+				"action_type": "UPDATE_PROFILE",
+			},
+			format="json",
+		)
+
+		self.assertEqual(response.status_code, 404)
+		self.assertIn("Utilisateur introuvable", response.data["error"])
+
+
 class CreateDiplomaViewTests(APITestCase):
 	@classmethod
 	def setUpTestData(cls):
