@@ -333,21 +333,39 @@ class QuotaView(APIView):
         plan = profile.subscription_plan
         limit = plan.max_diplomas if plan else 0  # 0 si aucun abonnement
 
+        now = timezone.now()
+        sub_start = profile.subscription_start
         
+        try:
+            this_year_anniv = sub_start.replace(year=now.year)
+        except ValueError: # for Feb 29
+            this_year_anniv = sub_start.replace(year=now.year, month=2, day=28)
+            
+        if now.date() < this_year_anniv:
+            period_start = this_year_anniv.replace(year=now.year - 1)
+            renewal_date = this_year_anniv
+        else:
+            period_start = this_year_anniv
+            try:
+                renewal_date = this_year_anniv.replace(year=now.year + 1)
+            except ValueError:
+                renewal_date = this_year_anniv.replace(year=now.year + 1, month=2, day=28)
+
         # --- AJOUT DES PACKS ---
         extra_diplomas = 0
         if profile:
             from django.db.models import Sum
-            extra_diplomas = profile.purchased_packs.aggregate(total=Sum('pack__diplomas_amount'))['total'] or 0
+            extra_diplomas = profile.purchased_packs.filter(
+                purchased_at__gte=period_start
+            ).aggregate(total=Sum('pack__diplomas_amount'))['total'] or 0
 
         # La nouvelle limite de base + les extras du pack
         if limit != -1:
             limit += extra_diplomas
 
-        current_year = timezone.now().year
         used_quota = Diploma.objects.filter(
             owner_id=user_id,
-            created_at__year=current_year,
+            created_at__gte=period_start,
         ).exclude(status='REJECTED').count()
 
         unlimited = (limit == -1)
@@ -362,6 +380,7 @@ class QuotaView(APIView):
             "plan_id":      plan.id if plan else None,
             "plan_level":   plan.level if plan else 0,
             "annual_price": str(plan.annual_price) if plan else "0.00",
+            "renewal_date": renewal_date.strftime("%Y-%m-%d"),
         })
 
 # --- DIPLÃ”MES & VALIDATION ---
@@ -897,7 +916,7 @@ class UpgradeSubscriptionView(APIView):
             )
 
         profile.subscription_plan  = new_plan
-        profile.subscription_start = timezone.now().date()
+        # On ne modifie pas subscription_start pour garder le renouvellement a la date anniversaire et conserver les packs.
         profile.save()
 
         return Response({
