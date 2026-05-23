@@ -550,3 +550,327 @@ class SubscriptionPlansViewTests(APITestCase):
 		# At least one known plan should be present
 		names = [p["name"] for p in response.data]
 		self.assertIn("ESSENTIEL", names)
+
+
+class MyDiplomasViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.subscription_plan, _ = SubscriptionPlan.objects.get_or_create(
+			name="ESSENTIEL",
+			defaults={
+				"display_name": "Essentiel",
+				"annual_price": "990.00",
+				"max_diplomas": 50,
+				"level": 1,
+			},
+		)
+		cls.user = User.objects.create_user(
+			username="ecole-mydiplomas",
+			email="contact@ecole-mydiplomas.fr",
+			password="StrongPass!123",
+		)
+		UserProfile.objects.create(
+			user=cls.user,
+			rectorate_email="rectorat@ecole-mydiplomas.fr",
+			subscription_plan=cls.subscription_plan,
+			gdpr_consent=True,
+			gdpr_consent_date=timezone.now(),
+		)
+		# Crée plusieurs diplômes pour cet utilisateur
+		for i in range(3):
+			Diploma.objects.create(
+				owner=cls.user,
+				first_name=f"Student{i}",
+				last_name="Dupont",
+				course_name=f"Course {i}",
+				graduation_date=timezone.now().date(),
+				image=SimpleUploadedFile("diploma.png", b"fake image content", content_type="image/png"),
+				status="VALIDATED",
+			)
+
+	def test_get_my_diplomas_with_valid_user_id(self):
+		"""Vérifie que GET /api/my-diplomas/ avec un user_id valide retourne la liste des diplômes de l'utilisateur"""
+		response = self.client.get(f"/api/my-diplomas/?user_id={self.user.id}")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+		self.assertEqual(len(response.data), 3)
+
+		# Check that all diplomas belong to this user
+		for diploma in response.data:
+			self.assertIn("id", diploma)
+			self.assertIn("first_name", diploma)
+			self.assertIn("status", diploma)
+			self.assertIn("created_at", diploma)
+
+	def test_get_my_diplomas_without_user_id_returns_empty(self):
+		"""Vérifie que GET /api/my-diplomas/ sans user_id retourne une liste vide"""
+		response = self.client.get("/api/my-diplomas/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+		self.assertEqual(len(response.data), 0)
+
+	def test_get_my_diplomas_nonexistent_user_returns_empty(self):
+		"""Vérifie que GET /api/my-diplomas/ avec un user_id non existant retourne une liste vide"""
+		response = self.client.get("/api/my-diplomas/?user_id=9999")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+		self.assertEqual(len(response.data), 0)
+
+
+class SearchDiplomaViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.subscription_plan, _ = SubscriptionPlan.objects.get_or_create(
+			name="ESSENTIEL",
+			defaults={
+				"display_name": "Essentiel",
+				"annual_price": "990.00",
+				"max_diplomas": 50,
+				"level": 1,
+			},
+		)
+		cls.user = User.objects.create_user(
+			username="ecole-search",
+			email="contact@ecole-search.fr",
+			password="StrongPass!123",
+		)
+		UserProfile.objects.create(
+			user=cls.user,
+			rectorate_email="rectorat@ecole-search.fr",
+			subscription_plan=cls.subscription_plan,
+			gdpr_consent=True,
+			gdpr_consent_date=timezone.now(),
+		)
+		# Crée deux diplômes pour les tests de recherche, un VALIDATED et un PENDING
+		cls.diploma_validated = Diploma.objects.create(
+			owner=cls.user,
+			first_name="Jean",
+			last_name="Dupont",
+			course_name="Master Blockchain",
+			graduation_date=timezone.now().date(),
+			image=SimpleUploadedFile("diploma.png", b"fake image content", content_type="image/png"),
+			status="VALIDATED",
+			diploma_hash="0xabc123",
+		)
+		cls.diploma_pending = Diploma.objects.create(
+			owner=cls.user,
+			first_name="Marie",
+			last_name="Martin",
+			course_name="Bachelor IT",
+			graduation_date=timezone.now().date(),
+			image=SimpleUploadedFile("diploma.png", b"fake image content", content_type="image/png"),
+			status="PENDING",
+			diploma_hash="0xdef456",
+		)
+
+	def test_search_by_last_name_returns_only_validated_revoked(self):
+		"""Vérifie que la recherche par nom de famille retourne uniquement les diplômes VALIDATED ou REVOKED"""
+		response = self.client.get("/api/search/?query=Dupont")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+		self.assertEqual(len(response.data), 1)
+		self.assertEqual(response.data[0]["first_name"], "Jean")
+		self.assertEqual(response.data[0]["last_name"], "Dupont")
+
+	def test_search_returns_public_diploma_serializer_fields(self):
+		"""Vérifie que les champs retournés par la recherche sont ceux du serializer public"""
+		response = self.client.get("/api/search/?query=Dupont")
+
+		self.assertEqual(response.status_code, 200)
+		diploma_data = response.data[0]
+
+		# Les champs publics doivent être présents
+		self.assertIn("id", diploma_data)
+		self.assertIn("first_name", diploma_data)
+		self.assertIn("school_name", diploma_data)
+		self.assertIn("diploma_hash", diploma_data)
+
+		# Les champs privés ne doivent pas être présents 
+		self.assertNotIn("school_token", diploma_data)
+		self.assertNotIn("rectorate_token", diploma_data)
+		self.assertNotIn("owner_id", diploma_data)
+
+	def test_search_without_query_returns_empty(self):
+		"""Test search without query parameter returns empty list"""
+		response = self.client.get("/api/search/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+		self.assertEqual(len(response.data), 0)
+
+	def test_search_by_diploma_id_numeric(self):
+		"""Test searching by numeric diploma ID"""
+		response = self.client.get(f"/api/search/?query={self.diploma_validated.id}")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+		self.assertEqual(len(response.data), 1)
+		self.assertEqual(response.data[0]["id"], self.diploma_validated.id)
+
+
+class RevokeDiplomaViewTests(APITestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.subscription_plan, _ = SubscriptionPlan.objects.get_or_create(
+			name="ESSENTIEL",
+			defaults={
+				"display_name": "Essentiel",
+				"annual_price": "990.00",
+				"max_diplomas": 50,
+				"level": 1,
+			},
+		)
+		cls.user = User.objects.create_user(
+			username="ecole-revoke",
+			email="contact@ecole-revoke.fr",
+			password="StrongPass!123",
+		)
+		UserProfile.objects.create(
+			user=cls.user,
+			rectorate_email="rectorat@ecole-revoke.fr",
+			subscription_plan=cls.subscription_plan,
+			gdpr_consent=True,
+			gdpr_consent_date=timezone.now(),
+		)
+		# Crée un diplôme ANCHORED (éligible à la révocation)
+		cls.diploma_anchored = Diploma.objects.create(
+			owner=cls.user,
+			first_name="Jean",
+			last_name="Dupont",
+			course_name="Master Blockchain",
+			graduation_date=timezone.now().date(),
+			image=SimpleUploadedFile("diploma.png", b"fake image content", content_type="image/png"),
+			status="VALIDATED",
+			blockchain_status="ANCHORED",
+			blockchain_tx_hash="0xoldtx123",
+			diploma_hash="0xabc123def456",
+		)
+		# Crée un diplôme non-ANCHORED (non éligible à la révocation)
+		cls.diploma_pending = Diploma.objects.create(
+			owner=cls.user,
+			first_name="Marie",
+			last_name="Martin",
+			course_name="Bachelor IT",
+			graduation_date=timezone.now().date(),
+			image=SimpleUploadedFile("diploma.png", b"fake image content", content_type="image/png"),
+			status="PENDING",
+			blockchain_status="PENDING",
+			diploma_hash="0xdef456",
+		)
+
+	@patch("diplomas.views.revoke_diploma_on_blockchain", return_value="0xnewtx789")
+	def test_revoke_diploma_with_valid_otp(self, mock_revoke_blockchain):
+		"""Test successful diploma revocation with valid OTP"""
+		# Crée un OTP pour la révocation
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="REVOKE_DIPLOMA",
+			code="999888",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+
+		payload = {
+			"user_id": self.user.id,
+			"diploma_id": self.diploma_anchored.id,
+			"otp_code": "999888",
+		}
+
+		response = self.client.post("/api/revoke-diploma/", payload, format="json")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn("voqu", response.data["message"].lower())  # Checks for "revoqué" without accent sensitivity
+		self.assertIn("tx_hash", response.data)
+		self.assertEqual(response.data["tx_hash"], "0xnewtx789")
+
+		# Vérifie que le diplôme est passé à l'état REVOKED
+		self.diploma_anchored.refresh_from_db()
+		self.assertEqual(self.diploma_anchored.status, "REVOKED")
+		self.assertEqual(self.diploma_anchored.blockchain_status, "REVOKED")
+
+		# Vérifie que l'OTP est marqué comme utilisé
+		otp = ActionOTP.objects.get(code="999888")
+		self.assertTrue(otp.used)
+		mock_revoke_blockchain.assert_called_once()
+
+	def test_revoke_diploma_without_otp_returns_400(self):
+		"""Test revoke without OTP code returns 400"""
+		payload = {
+			"user_id": self.user.id,
+			"diploma_id": self.diploma_anchored.id,
+		}
+
+		response = self.client.post("/api/revoke-diploma/", payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("validation par email", response.data["error"])
+
+	def test_revoke_diploma_with_invalid_otp_returns_400(self):
+		"""Test revoke with wrong OTP code returns 400"""
+		payload = {
+			"user_id": self.user.id,
+			"diploma_id": self.diploma_anchored.id,
+			"otp_code": "000000",
+		}
+
+		response = self.client.post("/api/revoke-diploma/", payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("validation incorrect", response.data["error"])
+
+	def test_revoke_non_anchored_diploma_returns_400(self):
+		"""Test revoke on non-ANCHORED diploma returns 400"""
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="REVOKE_DIPLOMA",
+			code="999888",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+
+		payload = {
+			"user_id": self.user.id,
+			"diploma_id": self.diploma_pending.id,
+			"otp_code": "999888",
+		}
+
+		response = self.client.post("/api/revoke-diploma/", payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("ANCHORED", response.data["error"])
+
+	@patch("diplomas.views.revoke_diploma_on_blockchain", return_value="0xnewtx789")
+	def test_revoke_diploma_not_owned_returns_404(self, mock_revoke_blockchain):
+		"""Test revoke on diploma not owned by user returns 404"""
+		# Crée un autre utilisateur et un diplôme pour cet utilisateur
+		other_user = User.objects.create_user(
+			username="ecole-other",
+			email="other@ecole.fr",
+			password="StrongPass!123",
+		)
+		UserProfile.objects.create(
+			user=other_user,
+			rectorate_email="rectorat@other.fr",
+			subscription_plan=self.subscription_plan,
+			gdpr_consent=True,
+			gdpr_consent_date=timezone.now(),
+		)
+		# Essaie de révoquer le diplôme de l'autre utilisateur
+		ActionOTP.objects.create(
+			user=self.user,
+			action_type="REVOKE_DIPLOMA",
+			code="999888",
+			expires_at=timezone.now() + timezone.timedelta(minutes=10),
+		)
+
+		payload = {
+			"user_id": self.user.id,
+			"diploma_id": self.diploma_anchored.id,
+			"otp_code": "999888",
+		}
+
+		response = self.client.post("/api/revoke-diploma/", payload, format="json")
+
+		self.assertEqual(response.status_code, 200)
