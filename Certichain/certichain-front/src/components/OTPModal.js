@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../App.css';
 
 /**
  * Modal de validation par code OTP envoyé par email.
@@ -32,11 +33,11 @@ const OTPModal = ({
   onConfirm,
   onCancel,
 }) => {
-  const [step, setStep]             = useState('ready');   // ready | sending | sent | submitting
+  const [step, setStep]               = useState('ready');   // ready | sending | sent | submitting
   const [emailMasked, setEmailMasked] = useState('');
-  const [otpCode, setOtpCode]       = useState('');
-  const [error, setError]           = useState('');
-  const [countdown, setCountdown]   = useState(600);        // 10 min en secondes
+  const [otpCode, setOtpCode]         = useState('');
+  const [error, setError]             = useState('');
+  const [countdown, setCountdown]     = useState(600);       // 10 min en secondes
 
   // Réinitialiser à chaque ouverture
   useEffect(() => {
@@ -112,81 +113,42 @@ const OTPModal = ({
 
   return (
     <div
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(15,23,42,0.55)',
-        zIndex: 2000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20,
-      }}
+      className="modal-overlay"
       onClick={!isSubmitting ? onCancel : undefined}
     >
-      <div
-        style={{
-          background: 'white',
-          borderRadius: 14,
-          padding: '32px',
-          maxWidth: 500,
-          width: '100%',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="modal-card" onClick={e => e.stopPropagation()}>
+
         {/* En-tête */}
-        <h3 style={{ margin: '0 0 8px', color: '#0f172a', fontSize: '1.1rem' }}>{title}</h3>
-        <p style={{ margin: '0 0 16px', color: '#475569', fontSize: '0.95rem', lineHeight: 1.6 }}>
-          {message}
-        </p>
+        <h3 className="modal-title">{title}</h3>
+        <p className="modal-subtitle">{message}</p>
 
         {/* Détails optionnels */}
         {details && (
-          <div style={{
-            background: '#f8fafc', border: '1px solid #e2e8f0',
-            borderRadius: 8, padding: '12px 16px', marginBottom: 18,
-            fontSize: '0.875rem', color: '#334155',
-          }}>
-            {typeof details === 'string' ? <p style={{ margin: 0 }}>{details}</p> : details}
+          <div className="modal-details-box">
+            {typeof details === 'string' ? <p>{details}</p> : details}
           </div>
         )}
 
         {/* Message d'erreur */}
         {error && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fecaca',
-            borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-            color: '#dc2626', fontSize: '0.875rem',
-          }}>
-            ⚠️ {error}
-          </div>
+          <div className="modal-error-box">⚠️ {error}</div>
         )}
 
         {/* ÉTAPE : ready | sending */}
         {(step === 'ready' || step === 'sending') && (
           <>
-            <div style={{
-              background: '#eff6ff', border: '1px solid #bfdbfe',
-              borderRadius: 8, padding: '11px 14px', marginBottom: 20,
-              color: '#1e40af', fontSize: '0.875rem',
-            }}>
+            <div className="modal-info-box">
               🔐 Pour confirmer cette action, un code de validation à 6 chiffres sera envoyé
               à l'adresse email associée à votre compte.
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={onCancel}
-                style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #e2e8f0', background: 'white', color: '#475569', cursor: 'pointer', fontWeight: 500 }}
-              >
+            <div className="modal-footer">
+              <button className="modal-btn modal-btn--cancel" onClick={onCancel}>
                 Annuler
               </button>
               <button
+                className="modal-btn modal-btn--primary"
                 onClick={sendCode}
                 disabled={step === 'sending'}
-                style={{
-                  flex: 1, padding: '9px 20px', borderRadius: 7, border: 'none',
-                  background: '#2563eb', color: 'white',
-                  cursor: step === 'sending' ? 'not-allowed' : 'pointer',
-                  fontWeight: 600, opacity: step === 'sending' ? 0.7 : 1,
-                }}
               >
                 {step === 'sending' ? '⏳ Envoi en cours…' : '📧 Recevoir le code par email'}
               </button>
@@ -197,23 +159,16 @@ const OTPModal = ({
         {/* ÉTAPE : sent | submitting */}
         {(step === 'sent' || step === 'submitting') && (
           <>
-            <div style={{
-              background: '#f0fdf4', border: '1px solid #86efac',
-              borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-              fontSize: '0.875rem', color: '#166534',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
+            <div className="modal-success-box">
               <span>✉️ Code envoyé à <strong>{emailMasked}</strong></span>
               {countdown > 0
-                ? <span style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>⏱ {formatTime(countdown)}</span>
-                : <span style={{ color: '#dc2626', fontWeight: 600 }}>Expiré</span>
+                ? <span style={{ color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums', fontSize: '0.85rem' }}>⏱ {formatTime(countdown)}</span>
+                : <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '0.85rem' }}>Expiré</span>
               }
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: '0.875rem', color: '#334155' }}>
-                Code de validation (6 chiffres)
-              </label>
+              <label className="modal-otp-label">Code de validation (6 chiffres)</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -224,51 +179,37 @@ const OTPModal = ({
                 placeholder="• • • • • •"
                 disabled={isSubmitting}
                 autoFocus
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  padding: '12px 16px', borderRadius: 8,
-                  border: '2px solid #e2e8f0', outline: 'none',
-                  letterSpacing: '0.35em', textAlign: 'center',
-                  fontSize: '1.5rem', fontWeight: 700,
-                }}
+                className="modal-otp-input"
               />
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            <div className="modal-footer" style={{ marginBottom: 10 }}>
               <button
+                className="modal-btn modal-btn--cancel"
                 onClick={onCancel}
                 disabled={isSubmitting}
-                style={{ padding: '9px 20px', borderRadius: 7, border: '1px solid #e2e8f0', background: 'white', color: '#475569', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: isSubmitting ? 0.6 : 1 }}
               >
                 Annuler
               </button>
               <button
+                className="modal-btn modal-btn--primary"
                 onClick={handleSubmit}
                 disabled={isSubmitting || countdown === 0 || otpCode.length !== 6}
-                style={{
-                  flex: 1, padding: '9px 20px', borderRadius: 7, border: 'none',
-                  background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: 600,
-                  opacity: (isSubmitting || countdown === 0 || otpCode.length !== 6) ? 0.6 : 1,
-                }}
               >
                 {isSubmitting ? '⏳ Validation…' : "✅ Valider l'action"}
               </button>
             </div>
 
             {countdown > 0 ? (
-              <p style={{ margin: 0, textAlign: 'center', fontSize: '0.8rem', color: '#64748b' }}>
+              <p className="modal-resend">
                 Pas reçu ?{' '}
-                <button
-                  onClick={sendCode}
-                  style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.8rem', padding: 0 }}
-                >
-                  Renvoyer le code
-                </button>
+                <button onClick={sendCode}>Renvoyer le code</button>
               </p>
             ) : (
               <button
+                className="modal-btn"
                 onClick={sendCode}
-                style={{ width: '100%', padding: '9px', borderRadius: 7, border: 'none', background: '#f59e0b', color: 'white', cursor: 'pointer', fontWeight: 600, marginTop: 4 }}
+                style={{ marginTop: 4, width: '100%', background: '#f59e0b', color: 'white' }}
               >
                 🔄 Code expiré – Renvoyer un nouveau code
               </button>

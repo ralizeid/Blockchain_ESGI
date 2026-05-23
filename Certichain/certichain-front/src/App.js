@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Validate from './pages/Validate';
 import SchoolProfile from './pages/SchoolProfile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import LegalPage from './pages/LegalPage';
 import VerifyDiploma from './pages/VerifyDiploma';
 import RectoratDashboard from './pages/RectoratDashboard';
 import Support from './pages/Support';
@@ -89,6 +90,7 @@ function App() {
           <Route path="/school-profile" element={isAuthenticated ? <SchoolProfile /> : <Navigate to="/login" />
 } />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/legal"   element={<LegalPage />} />
           {/* Vérification publique par UUID étudiant (QR Code) */}
           <Route path="/verify/:uuid" element={<VerifyDiploma />} />
           {/* Tableau de bord Rectorat (public, auth via MetaMask) */}
