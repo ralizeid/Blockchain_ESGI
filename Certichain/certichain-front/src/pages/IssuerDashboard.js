@@ -130,7 +130,6 @@ const IssuerDashboard = () => {
     try {
       const res = await fetch('/api/plans/');
       const data = await res.json();
-      // Only show plans with a higher level
       setUpgradePlans(data.filter(p => p.level > quota.plan_level));
     } catch (e) {
       setUpgradePlans([]);
@@ -192,8 +191,6 @@ const IssuerDashboard = () => {
           if (pdf.numPages > 1) {
             setFileError('Le diplôme PDF doit contenir exactement 1 page pour être prévisualisé et validé.');
             setPreviewUrl('');
-            
-            // On vide le fichier invalide pour bloquer la soumission et remettre l'input à zéro
             setFormData(prev => ({ ...prev, diplomeFile: null }));
             setFileInputKey(Date.now());
             return;
@@ -205,7 +202,6 @@ const IssuerDashboard = () => {
           canvas.height = viewport.height;
           canvas.width = viewport.width;
           await page.render({ canvasContext: context, viewport: viewport }).promise;
-          
           setPreviewUrl(canvas.toDataURL('image/png'));
         } catch (err) {
           console.error('Erreur de lecture PDF :', err);
@@ -321,7 +317,7 @@ const IssuerDashboard = () => {
       open: true,
       userId,
       actionType: 'CREATE_DIPLOMA',
-      title: '\uD83C\uDF93 Émettre un diplôme',
+      title: '🎓 Émettre un diplôme',
       message: "Confirmez l'émission du diplôme suivant. Un code de validation vous sera envoyé par email.",
       details: (
         <div style={{ lineHeight: '1.8' }}>
@@ -412,7 +408,7 @@ const IssuerDashboard = () => {
       const data = await res.json();
       if (res.ok) {
         closeOTPModal();
-        setRevokeMsg({ type: 'success', text: '\u2705 Diplôme révoqué sur la blockchain.' });
+        setRevokeMsg({ type: 'success', text: '✅ Diplôme révoqué sur la blockchain.' });
         setSelectedDiploma(prev => ({ ...prev, blockchain_status: 'REVOKED', status: 'REVOKED' }));
         setMyDiplomas(prev => prev.map(d => d.id === diploma.id ? { ...d, blockchain_status: 'REVOKED', status: 'REVOKED' } : d));
         return { ok: true };
@@ -423,13 +419,13 @@ const IssuerDashboard = () => {
       return { ok: false, error: 'Erreur serveur.' };
     }
   };
-  
+
   const getStatusBadge = (status, blockchainStatus) => {
-    if (blockchainStatus === 'REVOKED') return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fdf4ff', color: '#7c3aed', fontSize: '0.8rem', fontWeight: 'bold'}}>Révoqué 🚫</span>;
-    if (status === 'REVOKED')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fff7ed', color: '#c2410c', fontSize: '0.8rem', fontWeight: 'bold'}}>Expiré 🕒</span>;
-    if (status === 'VALIDATED')        return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontSize: '0.8rem'}}>Validé ✅</span>;
-    if (status === 'PENDING')          return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#ffedd5', color: '#9a3412', fontSize: '0.8rem'}}>En attente ⏳</span>;
-    if (status === 'REJECTED')         return <span style={{padding: '4px 8px', borderRadius: '12px', background: '#fee2e2', color: '#991b1b', fontSize: '0.8rem'}}>Refusé ❌</span>;
+    if (blockchainStatus === 'REVOKED') return <span className="status-badge status-badge--revoked">Révoqué 🚫</span>;
+    if (status === 'REVOKED')           return <span className="status-badge status-badge--expired">Expiré 🕒</span>;
+    if (status === 'VALIDATED')         return <span className="status-badge status-badge--validated">Validé ✅</span>;
+    if (status === 'PENDING')           return <span className="status-badge status-badge--pending">En attente ⏳</span>;
+    if (status === 'REJECTED')          return <span className="status-badge status-badge--rejected">Refusé ❌</span>;
     return status;
   };
 
@@ -444,15 +440,15 @@ const IssuerDashboard = () => {
     <div className="dashboard-container">
 
       {/* ── Plan & quota banner ── */}
-      <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '30px', border: isLimitReached ? '2px solid #ef4444' : `1px solid ${planColor}40` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h3 style={{ margin: 0 }}>
-            Plan actuel :&nbsp;
-            <strong style={{ color: planColor }}>{quota.plan_name}</strong>
+      <div className={`plan-banner${isLimitReached ? ' plan-banner--limit' : ''}`} style={{ borderColor: isLimitReached ? '#ef4444' : `${planColor}40` }}>
+        <div className="plan-banner__top">
+          <h3 className="plan-banner__title">
+            Plan actuel :&nbsp;<strong style={{ color: planColor }}>{quota.plan_name}</strong>
           </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontWeight: 'bold', color: isLimitReached ? '#ef4444' : '#1e293b' }}>
-              {!quota.has_plan ? 'Aucun abonnement' : quota.unlimited ? `${quota.used} / ∞` : `${quota.used} / ${quota.limit}`} {quota.has_plan ? 'Certifications' : ''}
+          <div className="plan-banner__right">
+            <span className={`plan-banner__count${isLimitReached ? ' plan-banner__count--limit' : ''}`}>
+              {!quota.has_plan ? 'Aucun abonnement' : quota.unlimited ? `${quota.used} / ∞` : `${quota.used} / ${quota.limit}`}
+              {quota.has_plan ? ' Certifications' : ''}
             </span>
             <button
               className="btn btn-secondary"
@@ -465,30 +461,31 @@ const IssuerDashboard = () => {
         </div>
 
         {quota.has_plan && !quota.unlimited && (
-          <div style={{ width: '100%', background: '#e2e8f0', borderRadius: '10px', height: '10px', overflow: 'hidden' }}>
-            <div style={{
-              width: `${progressPercentage}%`,
-              background: isLimitReached ? '#ef4444' : planColor,
-              height: '100%',
-              transition: 'width 0.5s ease',
-            }} />
+          <div className="progress-track">
+            <div
+              className="progress-fill"
+              style={{
+                width: `${progressPercentage}%`,
+                background: isLimitReached ? '#ef4444' : planColor,
+              }}
+            />
           </div>
         )}
 
         {isLimitReached ? (
-          <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+          <p className="plan-banner__note plan-banner__note--error">
             ⚠️ Limite atteinte. Upgradez votre abonnement pour continuer.
           </p>
         ) : !quota.has_plan ? (
-          <p style={{ color: '#f59e0b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+          <p className="plan-banner__note plan-banner__note--warn">
             ⚠️ Aucun abonnement actif. Veuillez choisir un plan pour émettre des diplômes.
           </p>
         ) : quota.unlimited ? (
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+          <p className="plan-banner__note">
             Certifications illimitées avec votre plan {quota.plan_name}.
           </p>
         ) : (
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '10px', margin: 0 }}>
+          <p className="plan-banner__note">
             Il vous reste {quota.remaining} certification(s) pour cette année.
           </p>
         )}
@@ -496,10 +493,12 @@ const IssuerDashboard = () => {
 
       {/* ── Upgrade modal ── */}
       {showUpgrade && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'white', borderRadius: '12px', padding: '30px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ marginTop: 0 }}>{quota.has_plan ? "Changer d'abonnement" : "Choisir un abonnement"}</h3>
-            <p style={{ color: '#64748b', fontSize: '0.9em' }}>
+        <div className="modal-overlay" onClick={() => setShowUpgrade(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">
+              {quota.has_plan ? "Changer d'abonnement" : "Choisir un abonnement"}
+            </h3>
+            <p className="modal-subtitle">
               {quota.has_plan
                 ? <>Plan actuel : <strong>{quota.plan_name}</strong>. Vous pouvez uniquement upgrader vers un plan supérieur.</>
                 : "Aucun abonnement actif. Choisissez un plan pour commencer à émettre des diplômes."
@@ -511,21 +510,27 @@ const IssuerDashboard = () => {
             )}
 
             {upgradePlans.length === 0 ? (
-              <p style={{ color: '#64748b', textAlign: 'center' }}>Vous êtes déjà sur le plan le plus élevé !</p>
+              <p style={{ color: 'var(--text-3)', textAlign: 'center', marginBottom: '20px' }}>
+                Vous êtes déjà sur le plan le plus élevé !
+              </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '20px' }}>
                 {upgradePlans.map(plan => {
                   const color = PLAN_COLORS[plan.name] || '#3b82f6';
                   return (
-                    <div key={plan.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderRadius: '8px', border: `2px solid ${color}`, background: `${color}0d` }}>
-                      <div>
-                        <span style={{ fontWeight: 'bold', color }}>{plan.display_name}</span>
-                        <span style={{ color: '#64748b', fontSize: '0.85em', marginLeft: '10px' }}>
+                    <div
+                      key={plan.name}
+                      className="upgrade-plan-item"
+                      style={{ borderColor: color, background: `${color}0d` }}
+                    >
+                      <div className="upgrade-plan-item__left">
+                        <span className="upgrade-plan-item__name" style={{ color }}>{plan.display_name}</span>
+                        <span className="upgrade-plan-item__limit">
                           {plan.max_diplomas === -1 ? 'Illimité' : `${plan.max_diplomas} diplômes/an`}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontWeight: 'bold' }}>{plan.annual_price} €/an</span>
+                      <div className="upgrade-plan-item__right">
+                        <span className="upgrade-plan-item__price">{plan.annual_price} €/an</span>
                         <button
                           className="btn btn-primary"
                           style={{ padding: '6px 16px', fontSize: '0.85rem', width: 'auto', background: color, border: 'none' }}
@@ -547,10 +552,16 @@ const IssuerDashboard = () => {
         </div>
       )}
 
-      <div style={{display: 'flex', gap: '20px', marginBottom: '20px', justifyContent: 'center'}}>
-        <button className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => {setActiveTab('create'); setSelectedDiploma(null);}}>Nouveau Diplôme</button>
-        <button 
-          className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`} 
+      {/* ── Tabs ── */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', justifyContent: 'center' }}>
+        <button
+          className={`btn ${activeTab === 'create' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => { setActiveTab('create'); setSelectedDiploma(null); }}
+        >
+          Nouveau Diplôme
+        </button>
+        <button
+          className={`btn ${activeTab === 'list' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => setActiveTab('list')}
           disabled={myDiplomas.length === 0}
           style={myDiplomas.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
@@ -562,15 +573,14 @@ const IssuerDashboard = () => {
 
       {msg.text && <div className={`msg-box msg-${msg.type}`}>{msg.text}</div>}
 
+      {/* Bloc succès création */}
       {lastCreated?.diplomaFileUrl && activeTab === 'create' && (
-        <div style={{ marginBottom: 20, background: '#ecfeff', border: '1px solid #67e8f9', borderRadius: 10, padding: 14 }}>
-          <div style={{ fontWeight: 700, color: '#0f766e', marginBottom: 8 }}>
-            ✅ Diplôme généré (en attente de validations)
-          </div>
-          <p style={{ fontSize: '0.86rem', color: '#155e75', margin: '0 0 12px 0' }}>
+        <div className="created-block">
+          <div className="created-block__title">✅ Diplôme généré (en attente de validations)</div>
+          <p className="created-block__hint">
             Le QR code et les liens associés seront disponibles une fois le diplôme validé par vous et le rectorat.
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="created-block__actions">
             <span
               className="btn btn-primary"
               style={{ width: 'auto', opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' }}
@@ -591,498 +601,477 @@ const IssuerDashboard = () => {
         </div>
       )}
 
+      {/* ══ TAB : CRÉER ══ */}
       {activeTab === 'create' ? (
         <div className="form-card">
           <h2>🎓 Émettre un Diplôme</h2>
           <form onSubmit={handleSubmit}>
-             <div className="input-group">
-                <label className="input-label">Nom de l'étudiant <span style={{color:'#ef4444'}}>*</span></label>
-                <input className="input-field" onChange={e => setFormData({...formData, nom: e.target.value})} required disabled={isLimitReached}/>
-             </div>
-             <div className="input-group">
-                <label className="input-label">Prénom <span style={{color:'#ef4444'}}>*</span></label>
-                <input className="input-field" onChange={e => setFormData({...formData, prenom: e.target.value})} required disabled={isLimitReached}/>
-             </div>
-             <div className="input-group">
-                <label className="input-label">Cursus / Formation <span style={{color:'#ef4444'}}>*</span></label>
-                <input className="input-field" onChange={e => setFormData({...formData, course_name: e.target.value})} required disabled={isLimitReached}/>
-             </div>
-             <div className="input-group">
-                <label className="input-label">Date d'obtention <span style={{color:'#ef4444'}}>*</span></label>
-                <input className="input-field" type="date" max={today} onChange={e => setFormData({...formData, dateObtention: e.target.value})} required disabled={isLimitReached}/>
-             </div>
-             <div className="input-group">
-                <label className="input-label">Date de naissance de l'étudiant <span style={{color:'#ef4444'}}>*</span> <span style={{color:'#94a3b8',fontWeight:'normal'}}>(identification anti-usurpation)</span></label>
-                <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({...formData, dateNaissance: e.target.value})} required disabled={isLimitReached}/>
-             </div>
-             <div className="input-group">
-                <label className="input-label">Email de l'étudiant <span style={{color:'#ef4444'}}>*</span> <span style={{color:'#94a3b8',fontWeight:'normal'}}>(nécessaire pour le droit à l'oubli RGPD)</span></label>
+            <div className="input-group">
+              <label className="input-label">Nom de l'étudiant <span style={{ color: '#ef4444' }}>*</span></label>
+              <input className="input-field" onChange={e => setFormData({ ...formData, nom: e.target.value })} required disabled={isLimitReached} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Prénom <span style={{ color: '#ef4444' }}>*</span></label>
+              <input className="input-field" onChange={e => setFormData({ ...formData, prenom: e.target.value })} required disabled={isLimitReached} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Cursus / Formation <span style={{ color: '#ef4444' }}>*</span></label>
+              <input className="input-field" onChange={e => setFormData({ ...formData, course_name: e.target.value })} required disabled={isLimitReached} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Date d'obtention <span style={{ color: '#ef4444' }}>*</span></label>
+              <input className="input-field" type="date" max={today} onChange={e => setFormData({ ...formData, dateObtention: e.target.value })} required disabled={isLimitReached} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">
+                Date de naissance de l'étudiant <span style={{ color: '#ef4444' }}>*</span>{' '}
+                <span style={{ color: '#94a3b8', fontWeight: 'normal' }}>(identification anti-usurpation)</span>
+              </label>
+              <input className="input-field" type="date" max={today} value={formData.dateNaissance} onChange={e => setFormData({ ...formData, dateNaissance: e.target.value })} required disabled={isLimitReached} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">
+                Email de l'étudiant <span style={{ color: '#ef4444' }}>*</span>{' '}
+                <span style={{ color: '#94a3b8', fontWeight: 'normal' }}>(nécessaire pour le droit à l'oubli RGPD)</span>
+              </label>
+              <input
+                className="input-field"
+                type="email"
+                placeholder="etudiant@exemple.fr"
+                value={formData.studentEmail}
+                onChange={e => setFormData({ ...formData, studentEmail: e.target.value })}
+                required
+                disabled={isLimitReached}
+              />
+              <small style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                Utilisé uniquement pour envoyer un code de confirmation lors d'une demande de suppression. Non exposé publiquement.
+              </small>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Date d'expiration</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <input
                   className="input-field"
-                  type="email"
-                  placeholder="etudiant@exemple.fr"
-                  value={formData.studentEmail}
-                  onChange={e => setFormData({...formData, studentEmail: e.target.value})}
+                  type="date"
+                  style={{ flex: 1, minWidth: '160px' }}
+                  value={formData.expiry_date}
+                  min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()}
+                  onChange={e => setFormData({ ...formData, expiry_date: e.target.value })}
+                  disabled={isLimitReached || formData.never_expires}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', cursor: 'pointer', color: 'var(--text-3)', fontSize: '0.9rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.never_expires}
+                    onChange={e => setFormData({ ...formData, never_expires: e.target.checked, expiry_date: '' })}
+                    disabled={isLimitReached}
+                  />
+                  N'expire jamais
+                </label>
+              </div>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Fichier du diplôme (PDF, image…) <span style={{ color: '#ef4444' }}>*</span></label>
+              {fileError && (
+                <div style={{ color: '#991b1b', fontSize: '0.85rem', marginBottom: '8px', padding: '8px 12px', backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px' }}>
+                  {fileError}
+                </div>
+              )}
+              <div className="file-upload-wrapper">
+                <input
+                  key={fileInputKey}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp"
+                  onChange={e => { setFileError(''); setFormData({ ...formData, diplomeFile: e.target.files[0] }); }}
                   required
                   disabled={isLimitReached}
                 />
-                <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
-                  Utilisé uniquement pour envoyer un code de confirmation lors d’une demande de suppression. Non exposé publiquement.
-                </small>
-             </div>
-             <div className="input-group">
-                <label className="input-label">Date d'expiration</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  <input
-                    className="input-field"
-                    type="date"
-                    style={{ flex: 1, minWidth: '160px' }}
-                    value={formData.expiry_date}
-                    min={(() => { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; })()}
-                    onChange={e => setFormData({...formData, expiry_date: e.target.value})}
-                    disabled={isLimitReached || formData.never_expires}
-                  />
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', cursor: 'pointer', color: '#64748b', fontSize: '0.9rem' }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.never_expires}
-                      onChange={e => setFormData({...formData, never_expires: e.target.checked, expiry_date: ''})}
-                      disabled={isLimitReached}
-                    />
-                    N'expire jamais
-                  </label>
-                </div>
-             </div>
-             <div className="input-group">
-                <label className="input-label">Fichier du diplôme (PDF, image…) <span style={{color:'#ef4444'}}>*</span></label>
-                {fileError && <div style={{ color: '#991b1b', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px' }}>{fileError}</div>}
-                <div className="file-upload-wrapper">
-                  <input
-                    key={fileInputKey}
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.webp"
-                    onChange={e => {
-                        setFileError('');
-                        setFormData({...formData, diplomeFile: e.target.files[0]});
-                    }}
-                    required
-                    disabled={isLimitReached}
-                  />
-                </div>
-             </div>
+              </div>
+            </div>
 
-             <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, marginBottom: 16, background: '#f8fafc' }}>
-               <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
-                 <input
-                   type="checkbox"
-                   checked={formData.embed_qr}
-                   onChange={e => setFormData({ ...formData, embed_qr: e.target.checked })}
-                   disabled={isLimitReached}
-                 />
-                 Intégrer automatiquement le QR de vérification dans le diplôme
-               </label>
+            {/* ── Section QR ── */}
+            <div className="qr-section">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600, color: 'var(--text-2)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.embed_qr}
+                  onChange={e => setFormData({ ...formData, embed_qr: e.target.checked })}
+                  disabled={isLimitReached}
+                />
+                Intégrer automatiquement le QR de vérification dans le diplôme
+              </label>
 
-               {formData.embed_qr && (
-                 <>
-                   <p style={{ margin: '8px 0 12px', color: '#64748b', fontSize: '0.85rem' }}>
-                     Placez le QR via coordonnées (%) ou cliquez directement dans l’aperçu.
-                     Le QR encode uniquement le lien public de vérification, jamais le lien privé RGPD.
-                   </p>
+              {formData.embed_qr && (
+                <>
+                  <p style={{ margin: '10px 0 14px', color: 'var(--text-3)', fontSize: '0.85rem' }}>
+                    Placez le QR via coordonnées (%) ou cliquez directement dans l'aperçu.
+                    Le QR encode uniquement le lien public de vérification, jamais le lien privé RGPD.
+                  </p>
 
-                   <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 12 }}>
-                     <div>
-                       <label className="input-label">X (%)</label>
-                       <input
-                         className="input-field"
-                         type="number"
-                         min="0"
-                         max="100"
-                           step="0.01"
-                         value={formData.qr_x_pct}
-                         onChange={e => setFormData({ ...formData, qr_x_pct: e.target.value })}
-                         disabled={isLimitReached}
-                       />
-                     </div>
-                     <div>
-                       <label className="input-label">Y (%)</label>
-                       <input
-                         className="input-field"
-                         type="number"
-                         min="0"
-                         max="100"
-                           step="0.01"
-                         value={formData.qr_y_pct}
-                         onChange={e => setFormData({ ...formData, qr_y_pct: e.target.value })}
-                         disabled={isLimitReached}
-                       />
-                     </div>
-                     <div>
-                       <label className="input-label">Taille QR (%)</label>
-                       <input
-                         className="input-field"
-                         type="number"
-                         min="5"
-                         max="45"
-                           step="0.01"
-                         value={formData.qr_size_pct}
-                         onChange={e => setFormData({ ...formData, qr_size_pct: e.target.value })}
-                         disabled={isLimitReached}
-                       />
-                     </div>
-                   </div>
-
-                   <div style={{ marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '15px' }}>
-                     <div style={{ fontWeight: '500', marginBottom: '8px', fontSize: '0.85rem' }}>Sauvegarder et réutiliser ces paramètres (Presets)</div>
-                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                       <input
-                         type="text"
-                         placeholder="Nom du preset (ex: Modèle Licence)"
-                         className="input-field"
-                         style={{ flex: 1, padding: '6px', fontSize: '0.85rem' }}
-                         value={newPresetName}
-                         onChange={e => setNewPresetName(e.target.value)}
-                       />
-                       <button type="button" onClick={saveQrPreset} className="btn" style={{ padding: '6px 12px', fontSize: '0.85rem', width: 'auto' }}>
-                         Enregistrer
-                       </button>
-                     </div>
-                     {qrPresets.length > 0 && (
-                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                         {qrPresets.map(preset => (
-                           <div key={preset.id} style={{ display: 'flex', alignItems: 'center', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                             <button 
-                               type="button"
-                               title="Appliquer ce preset"
-                               onClick={(e) => {
-                                 e.preventDefault();
-                                 setFormData(f => ({
-                                   ...f,
-                                   embed_qr: preset.embed_qr,
-                                   qr_x_pct: preset.qr_x_pct,
-                                   qr_y_pct: preset.qr_y_pct,
-                                   qr_size_pct: preset.qr_size_pct
-                                 }));
-                               }}
-                               style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}
-                             >
-                               {preset.name}
-                             </button>
-                             <button
-                               type="button"
-                               title="Supprimer ce preset"
-                               onClick={(e) => {
-                                 e.preventDefault();
-                                 deleteQrPreset(preset.id);
-                               }}
-                               style={{ padding: '4px 8px', border: 'none', borderLeft: '1px solid #cbd5e1', background: '#f1f5f9', cursor: 'pointer', color: '#ef4444' }}
-                             >
-                               &times;
-                             </button>
-                           </div>
-                         ))}
-                       </div>
-                     )}
-                   </div>
-
-                   {previewUrl ? (
-                     <div>
-                       <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 6 }}>
-                         Aperçu de placement (clic = repositionnement)
-                       </div>
-                       <div
-                         onClick={handlePreviewClick}
-                         style={{
-                           position: 'relative',
-                           width: '100%',
-                           maxWidth: 620,
-                           border: '1px solid #cbd5e1',
-                           borderRadius: 8,
-                           overflow: 'hidden',
-                           cursor: 'crosshair',
-                           background: 'white',
-                         }}
-                       >
-                         <img src={previewUrl} alt="Aperçu diplôme" style={{ display: 'block', width: '100%' }} />
-                         <div
-                           style={{
-                             position: 'absolute',
-                             left: `${qrXPreview}%`,
-                             top: `${qrYPreview}%`,
-                             width: `${qrSizePreview}%`,
-                             maxWidth: '45%',
-                             border: '2px solid #22c55e',
-                             boxShadow: '0 6px 16px rgba(0,0,0,0.18)',
-                             background: 'white',
-                           }}
-                         >
-                           <QRCodeSVG value={`${window.location.origin}/verify/apercu`} size={220} style={{ width: '100%', height: 'auto', display: 'block' }} />
-                         </div>
-                       </div>
-                     </div>
-                   ) : (
-                     <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem' }}>
-                       Aperçu visuel disponible pour les fichiers image (PNG/JPG/WEBP). Pour les PDF, les coordonnées seront appliquées à la page 1.
-                     </p>
-                   )}
-                 </>
-               )}
-             </div>
-
-             <div className="input-group">
-                <label className="input-label">Photo d’identité de l’étudiant (JPEG, PNG) <span style={{color:'#ef4444'}}>*</span></label>
-                <div className="file-upload-wrapper">
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    onChange={e => setFormData({...formData, photoFile: e.target.files[0]})}
-                    disabled={isLimitReached}
-                    required
-                  />
-                  {photoPreviewUrl && (
-                    <div style={{ marginTop: '10px', textAlign: 'center' }}>
-                      <img src={photoPreviewUrl} alt="Aperçu identité" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #e2e8f0' }} />
+                  <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 12 }}>
+                    <div>
+                      <label className="input-label">X (%)</label>
+                      <input className="input-field" type="number" min="0" max="100" step="0.01" value={formData.qr_x_pct} onChange={e => setFormData({ ...formData, qr_x_pct: e.target.value })} disabled={isLimitReached} />
                     </div>
+                    <div>
+                      <label className="input-label">Y (%)</label>
+                      <input className="input-field" type="number" min="0" max="100" step="0.01" value={formData.qr_y_pct} onChange={e => setFormData({ ...formData, qr_y_pct: e.target.value })} disabled={isLimitReached} />
+                    </div>
+                    <div>
+                      <label className="input-label">Taille QR (%)</label>
+                      <input className="input-field" type="number" min="5" max="45" step="0.01" value={formData.qr_size_pct} onChange={e => setFormData({ ...formData, qr_size_pct: e.target.value })} disabled={isLimitReached} />
+                    </div>
+                  </div>
+
+                  {/* Presets */}
+                  <div className="qr-preset-bar">
+                    <div className="qr-preset-bar__title">Sauvegarder et réutiliser ces paramètres (Presets)</div>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                      <input
+                        type="text"
+                        placeholder="Nom du preset (ex: Modèle Licence)"
+                        className="input-field"
+                        style={{ flex: 1, padding: '6px', fontSize: '0.85rem' }}
+                        value={newPresetName}
+                        onChange={e => setNewPresetName(e.target.value)}
+                      />
+                      <button type="button" onClick={saveQrPreset} className="btn" style={{ padding: '6px 12px', fontSize: '0.85rem', width: 'auto' }}>
+                        Enregistrer
+                      </button>
+                    </div>
+                    {qrPresets.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                        {qrPresets.map(preset => (
+                          <div key={preset.id} className="qr-preset-chip">
+                            <button
+                              type="button"
+                              title="Appliquer ce preset"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setFormData(f => ({ ...f, embed_qr: preset.embed_qr, qr_x_pct: preset.qr_x_pct, qr_y_pct: preset.qr_y_pct, qr_size_pct: preset.qr_size_pct }));
+                              }}
+                            >
+                              {preset.name}
+                            </button>
+                            <button
+                              type="button"
+                              className="qr-preset-chip__del"
+                              title="Supprimer ce preset"
+                              onClick={(e) => { e.preventDefault(); deleteQrPreset(preset.id); }}
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {previewUrl ? (
+                    <div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-3)', marginBottom: 8 }}>
+                        Aperçu de placement (clic = repositionnement)
+                      </div>
+                      <div
+                        onClick={handlePreviewClick}
+                        style={{
+                          position: 'relative', width: '100%', maxWidth: 620,
+                          border: '1px solid var(--border)', borderRadius: 8,
+                          overflow: 'hidden', cursor: 'crosshair', background: 'white',
+                        }}
+                      >
+                        <img src={previewUrl} alt="Aperçu diplôme" style={{ display: 'block', width: '100%' }} />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: `${qrXPreview}%`, top: `${qrYPreview}%`,
+                            width: `${qrSizePreview}%`, maxWidth: '45%',
+                            border: '2px solid #22c55e',
+                            boxShadow: '0 6px 16px rgba(0,0,0,0.18)',
+                            background: 'white',
+                          }}
+                        >
+                          <QRCodeSVG value={`${window.location.origin}/verify/apercu`} size={220} style={{ width: '100%', height: 'auto', display: 'block' }} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, color: 'var(--text-3)', fontSize: '0.82rem' }}>
+                      Aperçu visuel disponible pour les fichiers image (PNG/JPG/WEBP). Pour les PDF, les coordonnées seront appliquées à la page 1.
+                    </p>
                   )}
-                </div>
-                <small style={{color:'#94a3b8',fontSize:'0.78rem',marginTop:'4px',display:'block'}}>
-                  Utilisée pour détecter les usurpations d’identité lors de la vérification.
-                </small>
-             </div>
-             <button 
-                className="btn btn-primary" 
-                type="submit" 
-                disabled={isLimitReached}
-                style={{ opacity: isLimitReached ? 0.5 : 1, cursor: isLimitReached ? 'not-allowed' : 'pointer' }}
-             >
-                {isLimitReached ? "Limite atteinte" : "Lancer la procédure"}
-             </button>
+                </>
+              )}
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Photo d'identité de l'étudiant (JPEG, PNG) <span style={{ color: '#ef4444' }}>*</span></label>
+              <div className="file-upload-wrapper">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={e => setFormData({ ...formData, photoFile: e.target.files[0] })}
+                  disabled={isLimitReached}
+                  required
+                />
+                {photoPreviewUrl && (
+                  <div style={{ marginTop: '10px', textAlign: 'center' }}>
+                    <img src={photoPreviewUrl} alt="Aperçu identité" className="identity-photo" style={{ width: '80px', height: '80px' }} />
+                  </div>
+                )}
+              </div>
+              <small style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                Utilisée pour détecter les usurpations d'identité lors de la vérification.
+              </small>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={isLimitReached}
+              style={{ opacity: isLimitReached ? 0.5 : 1, cursor: isLimitReached ? 'not-allowed' : 'pointer' }}
+            >
+              {isLimitReached ? "Limite atteinte" : "Lancer la procédure"}
+            </button>
           </form>
         </div>
+
       ) : (
+        /* ══ TAB : LISTE ══ */
         <div className="form-card">
           {selectedDiploma ? (
             <div className="certificate-result animate-fade-in">
-                <div className="certificate-header">DÉTAIL DU DIPLÔME</div>
-                <div className="certificate-body">
-                    <h2 style={{textAlign: 'center'}}>{selectedDiploma.first_name} {selectedDiploma.last_name}</h2>
-                    <div style={{textAlign: 'center', margin: '15px 0'}}>
-                        {getStatusBadge(selectedDiploma.status, selectedDiploma.blockchain_status)}
-                    </div>
-                    
-                    <div className="certificate-row">
-                      <span className="certificate-label">Formation :</span> 
-                      <b>{selectedDiploma.course_name}</b>
-                    </div>
-                    <div className="certificate-row">
-                      <span className="certificate-label">Date d'obtention :</span> 
-                      <b>{selectedDiploma.graduation_date}</b>
-                    </div>
-                    <div className="certificate-row">
-                      <span className="certificate-label">Expiration :</span>
-                      <b>{selectedDiploma.expiry_date || <span style={{color:'#64748b',fontStyle:'italic'}}>N'expire jamais</span>}</b>
-                    </div>
+              <div className="certificate-header">DÉTAIL DU DIPLÔME</div>
+              <div className="certificate-body">
 
-                    {/* QR Code de vérification étudiant */}
-                    {selectedDiploma.verification_uuid && (() => {
-                      const verifyUrl  = `${window.location.origin}/verify/${selectedDiploma.verification_uuid}`;
-                      const erasureUrl = `${verifyUrl}?erase=${selectedDiploma.student_deletion_token}`;
-                      
-                      const isValidated = selectedDiploma.status === 'VALIDATED';
+                <h2 style={{ textAlign: 'center', marginBottom: '12px' }}>
+                  {selectedDiploma.first_name} {selectedDiploma.last_name}
+                </h2>
+                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                  {getStatusBadge(selectedDiploma.status, selectedDiploma.blockchain_status)}
+                </div>
 
-                      return (
-                        <div style={{ margin: '20px 0', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                          <h4 style={{ margin: '0 0 12px', color: '#334155', fontSize: '0.9rem' }}>📱 Lien de vérification étudiant (public)</h4>
-                          
-                          {!isValidated && (
-                            <div style={{ marginBottom: 10, fontSize: '0.82rem', color: '#b45309', fontWeight: 'bold' }}>
-                               ⚠️ Disponible uniquement après validation complète (École + Rectorat)
-                            </div>
-                          )}
+                <div className="certificate-row">
+                  <span className="certificate-label">Formation :</span>
+                  <b>{selectedDiploma.course_name}</b>
+                </div>
+                <div className="certificate-row">
+                  <span className="certificate-label">Date d'obtention :</span>
+                  <b>{selectedDiploma.graduation_date}</b>
+                </div>
+                <div className="certificate-row">
+                  <span className="certificate-label">Expiration :</span>
+                  <b>{selectedDiploma.expiry_date || <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>N'expire jamais</span>}</b>
+                </div>
 
-                          <div style={{ filter: isValidated ? 'none' : 'blur(5px)', opacity: isValidated ? 1 : 0.6, pointerEvents: isValidated ? 'auto' : 'none', transition: 'all 0.3s' }}>
-                            <QRCodeSVG value={isValidated ? verifyUrl : 'masqué'} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', wordBreak: 'break-all', marginBottom: '10px', fontFamily: 'monospace' }}>
-                              {isValidated ? verifyUrl : 'Lien masqué (en attente de validation)'}
-                            </div>
+                {/* QR Code de vérification étudiant */}
+                {selectedDiploma.verification_uuid && (() => {
+                  const verifyUrl  = `${window.location.origin}/verify/${selectedDiploma.verification_uuid}`;
+                  const erasureUrl = `${verifyUrl}?erase=${selectedDiploma.student_deletion_token}`;
+                  const isValidated = selectedDiploma.status === 'VALIDATED';
+
+                  return (
+                    <div className="qr-verify-block">
+                      <div className="qr-verify-block__title">📱 Lien de vérification étudiant (public)</div>
+
+                      {!isValidated && (
+                        <div className="qr-verify-block__pending-warn">
+                          ⚠️ Disponible uniquement après validation complète (École + Rectorat)
+                        </div>
+                      )}
+
+                      <div style={{ filter: isValidated ? 'none' : 'blur(5px)', opacity: isValidated ? 1 : 0.6, pointerEvents: isValidated ? 'auto' : 'none', transition: 'all 0.3s' }}>
+                        <QRCodeSVG value={isValidated ? verifyUrl : 'masqué'} size={140} level="M" style={{ display: 'block', margin: '0 auto 12px' }} />
+                        <div className="qr-verify-block__url">
+                          {isValidated ? verifyUrl : 'Lien masqué (en attente de validation)'}
+                        </div>
+                      </div>
+
+                      <button
+                        className="btn btn-secondary"
+                        style={{ width: 'auto', padding: '5px 14px', fontSize: '0.8rem', opacity: isValidated ? 1 : 0.5, cursor: isValidated ? 'pointer' : 'not-allowed' }}
+                        onClick={() => {
+                          if (!isValidated) return;
+                          navigator.clipboard.writeText(verifyUrl);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                        disabled={!isValidated}
+                      >
+                        {copiedLink ? '✅ Copié !' : '📋 Copier le lien'}
+                      </button>
+
+                      {/* Lien privé RGPD */}
+                      {selectedDiploma.student_deletion_token && (
+                        <div className="private-link-block">
+                          <div className="private-link-block__title">
+                            🔐 Lien privé RGPD (droit à l'oubli) — à transmettre uniquement à l'étudiant
                           </div>
-
+                          <div
+                            className="private-link-block__url"
+                            style={{ filter: isValidated ? 'none' : 'blur(4px)', opacity: isValidated ? 1 : 0.6 }}
+                          >
+                            {isValidated ? erasureUrl : 'Lien masqué (en attente de validation)'}
+                          </div>
                           <button
                             className="btn btn-secondary"
-                            style={{ width: 'auto', padding: '5px 14px', fontSize: '0.8rem', opacity: isValidated ? 1 : 0.5, cursor: isValidated ? 'pointer' : 'not-allowed' }}
-                            onClick={() => { 
-                              if(!isValidated) return;
-                              navigator.clipboard.writeText(verifyUrl); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); 
-                            }}
+                            style={{ width: 'auto', padding: '4px 12px', fontSize: '0.78rem', opacity: isValidated ? 1 : 0.5, cursor: isValidated ? 'pointer' : 'not-allowed' }}
+                            onClick={() => { if (!isValidated) return; navigator.clipboard.writeText(erasureUrl); }}
                             disabled={!isValidated}
                           >
-                            {copiedLink ? '✅ Copié !' : '📋 Copier le lien'}
+                            📋 Copier le lien privé
                           </button>
-
-                          {/* Lien privé RGPD – à transmettre uniquement à l'étudiant, jamais dans le QR code */}
-                          {selectedDiploma.student_deletion_token && (
-                            <div style={{ marginTop: 16, padding: '12px', background: '#fff7ed', borderRadius: '6px', border: '1px solid #fed7aa', textAlign: 'left' }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#9a3412', marginBottom: 6 }}>
-                                🔐 Lien privé RGPD (droit à l'oubli) — à transmettre uniquement à l'étudiant
-                              </div>
-                              <div style={{ filter: isValidated ? 'none' : 'blur(4px)', opacity: isValidated ? 1 : 0.6, fontSize: '0.72rem', color: '#64748b', wordBreak: 'break-all', fontFamily: 'monospace', marginBottom: 8 }}>
-                                {isValidated ? erasureUrl : 'Lien masqué (en attente de validation)'}
-                              </div>
-                              <button
-                                className="btn btn-secondary"
-                                style={{ width: 'auto', padding: '4px 12px', fontSize: '0.78rem', opacity: isValidated ? 1 : 0.5, cursor: isValidated ? 'pointer' : 'not-allowed' }}
-                                onClick={() => {
-                                  if (!isValidated) return;
-                                  navigator.clipboard.writeText(erasureUrl);
-                                }}
-                                disabled={!isValidated}
-                              >
-                                📋 Copier le lien privé
-                              </button>
-                              <div style={{ marginTop: 6, fontSize: '0.72rem', color: '#b45309', fontStyle: 'italic' }}>
-                                ⚠️ Ne pas inclure dans le QR code public — ce lien permet la suppression définitive des données.
-                              </div>
-                            </div>
-                          )}
+                          <div className="private-link-block__warn">
+                            ⚠️ Ne pas inclure dans le QR code public — ce lien permet la suppression définitive des données.
+                          </div>
                         </div>
-                      );
-                    })()}
-
-                    {/* --- NOUVEAU BLOC : SUIVI DES VALIDATIONS --- */}
-                    <div style={{ marginTop: '20px', padding: '15px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <h4 style={{ marginTop: 0, marginBottom: '15px', textAlign: 'center', color: '#334155' }}>Suivi des validations</h4>
-                        
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px dashed #cbd5e1' }}>
-                            <span style={{ color: '#64748b' }}>École (Vous) :</span>
-                            <strong>{selectedDiploma.school_validated ? '✅ Validé' : '⏳ En attente'}</strong>
-                        </div>
-                        
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#64748b' }}>Rectorat :</span>
-                            <strong>{selectedDiploma.rectorate_validated ? '✅ Validé' : '⏳ En attente'}</strong>
-                        </div>
-                        
-                        {selectedDiploma.blockchain_status === 'REVOKED' && (
-                            <div style={{ marginTop: '15px', padding: '10px', background: '#fdf4ff', borderRadius: '6px', border: '1px solid #d8b4fe', color: '#7c3aed', textAlign: 'center', fontWeight: 'bold' }}>
-                                🚫 Ce diplôme a été révoqué par l'établissement.
-                            </div>
-                        )}
-                        {selectedDiploma.status === 'REVOKED' && selectedDiploma.blockchain_status !== 'REVOKED' && (
-                            <div style={{ marginTop: '15px', padding: '10px', background: '#fff7ed', borderRadius: '6px', border: '1px solid #fed7aa', color: '#c2410c', textAlign: 'center', fontWeight: 'bold' }}>
-                                🕒 Ce diplôme a expiré automatiquement.
-                            </div>
-                        )}
-                        {selectedDiploma.status === 'REJECTED' && (
-                            <div style={{ marginTop: '15px', color: '#dc2626', textAlign: 'center', fontWeight: 'bold' }}>
-                                Ce diplôme a été refusé.
-                            </div>
-                        )}
+                      )}
                     </div>
+                  );
+                })()}
 
-                    {revokeMsg.text && <div className={`msg-box msg-${revokeMsg.type}`} style={{marginTop:'15px'}}>{revokeMsg.text}</div>}
-                    {schoolErasureMsg.text && <div className={`msg-box msg-${schoolErasureMsg.type}`} style={{marginTop:'15px'}}>{schoolErasureMsg.text}</div>}
+                {/* Info diplôme avec QR */}
+                {selectedDiploma.image && (
+                  <div className="qr-info-notice">
+                    <strong>Fichier avec QR intégré</strong>
+                    Ce fichier contient la version du diplôme avec QR code intégré.
+                  </div>
+                )}
 
-                    {selectedDiploma.image && (
-                      <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#ecfeff', border: '1px solid #67e8f9', color: '#155e75', fontSize: '0.86rem' }}>
-                        Ce fichier contient la version du diplôme avec QR code intégré.
-                      </div>
-                    )}
-
-                    <div style={{marginTop: '30px', display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap'}}>
-                         {(selectedDiploma.image_url || selectedDiploma.image) && (
-                          // eslint-disable-next-line jsx-a11y/anchor-is-valid
-                          <a 
-                            href={selectedDiploma.status === 'VALIDATED' ? resolveMediaUrl(selectedDiploma.image_url || selectedDiploma.image) : '#'} 
-                            onClick={(e) => { if(selectedDiploma.status !== 'VALIDATED') e.preventDefault(); }}
-                            target={selectedDiploma.status === 'VALIDATED' ? "_blank" : undefined} 
-                            rel="noopener noreferrer" 
-                            className="btn-download" 
-                            download={selectedDiploma.status === 'VALIDATED'}
-                            style={selectedDiploma.status !== 'VALIDATED' ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' } : {}}
-                          >
-                            📥 Télécharger le diplôme avec QR
-                          </a>
-                        )}
-                        {selectedDiploma.first_name !== '[Supprimé]' && (
-                          <button
-                            className="btn"
-                            style={{width:'auto', background:'#b45309', color:'white', border:'none'}}
-                            onClick={() => {
-                              const d = selectedDiploma;
-                              setOtpModal({
-                                open: true,
-                                userId,
-                                actionType: 'ERASE_DIPLOMA',
-                                title: '\uD83D\uDDD1\uFE0F Effacer les données RGPD',
-                                message: `Effacer les données personnelles de ${d.first_name} ${d.last_name} ?`,
-                                details: 'Irréversible : nom, prénom, fichiers et email supprimés. La preuve blockchain est conservée (RGPD Art. 17.3.b).',
-                                onConfirm: (otpCode) => doErasure(d, otpCode),
-                              });
-                            }}
-                          >
-                            🗑️ Effacer les données RGPD
-                          </button>
-                        )}
-                        {selectedDiploma.blockchain_status === 'ANCHORED' && (
-                          <button
-                            className="btn"
-                            style={{width:'auto', background:'#ef4444', color:'white', border:'none'}}
-                            onClick={() => {
-                              const d = selectedDiploma;
-                              setOtpModal({
-                                open: true,
-                                userId,
-                                actionType: 'REVOKE_DIPLOMA',
-                                title: '\uD83D\uDEAB Révoquer le diplôme',
-                                message: `Révoquer le diplôme de ${d.first_name} ${d.last_name} ?`,
-                                details: 'Cette action est irréversible sur la blockchain.',
-                                onConfirm: (otpCode) => doRevoke(d, otpCode),
-                              });
-                            }}
-                          >
-                            🚫 Révoquer
-                          </button>
-                        )}
-                        <button className="btn btn-secondary" style={{width: 'auto'}} onClick={() => { setSelectedDiploma(null); setRevokeMsg({ type: '', text: '' }); setSchoolErasureMsg({ type: '', text: '' }); }}>Retour</button>
+                {/* Suivi des validations */}
+                <div className="tracking-block">
+                  <h4 className="tracking-block__title">Suivi des validations</h4>
+                  <div className="tracking-row">
+                    <span className="tracking-row__label">École (Vous) :</span>
+                    <strong>{selectedDiploma.school_validated ? '✅ Validé' : '⏳ En attente'}</strong>
+                  </div>
+                  <div className="tracking-row">
+                    <span className="tracking-row__label">Rectorat :</span>
+                    <strong>{selectedDiploma.rectorate_validated ? '✅ Validé' : '⏳ En attente'}</strong>
+                  </div>
+                  {selectedDiploma.blockchain_status === 'REVOKED' && (
+                    <div className="tracking-banner tracking-banner--revoked">
+                      🚫 Ce diplôme a été révoqué par l'établissement.
                     </div>
+                  )}
+                  {selectedDiploma.status === 'REVOKED' && selectedDiploma.blockchain_status !== 'REVOKED' && (
+                    <div className="tracking-banner tracking-banner--expired">
+                      🕒 Ce diplôme a expiré automatiquement.
+                    </div>
+                  )}
+                  {selectedDiploma.status === 'REJECTED' && (
+                    <div style={{ marginTop: '14px', color: '#dc2626', textAlign: 'center', fontWeight: 'bold' }}>
+                      Ce diplôme a été refusé.
+                    </div>
+                  )}
                 </div>
+
+                {revokeMsg.text       && <div className={`msg-box msg-${revokeMsg.type}`}       style={{ marginTop: '15px' }}>{revokeMsg.text}</div>}
+                {schoolErasureMsg.text && <div className={`msg-box msg-${schoolErasureMsg.type}`} style={{ marginTop: '15px' }}>{schoolErasureMsg.text}</div>}
+
+                {/* Actions */}
+                <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {(selectedDiploma.image_url || selectedDiploma.image) && (
+                    // eslint-disable-next-line jsx-a11y/anchor-is-valid
+                    <a
+                      href={selectedDiploma.status === 'VALIDATED' ? resolveMediaUrl(selectedDiploma.image_url || selectedDiploma.image) : '#'}
+                      onClick={(e) => { if (selectedDiploma.status !== 'VALIDATED') e.preventDefault(); }}
+                      target={selectedDiploma.status === 'VALIDATED' ? "_blank" : undefined}
+                      rel="noopener noreferrer"
+                      className="btn-download"
+                      download={selectedDiploma.status === 'VALIDATED'}
+                      style={selectedDiploma.status !== 'VALIDATED' ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(100%)' } : {}}
+                    >
+                      📥 Télécharger le diplôme avec QR
+                    </a>
+                  )}
+                  {selectedDiploma.first_name !== '[Supprimé]' && (
+                    <button
+                      className="btn"
+                      style={{ width: 'auto', background: '#b45309', color: 'white', border: 'none' }}
+                      onClick={() => {
+                        const d = selectedDiploma;
+                        setOtpModal({
+                          open: true, userId,
+                          actionType: 'ERASE_DIPLOMA',
+                          title: '🗑️ Effacer les données RGPD',
+                          message: `Effacer les données personnelles de ${d.first_name} ${d.last_name} ?`,
+                          details: 'Irréversible : nom, prénom, fichiers et email supprimés. La preuve blockchain est conservée (RGPD Art. 17.3.b).',
+                          onConfirm: (otpCode) => doErasure(d, otpCode),
+                        });
+                      }}
+                    >
+                      🗑️ Effacer les données RGPD
+                    </button>
+                  )}
+                  {selectedDiploma.blockchain_status === 'ANCHORED' && (
+                    <button
+                      className="btn"
+                      style={{ width: 'auto', background: '#ef4444', color: 'white', border: 'none' }}
+                      onClick={() => {
+                        const d = selectedDiploma;
+                        setOtpModal({
+                          open: true, userId,
+                          actionType: 'REVOKE_DIPLOMA',
+                          title: '🚫 Révoquer le diplôme',
+                          message: `Révoquer le diplôme de ${d.first_name} ${d.last_name} ?`,
+                          details: 'Cette action est irréversible sur la blockchain.',
+                          onConfirm: (otpCode) => doRevoke(d, otpCode),
+                        });
+                      }}
+                    >
+                      🚫 Révoquer
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-secondary"
+                    style={{ width: 'auto' }}
+                    onClick={() => { setSelectedDiploma(null); setRevokeMsg({ type: '', text: '' }); setSchoolErasureMsg({ type: '', text: '' }); }}
+                  >
+                    Retour
+                  </button>
+                </div>
+              </div>
             </div>
+
           ) : (
             <>
-                <h2>📜 Historique et Statuts</h2>
-                {myDiplomas.length === 0 ? (
-                    <p style={{color: '#94a3b8', textAlign: 'center', marginTop: '20px'}}>Aucun diplôme émis.</p>
-                ) : (
-                    <div style={{marginTop: '20px'}}>
-                        {myDiplomas.map(d => (
-                            <div key={d.id} 
-                                onClick={() => setSelectedDiploma(d)}
-                                style={{
-                                    padding: '15px', 
-                                    borderBottom: '1px solid #f1f5f9', 
-                                    cursor: 'pointer', 
-                                    display: 'flex', 
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <div>
-                                    <strong style={{ textDecoration: ['REJECTED','REVOKED'].includes(d.status) || d.blockchain_status === 'REVOKED' ? 'line-through' : 'none', color: d.blockchain_status === 'REVOKED' ? '#7c3aed' : d.status === 'REVOKED' ? '#c2410c' : 'inherit' }}>
-                                        {d.last_name.toUpperCase()} {d.first_name}
-                                    </strong>
-                                    <div style={{fontSize: '0.85rem', color: '#64748b'}}>{d.course_name}</div>
-                                </div>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                                    {getStatusBadge(d.status, d.blockchain_status)}
-                                    <span style={{fontSize: '1.2rem', color: '#cbd5e1'}}>›</span>
-                                </div>
-                            </div>
-                        ))}
+              <h2>📜 Historique et Statuts</h2>
+              {myDiplomas.length === 0 ? (
+                <p style={{ color: 'var(--text-4)', textAlign: 'center', marginTop: '20px' }}>Aucun diplôme émis.</p>
+              ) : (
+                <div style={{ marginTop: '16px' }}>
+                  {myDiplomas.map(d => (
+                    <div
+                      key={d.id}
+                      className="diploma-row"
+                      onClick={() => setSelectedDiploma(d)}
+                    >
+                      <div className="diploma-row__info">
+                        <span
+                          className="diploma-row__name"
+                          style={{
+                            textDecoration: ['REJECTED', 'REVOKED'].includes(d.status) || d.blockchain_status === 'REVOKED' ? 'line-through' : 'none',
+                            color: d.blockchain_status === 'REVOKED' ? '#7c3aed' : d.status === 'REVOKED' ? '#c2410c' : 'inherit',
+                          }}
+                        >
+                          {d.last_name.toUpperCase()} {d.first_name}
+                        </span>
+                        <span className="diploma-row__meta">{d.course_name}</span>
+                      </div>
+                      <div className="diploma-row__actions">
+                        {getStatusBadge(d.status, d.blockchain_status)}
+                        <span className="diploma-row__arrow">›</span>
+                      </div>
                     </div>
-                )}
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
       )}
+
       <OTPModal
         open={!!otpModal.open}
         userId={otpModal.userId}

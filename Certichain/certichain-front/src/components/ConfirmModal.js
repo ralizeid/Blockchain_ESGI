@@ -1,9 +1,10 @@
 import React from 'react';
+import '../App.css';
 
 const TYPE_STYLES = {
-  danger:  { btn: '#dc2626', badge: '#fef2f2', border: '#fecaca' },
-  warning: { btn: '#d97706', badge: '#fffbeb', border: '#fde68a' },
-  info:    { btn: '#2563eb', badge: '#eff6ff', border: '#bfdbfe' },
+  danger:  { btn: 'modal-btn--danger',  badge: '#fef2f2', border: '#fecaca' },
+  warning: { btn: 'modal-btn--warning', badge: '#fffbeb', border: '#fde68a' },
+  info:    { btn: 'modal-btn--primary', badge: '#eff6ff', border: '#bfdbfe' },
 };
 
 /**
@@ -34,79 +35,26 @@ const ConfirmModal = ({
   const c = TYPE_STYLES[type] || TYPE_STYLES.info;
 
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(15,23,42,0.5)',
-        zIndex: 2000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '28px 32px',
-          maxWidth: '480px',
-          width: '100%',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <h3 style={{ margin: '0 0 10px', color: '#0f172a', fontSize: '1.1rem' }}>
-          {title}
-        </h3>
-        <p style={{ color: '#475569', margin: '0 0 16px', lineHeight: '1.6', fontSize: '0.95rem' }}>
-          {message}
-        </p>
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-card modal-card--sm" onClick={e => e.stopPropagation()}>
+
+        <h3 className="modal-title">{title}</h3>
+        <p className="modal-subtitle">{message}</p>
 
         {details && (
           <div
-            style={{
-              background: c.badge,
-              border: `1px solid ${c.border}`,
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginBottom: '20px',
-              fontSize: '0.875rem',
-              color: '#334155',
-            }}
+            className="modal-details-box"
+            style={{ background: c.badge, borderColor: c.border }}
           >
-            {typeof details === 'string' ? <p style={{ margin: 0 }}>{details}</p> : details}
+            {typeof details === 'string' ? <p>{details}</p> : details}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              background: 'white',
-              color: '#475569',
-              cursor: 'pointer',
-              fontWeight: 500,
-              fontSize: '0.9rem',
-            }}
-          >
+        <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
+          <button className="modal-btn modal-btn--cancel" onClick={onCancel}>
             Annuler
           </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '6px',
-              border: 'none',
-              background: c.btn,
-              color: 'white',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-            }}
-          >
+          <button className={`modal-btn ${c.btn}`} onClick={onConfirm}>
             {confirmLabel}
           </button>
         </div>
