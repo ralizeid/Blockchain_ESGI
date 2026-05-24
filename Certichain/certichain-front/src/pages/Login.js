@@ -148,10 +148,10 @@ const Login = ({ onLogin }) => {
       // Step 3 validation
       if (!formData.rectorate_email || !/\S+@\S+\.\S+/.test(formData.rectorate_email)) return setError("L'email du rectorat est invalide.");
       if (hasRectorateWallet && (!formData.rectorate_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(formData.rectorate_eth_address))) {
-        return setError("L'adresse MetaMask du rectorat est invalide.");
+        return setError("L'adresse MetaMask du rectorat est obligatoire (doit commencer par 0x suivi de 40 caractères hexadécimaux).");
       }
       if (!hasRectorateWallet && !formData.rectorate_eth_address) {
-        return setError("Veuillez générer une adresse publique pour le rectorat.");
+        return setError("Veuillez générer une adresse publique pour le rectorat (obligatoire).");
       }
       if (!formData.gdpr_consent) {
         return setError("Vous devez accepter la politique de confidentialité.");
@@ -277,16 +277,12 @@ const Login = ({ onLogin }) => {
                               <input type="text" value={generatedSchoolPrivateKey} readOnly style={{ flex: 1, padding: '5px', fontSize: '0.8rem', border: '1px solid #f87171', borderRadius: '4px', backgroundColor: '#fff' }} />
                               <button type="button" onClick={() => navigator.clipboard.writeText(generatedSchoolPrivateKey)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem' }}>Copier</button>
                             </div>
-                            <details style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
-                              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Tutoriel : Comment importer cette clé dans MetaMask ?</summary>
-                              <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', lineHeight: '1.4' }}>
-                                <li>Installez l'extension <strong>MetaMask</strong> sur votre navigateur.</li>
-                                <li>Configurez un portefeuille (créez un mot de passe).</li>
-                                <li>Cliquez sur le sélecteur de compte (en haut au centre), puis sur <strong>Ajouter un compte...</strong>.</li>
-                                <li>Choisissez <strong>Importer le compte</strong>.</li>
-                                <li>Collez la clé privée copiée ci-dessus et cliquez sur <strong>Importer</strong>. C'est prêt !</li>
-                              </ol>
-                            </details>
+                            <p style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
+                              <span>Tutoriel : </span> 
+                              <Link to="/support" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 'bold', color: '#b91c1c', textDecoration: 'underline' }}>
+                                Comment importer cette clé dans MetaMask ?
+                              </Link>
+                            </p>
                           </div>
                         )}
                       </div>
@@ -401,10 +397,10 @@ const Login = ({ onLogin }) => {
                 </div>
 
                 {hasRectorateWallet ? (
-                  <div className="input-group" style={{ marginBottom: 0 }}>
-                    <label className="input-label">Adresse MetaMask du Rectorat</label>
-                    <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" />
-                  </div>
+                      <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label className="input-label">Adresse MetaMask du Rectorat <span style={{color: "#ef4444"}}>*</span></label>
+                        <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" required />
+                      </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <button type="button" onClick={generateRectorateWallet} className="btn" style={{ backgroundColor: '#e2e8f0', color: '#1e293b', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '0.85rem' }}>
@@ -423,16 +419,12 @@ const Login = ({ onLogin }) => {
                         <div style={{ display: 'flex', gap: '5px' }}>
                           <input type="text" value={generatedPrivateKey} readOnly style={{ flex: 1, padding: '5px', fontSize: '0.8rem', border: '1px solid #f87171', borderRadius: '4px', backgroundColor: '#fff' }} />
                           <button type="button" onClick={() => navigator.clipboard.writeText(generatedPrivateKey)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem' }}>Copier</button>
-                        </div>                          <details style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Tutoriel : Comment importer cette clé dans MetaMask ?</summary>
-                            <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', lineHeight: '1.4' }}>
-                              <li>Installez l'extension <strong>MetaMask</strong> sur votre navigateur.</li>
-                              <li>Configurez un portefeuille (créez un mot de passe).</li>
-                              <li>Cliquez sur le sélecteur de compte (en haut au centre), puis sur <strong>Ajouter un compte...</strong>.</li>
-                              <li>Choisissez <strong>Importer le compte</strong>.</li>
-                              <li>Collez la clé privée copiée ci-dessus et cliquez sur <strong>Importer</strong>. C'est prêt !</li>
-                            </ol>
-                          </details>                      </div>
+                        </div>                          <p style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
+                            <span>Tutoriel : </span> 
+                            <Link to="/support" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 'bold', color: '#b91c1c', textDecoration: 'underline' }}>
+                              Comment importer cette clé dans MetaMask ?
+                            </Link>
+                          </p>                      </div>
                     )}
                   </div>
                 )}

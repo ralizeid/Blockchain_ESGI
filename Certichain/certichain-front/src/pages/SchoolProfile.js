@@ -158,6 +158,15 @@ const SchoolProfile = () => {
   };
 
   const handleProfileSave = () => {
+    if (!profileForm.school_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(profileForm.school_eth_address)) {
+      setProfileMsg({ type: 'error', text: 'L\'adresse MetaMask de l\'école est invalide ou manquante.' });
+      return;
+    }
+    if (!profileForm.rectorate_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(profileForm.rectorate_eth_address)) {
+      setProfileMsg({ type: 'error', text: 'L\'adresse MetaMask du rectorat est invalide ou manquante.' });
+      return;
+    }
+
     setOtpModal({
       open: true,
       userId,
@@ -379,7 +388,7 @@ const SchoolProfile = () => {
           </div>
 
           <div className="input-group">
-            <label className="input-label">🔒 Adresse MetaMask de l'école</label>
+            <label className="input-label">🔒 Adresse MetaMask de l'école <span style={{color: "#ef4444"}}>*</span></label>
             <input
               className="input-field"
               type="text"
@@ -387,15 +396,16 @@ const SchoolProfile = () => {
               value={profileForm.school_eth_address}
               onChange={e => setProfileForm(f => ({ ...f, school_eth_address: e.target.value }))}
               pattern="^0x[0-9a-fA-F]{40}$"
+              required
             />
             <small style={{ color: 'var(--gray)', fontSize: '0.8em', marginTop: 4, display: 'block' }}>
-              Adresse publique visible dans MetaMask (onglet principal, sous le nom du compte).
+              Obligatoire. Adresse publique visible dans MetaMask (onglet principal, sous le nom du compte).
               Seul le wallet possédant la clé privée correspondante pourra signer.
             </small>
           </div>
 
           <div className="input-group">
-            <label className="input-label">🔒 Adresse MetaMask du Rectorat</label>
+            <label className="input-label">🔒 Adresse MetaMask du Rectorat <span style={{color: "#ef4444"}}>*</span></label>
             <input
               className="input-field"
               type="text"
@@ -403,9 +413,10 @@ const SchoolProfile = () => {
               value={profileForm.rectorate_eth_address}
               onChange={e => setProfileForm(f => ({ ...f, rectorate_eth_address: e.target.value }))}
               pattern="^0x[0-9a-fA-F]{40}$"
+              required
             />
             <small style={{ color: 'var(--gray)', fontSize: '0.8em', marginTop: 4, display: 'block' }}>
-              L'adresse publique du rectorat partenaire. Laisser vide pour ne pas restreindre.
+              Obligatoire. L'adresse publique du rectorat partenaire chargé de valider vos diplômes.
             </small>
           </div>
 
@@ -413,6 +424,12 @@ const SchoolProfile = () => {
             <strong>🔗 Comment trouver son adresse publique MetaMask ?</strong><br />
             Ouvrez MetaMask → écran principal → l'adresse <code>0x...</code> affichée sous le nom du compte.
             Cliquez dessus pour la copier. C'est l'adresse <strong>publique</strong>, sans risque à partager.
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #bbf7d0' }}>
+              <span>Besoin d'aide avec MetaMask ? </span>
+              <Link to="/support" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 'bold', color: '#15803d', textDecoration: 'underline' }}>
+                Consultez le guide et tutoriel complet
+              </Link>
+            </div>
           </div>
 
           <button
