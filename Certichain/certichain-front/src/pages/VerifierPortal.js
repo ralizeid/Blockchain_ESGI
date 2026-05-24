@@ -1,14 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../App.css';
 
 const VerifierPortal = () => {
-  const [query, setQuery]                     = useState('');
-  const [results, setResults]                 = useState([]);
-  const [selectedDiploma, setSelectedDiploma] = useState(null);
+  const [query, setQuery] = useState(() => {
+    return sessionStorage.getItem('verifier_query') || '';
+  });
+  
+  const [results, setResults] = useState(() => {
+    const saved = sessionStorage.getItem('verifier_results');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [selectedDiploma, setSelectedDiploma] = useState(() => {
+    const saved = sessionStorage.getItem('verifier_selected');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
   const [loading, setLoading]                 = useState(false);
   const [blockchainData, setBlockchainData]   = useState(null);
   const [bcLoading, setBcLoading]             = useState(false);
   const [copied, setCopied]                   = useState(false);
+
+  useEffect(() => {
+    sessionStorage.setItem('verifier_query', query);
+  }, [query]);
+
+  useEffect(() => {
+    sessionStorage.setItem('verifier_results', JSON.stringify(results));
+  }, [results]);
+
+  useEffect(() => {
+    if (selectedDiploma) {
+      sessionStorage.setItem('verifier_selected', JSON.stringify(selectedDiploma));
+    } else {
+      sessionStorage.removeItem('verifier_selected');
+    }
+  }, [selectedDiploma]);
 
   const handleSearch = async () => {
     if (!query) return;

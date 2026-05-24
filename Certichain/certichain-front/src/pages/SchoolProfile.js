@@ -15,7 +15,10 @@ const SchoolProfile = () => {
   const userId   = sessionStorage.getItem('user_id');
   const username = sessionStorage.getItem('username') || '—';
 
-  const [activeTab, setActiveTab]     = useState('profile');
+  // State initialisé avec le localStorage pour garder l'onglet et les champs si refresh
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('schoolProfile_activeTab') || 'profile';
+  });
   const [quota, setQuota]             = useState(null);
   const [plans, setPlans]             = useState([]);
   const [packs, setPacks]             = useState([]);
@@ -32,10 +35,18 @@ const SchoolProfile = () => {
   const [deleteMsg, setDeleteMsg]             = useState({ type: '', text: '' });
 
   // Wallet & Profil — édition
-  const [profileForm, setProfileForm] = useState({
-    email: '', rectorate_email: '', school_eth_address: '', rectorate_eth_address: '',
-    school_name: '', school_type: '', school_address: '', school_zip: '', school_city: '',
-    school_phone: '', school_website: '', director_name: '', uai_code: '', siret: '',
+  const [profileForm, setProfileForm] = useState(() => {
+    const saved = sessionStorage.getItem('schoolProfile_form');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      email: '', rectorate_email: '', school_eth_address: '', rectorate_eth_address: '',
+      school_name: '', school_type: '', school_address: '', school_zip: '', school_city: '',
+      school_phone: '', school_website: '', director_name: '', uai_code: '', siret: '',
+    };
   });
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [profileSaving, setProfileSaving] = useState(false);
@@ -44,6 +55,14 @@ const SchoolProfile = () => {
   const [passwordMsg, setPasswordMsg]     = useState({ type: '', text: '' });
   const [otpModal, setOtpModal]           = useState({ open: false });
   const closeOTPModal = () => setOtpModal({ open: false });
+
+  useEffect(() => {
+    sessionStorage.setItem('schoolProfile_activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem('schoolProfile_form', JSON.stringify(profileForm));
+  }, [profileForm]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -58,22 +77,34 @@ const SchoolProfile = () => {
       const prData = await prRes.json();
       if (qRes.ok)  setQuota(qData);
       if (pRes.ok)  setPlans(pData);
-      if (prRes.ok) setProfileForm({
-        email:                 prData.email                 || '',
-        rectorate_email:       prData.rectorate_email       || '',
-        school_eth_address:    prData.school_eth_address    || '',
-        rectorate_eth_address: prData.rectorate_eth_address || '',
-        school_name:    prData.school_name    || '',
-        school_type:    prData.school_type    || '',
-        school_address: prData.school_address || '',
-        school_zip:     prData.school_zip     || '',
-        school_city:    prData.school_city    || '',
-        school_phone:   prData.school_phone   || '',
-        school_website: prData.school_website || '',
-        director_name:  prData.director_name  || '',
-        uai_code:       prData.uai_code       || '',
-        siret:          prData.siret          || '',
-      });
+      if (prRes.ok) {
+        // Au lieu d'écraser bêtement, on vérifie d'abord si on n'a pas rafraichi 
+        // sinon on charge les données du serveur s'il n'y avait rien avant.
+        setProfileForm(prev => {
+          const hasLocalData = !!sessionStorage.getItem('schoolProfile_form');
+          if (hasLocalData) {
+            // Si on a des champs localement sauvegardés à cause d'un refresh
+            // On ne les écrase pas pour ne pas perdre la saisie
+            return prev;
+          }
+          return {
+            email:                 prData.email                 || '',
+            rectorate_email:       prData.rectorate_email       || '',
+            school_eth_address:    prData.school_eth_address    || '',
+            rectorate_eth_address: prData.rectorate_eth_address || '',
+            school_name:    prData.school_name    || '',
+            school_type:    prData.school_type    || '',
+            school_address: prData.school_address || '',
+            school_zip:     prData.school_zip     || '',
+            school_city:    prData.school_city    || '',
+            school_phone:   prData.school_phone   || '',
+            school_website: prData.school_website || '',
+            director_name:  prData.director_name  || '',
+            uai_code:       prData.uai_code       || '',
+            siret:          prData.siret          || '',
+          };
+        });
+      }
       const packsRes = await fetch('/api/packs/');
       if (packsRes.ok) setPacks(await packsRes.json());
     } catch (e) {
