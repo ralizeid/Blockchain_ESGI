@@ -21,8 +21,13 @@ const resolveMediaUrl = (rawUrl) => {
 
 const IssuerDashboard = () => {
   const userId = sessionStorage.getItem('user_id');
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('issuer_active_tab') || 'create');
+
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('issuer_active_tab') || 'create';
+  });
+
   const [myDiplomas, setMyDiplomas] = useState([]);
+  
   const [selectedDiploma, setSelectedDiploma] = useState(() => {
     const saved = sessionStorage.getItem('issuer_selected_diploma');
     return saved ? JSON.parse(saved) : null;
@@ -43,11 +48,26 @@ const IssuerDashboard = () => {
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [qrPresets, setQrPresets] = useState([]);
   const [newPresetName, setNewPresetName] = useState('');
-  const [formData, setFormData] = useState({
-    nom: '', prenom: '', dateObtention: '', dateNaissance: '', studentEmail: '',
-    diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true,
-    embed_qr: true, qr_x_pct: 72, qr_y_pct: 72, qr_size_pct: 18,
+  
+  const [formData, setFormData] = useState(() => {
+    const saved = sessionStorage.getItem('issuer_form_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      nom: '', prenom: '', dateObtention: '', dateNaissance: '', studentEmail: '',
+      diplomeFile: null, photoFile: null, course_name: '', expiry_date: '', never_expires: true,
+      embed_qr: true, qr_x_pct: 72, qr_y_pct: 72, qr_size_pct: 18,
+    };
   });
+
+  // Sauvegarder formData dans sessionStorage, sauf les fichiers bruts qui bloquent JSON.stringify
+  useEffect(() => {
+    const dataToSave = { ...formData, diplomeFile: null, photoFile: null };
+    sessionStorage.setItem('issuer_form_data', JSON.stringify(dataToSave));
+  }, [formData]);
   const [previewUrl, setPreviewUrl] = useState('');
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [fileError, setFileError] = useState('');
