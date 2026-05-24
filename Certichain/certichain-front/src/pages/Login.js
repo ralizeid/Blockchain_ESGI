@@ -4,31 +4,57 @@ import { ethers } from 'ethers';
 import '../App.css';
 
 const Login = ({ onLogin }) => {
-  const [isRegister, setIsRegister] = useState(false);
-
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    rectorate_email: '',
-    school_eth_address: '',
-    rectorate_eth_address: '',
-    subscription_plan: '',
-    gdpr_consent: false,
-    // Informations établissement
-    school_name: '',
-    school_type: '',
-    school_address: '',
-    school_zip: '',
-    school_city: '',
-    school_phone: '',
-    school_website: '',
-    director_name: '',
-    uai_code: '',
-    siret: '',
+  const [isRegister, setIsRegister] = useState(() => {
+    return sessionStorage.getItem('login_isRegister') === 'true';
   });
 
-  const [step, setStep] = useState(1);
+  useEffect(() => {
+    sessionStorage.setItem('login_isRegister', isRegister);
+  }, [isRegister]);
+
+  const [formData, setFormData] = useState(() => {
+    const saved = sessionStorage.getItem('login_form_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      username: '',
+      password: '',
+      email: '',
+      rectorate_email: '',
+      school_eth_address: '',
+      rectorate_eth_address: '',
+      subscription_plan: '',
+      gdpr_consent: false,
+      school_name: '',
+      school_type: '',
+      school_address: '',
+      school_zip: '',
+      school_city: '',
+      school_phone: '',
+      school_website: '',
+      director_name: '',
+      uai_code: '',
+      siret: '',
+    };
+  });
+
+  useEffect(() => {
+    // Évite de stocker le mot de passe pour des raisons de sécurité
+    const { password, ...dataToSave } = formData;
+    sessionStorage.setItem('login_form_data', JSON.stringify({ ...dataToSave, password: '' }));
+  }, [formData]);
+
+  const [step, setStep] = useState(() => {
+    const savedStep = sessionStorage.getItem('login_step');
+    return savedStep ? parseInt(savedStep, 10) : 1;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('login_step', step);
+  }, [step]);
   const [plans, setPlans]     = useState([]);
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');

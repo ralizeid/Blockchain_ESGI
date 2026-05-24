@@ -15,7 +15,18 @@ import RectoratDashboard from './pages/RectoratDashboard';
 import Support from './pages/Support';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Initialise correctement pour éviter la redirection d'une fraction de seconde
+    const userId = sessionStorage.getItem('user_id');
+    const loginTime = sessionStorage.getItem('login_time');
+    if (userId && loginTime) {
+      const now = new Date().getTime();
+      if ((now - parseInt(loginTime, 10)) <= 12 * 60 * 60 * 1000) {
+        return true;
+      }
+    }
+    return false;
+  });
 
   useEffect(() => {
     const checkSession = () => {
