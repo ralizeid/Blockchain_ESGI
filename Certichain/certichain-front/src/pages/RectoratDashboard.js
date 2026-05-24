@@ -8,16 +8,16 @@ import '../App.css';
  * – Validation 1 par 1 ou validation groupée (par école ou tout d'un coup)
  */
 const RectoratDashboard = () => {
-  const [ethAddress,     setEthAddress]     = useState('');
-  const [connectStatus,  setConnectStatus]  = useState('idle'); // idle | connecting | connected | error
-  const [connectError,   setConnectError]   = useState('');
-  const [schools,        setSchools]        = useState([]);
-  const [loading,        setLoading]        = useState(false);
-  const [globalMsg,      setGlobalMsg]      = useState({ type: '', text: '' });
-  const [validating,     setValidating]     = useState(false);
-  const [progress,       setProgress]       = useState({ done: 0, total: 0 });
+  const [ethAddress,    setEthAddress]    = useState('');
+  const [connectStatus, setConnectStatus] = useState('idle'); // idle | connecting | connected | error
+  const [connectError,  setConnectError]  = useState('');
+  const [schools,       setSchools]       = useState([]);
+  const [loading,       setLoading]       = useState(false);
+  const [globalMsg,     setGlobalMsg]     = useState({ type: '', text: '' });
+  const [validating,    setValidating]    = useState(false);
+  const [progress,      setProgress]      = useState({ done: 0, total: 0 });
   // diplômes sélectionnés (set de rectorate_token)
-  const [selected,       setSelected]       = useState(new Set());
+  const [selected,      setSelected]      = useState(new Set());
 
   // ─── MetaMask ──────────────────────────────────────────────────────────────
   const handleConnect = async () => {
@@ -25,9 +25,7 @@ const RectoratDashboard = () => {
     setConnectError('');
     try {
       if (!window.ethereum) throw new Error("MetaMask n'est pas installé. Veuillez installer l'extension.");
-      
-      // On demande explicitement la permission pour ouvrir le popup de choix de compte
-      // Cela évite que MetaMask connecte automatiquement le compte précédent
+
       await window.ethereum.request({
         method: 'wallet_requestPermissions',
         params: [{ eth_accounts: {} }]
@@ -38,7 +36,6 @@ const RectoratDashboard = () => {
       setConnectStatus('connected');
     } catch (err) {
       setConnectStatus('error');
-      // Si l'utilisateur annule la sélection, MetaMask renvoie l'erreur 4001
       if (err.code === 4001) {
         setConnectError('Connexion annulée par l\'utilisateur.');
       } else {
@@ -57,7 +54,7 @@ const RectoratDashboard = () => {
       const data = await res.json();
       if (res.ok) {
         setSchools(data.schools || []);
-        setSelected(new Set()); // réinitialise la sélection après rechargement
+        setSelected(new Set());
       } else {
         setGlobalMsg({ type: 'error', text: data.error || 'Erreur lors du chargement.' });
       }
@@ -157,16 +154,16 @@ const RectoratDashboard = () => {
 
   // ─── Rendu ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: '900px', margin: '40px auto', padding: '0 20px' }}>
-      <h1 style={{ marginBottom: '4px' }}>🏛️ Tableau de bord Rectorat</h1>
-      <p style={{ color: '#64748b', marginBottom: '28px' }}>
+    <div className="page-wrapper">
+      <h1 className="page-title">🏛️ Tableau de bord Rectorat</h1>
+      <p className="page-subtitle">
         Validez les diplômes soumis par les établissements rattachés à votre rectorat.
       </p>
 
       {/* ── Connexion MetaMask ── */}
       {connectStatus !== 'connected' && (
         <div className="form-card" style={{ padding: '30px', textAlign: 'center' }}>
-          <p style={{ marginBottom: '20px', fontSize: '1.05rem' }}>
+          <p style={{ marginBottom: '20px', fontSize: '1.05rem', color: 'var(--text-2)' }}>
             Connectez votre portefeuille MetaMask pour accéder aux diplômes en attente.
           </p>
           <button
@@ -187,15 +184,11 @@ const RectoratDashboard = () => {
       {connectStatus === 'connected' && (
         <>
           {/* Identité connectée */}
-          <div style={{
-            background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px',
-            padding: '12px 18px', marginBottom: '24px', display: 'flex',
-            alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px',
-          }}>
-            <span style={{ color: '#166534', fontWeight: 600 }}>
-              🦊 Connecté : <code style={{ fontSize: '0.8rem' }}>{ethAddress}</code>
-            </span>
-            <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="wallet-bar">
+            <div className="wallet-bar__id">
+              🦊 Connecté : <code>{ethAddress}</code>
+            </div>
+            <div className="wallet-bar__btns">
               <button
                 className="btn btn-secondary"
                 style={{ width: 'auto', padding: '4px 14px', fontSize: '0.85rem' }}
@@ -228,20 +221,16 @@ const RectoratDashboard = () => {
 
           {/* Barre d'actions globales */}
           {totalPending > 0 && (
-            <div style={{
-              background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px',
-              padding: '14px 18px', marginBottom: '24px',
-              display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
-            }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', userSelect: 'none' }}>
+            <div className="action-bar">
+              <label className="action-bar__check">
                 <input
                   type="checkbox"
                   checked={selected.size === allTokens.length && allTokens.length > 0}
                   onChange={e => selectAll(e.target.checked)}
                 />
-                <span style={{ fontWeight: 600 }}>Tout sélectionner ({allTokens.length})</span>
+                Tout sélectionner ({allTokens.length})
               </label>
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="action-bar__btns">
                 {selected.size > 0 && (
                   <button
                     className="btn"
@@ -266,21 +255,17 @@ const RectoratDashboard = () => {
 
           {/* Progression */}
           {validating && (
-            <div style={{
-              background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '8px',
-              padding: '14px 18px', marginBottom: '20px', textAlign: 'center',
-            }}>
-              <p style={{ fontWeight: 600, margin: '0 0 8px' }}>
+            <div className="progress-banner">
+              <p className="progress-banner__title">
                 ⏳ Signature en cours… ({progress.done}/{progress.total})
               </p>
-              <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '8px' }}>
-                <div style={{
-                  background: '#f59e0b', borderRadius: '4px', height: '100%',
-                  width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%`,
-                  transition: 'width 0.3s',
-                }} />
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }}
+                />
               </div>
-              <p style={{ color: '#92400e', fontSize: '0.85rem', margin: '8px 0 0' }}>
+              <p className="progress-banner__note">
                 Confirmez chaque popup MetaMask pour votre portefeuille.
               </p>
             </div>
@@ -288,44 +273,32 @@ const RectoratDashboard = () => {
 
           {/* Liste vide */}
           {!loading && totalPending === 0 && (
-            <div className="form-card" style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+            <div className="form-card" style={{ padding: '36px', textAlign: 'center', color: 'var(--text-3)' }}>
               <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🎉</div>
-              <p style={{ fontSize: '1rem' }}>
+              <p style={{ fontSize: '1rem', margin: 0 }}>
                 Aucun diplôme en attente de validation pour cette adresse.
               </p>
             </div>
           )}
 
           {loading && (
-            <p style={{ textAlign: 'center', color: '#94a3b8' }}>⏳ Chargement…</p>
+            <p style={{ textAlign: 'center', color: 'var(--text-4)' }}>⏳ Chargement…</p>
           )}
 
           {/* Groupes par école */}
           {schools.map(school => (
-            <div key={school.school_id} style={{
-              background: 'white', border: '1px solid #e2e8f0', borderRadius: '10px',
-              marginBottom: '24px', overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-            }}>
+            <div key={school.school_id} className="school-card">
               {/* En-tête école */}
-              <div style={{
-                background: '#f1f5f9', padding: '14px 20px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="school-card__header">
+                <div className="school-card__name-group">
                   <input
                     type="checkbox"
                     checked={isSchoolFullySelected(school)}
                     onChange={e => selectSchool(school.diplomas, e.target.checked)}
                     title="Sélectionner toute l'école"
                   />
-                  <span style={{ fontWeight: 700, fontSize: '1.05rem' }}>
-                    🏫 {school.school_name}
-                  </span>
-                  <span style={{
-                    background: '#dbeafe', color: '#1d4ed8', borderRadius: '9999px',
-                    padding: '2px 10px', fontSize: '0.78rem', fontWeight: 600,
-                  }}>
+                  <span className="school-card__name">🏫 {school.school_name}</span>
+                  <span className="school-count-badge">
                     {school.diplomas.length} diplôme{school.diplomas.length > 1 ? 's' : ''} en attente
                   </span>
                 </div>
@@ -340,39 +313,39 @@ const RectoratDashboard = () => {
               </div>
 
               {/* Tableau des diplômes */}
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table className="data-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                    <th style={thStyle}></th>
-                    <th style={thStyle}>Étudiant</th>
-                    <th style={thStyle}>Formation</th>
-                    <th style={thStyle}>Date d'obtention</th>
-                    <th style={thStyle}>Action</th>
+                  <tr>
+                    <th style={{ width: '40px' }}></th>
+                    <th>Étudiant</th>
+                    <th>Formation</th>
+                    <th>Date d'obtention</th>
+                    <th style={{ textAlign: 'center' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {school.diplomas.map(diploma => (
-                    <tr key={diploma.rectorate_token} style={{
-                      borderBottom: '1px solid #f1f5f9',
-                      background: selected.has(diploma.rectorate_token) ? '#f0f9ff' : 'white',
-                    }}>
-                      <td style={{ ...tdStyle, width: '40px', textAlign: 'center' }}>
+                    <tr
+                      key={diploma.rectorate_token}
+                      className={selected.has(diploma.rectorate_token) ? 'row-selected' : ''}
+                    >
+                      <td style={{ textAlign: 'center' }}>
                         <input
                           type="checkbox"
                           checked={selected.has(diploma.rectorate_token)}
                           onChange={() => toggleSelect(diploma.rectorate_token)}
                         />
                       </td>
-                      <td style={tdStyle}>
+                      <td>
                         <span style={{ fontWeight: 600 }}>{diploma.last_name?.toUpperCase()} {diploma.first_name}</span>
                       </td>
-                      <td style={tdStyle}>{diploma.course_name}</td>
-                      <td style={{ ...tdStyle, color: '#64748b', fontSize: '0.88rem' }}>{diploma.graduation_date}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <td>{diploma.course_name}</td>
+                      <td style={{ color: 'var(--text-3)', fontSize: '0.88rem' }}>{diploma.graduation_date}</td>
+                      <td style={{ textAlign: 'center' }}>
                         <button
                           className="btn"
                           style={{
-                            background: '#6366f1', color: 'white', border: 'none',
+                            background: 'var(--primary)', color: 'white', border: 'none',
                             width: 'auto', padding: '5px 14px', fontSize: '0.82rem',
                           }}
                           onClick={() => handleValidate([diploma])}
@@ -392,22 +365,6 @@ const RectoratDashboard = () => {
       )}
     </div>
   );
-};
-
-const thStyle = {
-  padding: '10px 16px',
-  textAlign: 'left',
-  fontSize: '0.78rem',
-  fontWeight: 700,
-  color: '#64748b',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-};
-
-const tdStyle = {
-  padding: '12px 16px',
-  fontSize: '0.9rem',
-  color: '#1e293b',
 };
 
 export default RectoratDashboard;
