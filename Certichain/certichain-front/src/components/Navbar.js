@@ -8,6 +8,7 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
+
   const handleLogoutClick = () => {
     onLogout();
     setIsOpen(false); // CORRECTION : On force la fermeture au lieu d'inverser
