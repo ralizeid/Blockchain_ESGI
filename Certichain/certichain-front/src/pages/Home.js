@@ -103,6 +103,10 @@ const Home = () => {
               <span>Certification académique · Blockchain Polygon</span>
             </div>
 
+            <div style={{ marginBottom: '1.5rem', marginTop: '1rem' }}>
+              <img src="/logo-full.png" alt="CertiChain Full Logo" style={{ maxWidth: '100%', height: 'auto', maxHeight: '180px' }} />
+            </div>
+
             <h1 className="hero-title">
               Diplômes<br />
               <span className="hero-title-line">certifiés.</span><br />

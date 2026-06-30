@@ -8,6 +8,7 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
+
   const handleLogoutClick = () => {
     onLogout();
     setIsOpen(false); // CORRECTION : On force la fermeture au lieu d'inverser
@@ -28,17 +29,7 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
           </button>
 
           <Link to="/" className="nav-brand">
-            {/* Icône hexagonale CertiChain */}
-            <svg className="nav-brand-icon" width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 2L27 9V21L15 28L3 21V9L15 2Z" fill="url(#hexNavGrad)"/>
-              <path d="M10.5 15L13.5 18L19.5 12" stroke="white" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"/>
-              <defs>
-                <linearGradient id="hexNavGrad" x1="3" y1="2" x2="27" y2="28" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#4338CA"/>
-                  <stop offset="1" stopColor="#6366F1"/>
-                </linearGradient>
-              </defs>
-            </svg>
+            <img src="/logo-icon.png" alt="CertiChain Logo" style={{ width: '30px', height: '30px' }} />
             <span>CertiChain</span>
           </Link>
         </div>

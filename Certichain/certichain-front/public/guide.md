@@ -127,8 +127,6 @@ Tutoriel complet de création d'un diplôme de A à Z.
 
 Depuis votre tableau de bord, accédez au module **d'émission de diplômes** dans votre espace École.
 
-<!-- 📸 IMAGE : Tableau de bord de l'espace École avec le module "Émission de diplômes" -->
-![Tableau de bord espace École](images/certichain-01-tableau-de-bord.png)
 
 ### Étape 2 — Renseigner les informations de l'étudiant
 
@@ -139,35 +137,37 @@ Remplissez les champs suivants :
 - **Date d'obtention** du diplôme
 
 <!-- 📸 IMAGE : Formulaire de saisie des informations de l'étudiant -->
-![Formulaire informations étudiant](images/certichain-02-formulaire-etudiant.png)
+![Formulaire informations étudiant](images/guide/emission1.png)
 
 ### Étape 3 — Importer le fichier du diplôme
 
 Importez le fichier du diplôme au format **PDF ou image**.
 
 <!-- 📸 IMAGE : Zone de dépôt du fichier diplôme (drag & drop ou sélection) -->
-![Import du fichier diplôme](images/certichain-03-import-fichier.png)
+![Import du fichier diplôme](images/guide/emission2.png)
 
-### Étape 4 — Calcul de l'empreinte numérique (Hash)
+### Étape 4 — Calcul de l'empreinte numérique
 
 La plateforme calcule automatiquement l'**empreinte numérique (Hash)** du fichier. Cette empreinte est unique : toute modification du fichier, même minime, produirait un hash différent.
-
-<!-- 📸 IMAGE : Affichage du hash généré par la plateforme -->
-![Hash du diplôme](images/certichain-04-hash.png)
 
 ### Étape 5 — Signature MetaMask
 
 Une signature MetaMask est demandée pour **ancrer l'empreinte sur la blockchain**. Une notification apparaît dans l'extension — cliquez simplement sur **« Confirmer »**.
 
 <!-- 📸 IMAGE : Pop-up de confirmation MetaMask -->
-![Confirmation MetaMask](images/certichain-05-signature-metamask.png)
+![Confirmation MetaMask](images/guide/ecole_signature1.png)
+![Confirmation MetaMask](images/guide/ecole_signature2.png)
+![Confirmation MetaMask](images/guide/ecole_signature3.png)
+![Confirmation MetaMask](images/guide/ecole_signature4.png)
 
 ### Étape 6 — Diplôme certifié ✅
 
 Le diplôme est désormais **certifié et vérifiable publiquement**.
 
 <!-- 📸 IMAGE : Écran de confirmation "Diplôme certifié" avec récapitulatif -->
-![Diplôme certifié](images/certichain-06-diplome-certifie.png)
+![Diplôme certifié](images/guide/diplome-certifie.png)
+![Diplôme certifié](images/guide/diplome-certifie2.png)
+![Diplôme certifié](images/guide/diplome-certifie3.png)
 
 > ℹ️ **Note :** Une fois ancré, le diplôme ne peut plus être modifié. Toute altération du fichier rendrait l'empreinte invalide, ce qui signalerait immédiatement une falsification lors de la vérification.
 >
@@ -193,6 +193,8 @@ Le système interroge la base de données et la blockchain pour confirmer que le
 
 > Il n'est pas nécessaire de contacter l'établissement. La vérification est **instantanée**, disponible à tout moment, et ne demande **aucune inscription**.
 
+![Diplôme certifié](images/guide/diplome-certifie-public1.png)
+![Diplôme certifié](images/guide/diplome-certifie-public2.png)
 ---
 
 ## 6. Espace Rectorat
@@ -213,6 +215,8 @@ Pour chaque diplôme en attente, vérifiez les informations affichées (établis
 
 > ⚠️ **Cette action est irréversible.** Une fois validé et ancré, le diplôme ne peut plus être supprimé ni modifié.
 
+![Confirmation MetaMask](images/guide/rectorat_signature1.png)
+![Confirmation MetaMask](images/guide/rectorat_signature2.png)
 ---
 
 ## 7. Navigation
