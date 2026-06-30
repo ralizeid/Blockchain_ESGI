@@ -100,16 +100,11 @@ const Home = () => {
 
             <div className="hero-brand" aria-label="CertiChain">
               <div className="hero-brand-mark" aria-hidden="true">
-                <svg width="34" height="34" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M15 2L27 9V21L15 28L3 21V9L15 2Z" fill="url(#hexHeroGrad)"/>
-                  <path d="M10.5 15L13.5 18L19.5 12" stroke="white" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"/>
-                  <defs>
-                    <linearGradient id="hexHeroGrad" x1="3" y1="2" x2="27" y2="28" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#4338CA"/>
-                      <stop offset="1" stopColor="#6366F1"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
+                <img
+                  className="hero-brand-image"
+                  src={`${process.env.PUBLIC_URL}/images/logo-full.png`}
+                  alt="CertiChain"
+                />
               </div>
               <div className="hero-brand-copy">
                 <span className="hero-brand-kicker">Plateforme de certification</span>

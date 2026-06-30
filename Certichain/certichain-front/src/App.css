@@ -348,6 +348,12 @@ a { color: inherit; }
   box-shadow: var(--shadow-md);
   flex-shrink: 0;
 }
+.hero-brand-image {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  display: block;
+}
 .hero-brand-copy {
   display: flex;
   flex-direction: column;
