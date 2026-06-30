@@ -123,6 +123,20 @@
 
 ---
 
-## [À compléter — 23 au 29 mars 2026]
+## [23 au 29 mars 2026] — Consolidation post-V1.0
 
-> *Cette section sera mise à jour par Julien ATTARD*
+> Période sans commits techniques — stabilisation post-déploiement V1.0.
+
+---
+
+## [Avril 2026] — Intégration Email Transactionnel & Infrastructure
+
+### Ajouté — Technique
+- `BE-111` : Fix des tests Hardhat — validation smart contract (Rayan)
+- Intégration **Anymail + Resend API** pour l'envoi d'emails transactionnels (Rayan)
+- Implémentation **envoi asynchrone des emails** pour les actions critiques (Rayan)
+- Ajout `django-anymail` dans `requirements.txt` (Rayan)
+- Configuration logging dédié pour le monitoring des erreurs d'envoi email (Rayan)
+- Ajout configuration réseau personnalisée dans `docker-compose` (Rayan)
+- Correction entrypoint : shell `bash` → `sh` (Rayan)
+- Dockerfile : remplacement `npm ci` par `npm install` (Rayan)
