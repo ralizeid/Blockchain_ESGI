@@ -87,12 +87,13 @@ function App() {
           <Route path="/" element={<Home />} />
           
           <Route path="/login" element={
-            isAuthenticated ? <Navigate to="/admin" /> : <Login onLogin={handleLogin} />
+            isAuthenticated ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />
           } />
           
-          <Route path="/admin" element={
+          <Route path="/dashboard" element={
             isAuthenticated ? <IssuerDashboard /> : <Navigate to="/login" />
           } />
+          <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
           
           <Route path="/verify" element={<VerifierPortal />} />
           

@@ -34,6 +34,11 @@ const SchoolProfile = () => {
   const [deleteStep, setDeleteStep]           = useState(1);
   const [deleteMsg, setDeleteMsg]             = useState({ type: '', text: '' });
 
+  // Packs — confirmation d'achat
+  const [showPackModal, setShowPackModal] = useState(false);
+  const [selectedPack, setSelectedPack] = useState(null);
+  const [packMsg, setPackMsg] = useState({ type: '', text: '' });
+
   // Wallet & Profil — édition
   const [profileForm, setProfileForm] = useState(() => {
     const saved = sessionStorage.getItem('schoolProfile_form');
@@ -53,8 +58,24 @@ const SchoolProfile = () => {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [profileMsg, setProfileMsg]       = useState({ type: '', text: '' });
   const [passwordMsg, setPasswordMsg]     = useState({ type: '', text: '' });
+  const [pageMsg, setPageMsg]             = useState({ type: '', text: '' });
   const [otpModal, setOtpModal]           = useState({ open: false });
   const closeOTPModal = () => setOtpModal({ open: false });
+
+  const getApiErrorMessage = (data, fallback = 'Une erreur est survenue.') => {
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (typeof data !== 'object') return fallback;
+
+    const directMessage = data.error || data.detail || data.message;
+    if (typeof directMessage === 'string' && directMessage.trim()) return directMessage;
+
+    const flattened = Object.values(data)
+      .flatMap(value => Array.isArray(value) ? value : [value])
+      .filter(value => typeof value === 'string' && value.trim());
+
+    return flattened[0] || fallback;
+  };
 
   useEffect(() => {
     sessionStorage.setItem('schoolProfile_activeTab', activeTab);
@@ -137,8 +158,14 @@ const SchoolProfile = () => {
     }
   };
 
+  const openPackModal = (pack) => {
+    setSelectedPack(pack);
+    setPackMsg({ type: '', text: '' });
+    setShowPackModal(true);
+  };
+
   const handleBuyPack = async (pack) => {
-    if (!window.confirm(`Vous allez acheter le ${pack.name} au prix de ${pack.price} €. Confirmez-vous ?`)) return;
+    if (!pack) return;
     try {
       const res = await fetch('/api/buy-pack/', {
         method: 'POST',
@@ -147,13 +174,19 @@ const SchoolProfile = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("Pack acheté avec succès !");
+        setPageMsg({ type: 'success', text: `${pack.name} acheté avec succès. Le quota a été mis à jour.` });
+        setShowPackModal(false);
+        setSelectedPack(null);
         fetchData();
       } else {
-        alert(data.error || "Erreur lors de l'achat.");
+        const message = getApiErrorMessage(data, "Erreur lors de l'achat.");
+        setPackMsg({ type: 'error', text: message });
+        setPageMsg({ type: 'error', text: message });
       }
     } catch (e) {
-      alert("Erreur réseau.");
+      const message = 'Erreur réseau. Le serveur est temporairement indisponible.';
+      setPackMsg({ type: 'error', text: message });
+      setPageMsg({ type: 'error', text: message });
     }
   };
 
@@ -257,7 +290,10 @@ const SchoolProfile = () => {
     try {
       const res  = await fetch(`/api/export-data/?user_id=${userId}`);
       const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Erreur export.'); return; }
+      if (!res.ok) {
+        setPageMsg({ type: 'error', text: getApiErrorMessage(data, 'Erreur lors de l’export.') });
+        return;
+      }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -265,8 +301,9 @@ const SchoolProfile = () => {
       a.download = `certichain_mes_donnees_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      setPageMsg({ type: 'success', text: 'Vos données personnelles ont été téléchargées au format JSON.' });
     } catch {
-      alert('Impossible de télécharger les données.');
+      setPageMsg({ type: 'error', text: 'Impossible de télécharger les données pour le moment.' });
     }
   };
 
@@ -328,6 +365,58 @@ const SchoolProfile = () => {
           Plan actuel : <strong style={{ color: planColor }}>{currentPlanName}</strong>
         </p>
       </div>
+
+      {pageMsg.text && (
+        <div className={`msg-box msg-${pageMsg.type}`} style={{ marginBottom: 24 }}>
+          {pageMsg.type === 'success' ? '✅' : '⚠️'} {pageMsg.text}
+        </div>
+      )}
+
+      {showPackModal && selectedPack && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowPackModal(false);
+            setSelectedPack(null);
+          }}
+        >
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">Confirmer l'achat</h3>
+            <p className="modal-subtitle">
+              Vous allez acheter <strong>{selectedPack.name}</strong> pour <strong>{selectedPack.price} €</strong>.
+            </p>
+
+            <div className="modal-details-box">
+              <p>Ce pack ajoute <strong>{selectedPack.diplomas_amount}</strong> diplômes à votre quota.</p>
+            </div>
+
+            {packMsg.text && (
+              <div className={`modal-${packMsg.type === 'success' ? 'success' : 'error'}-box`}>
+                {packMsg.type === 'success' ? '✅' : '⚠️'} {packMsg.text}
+              </div>
+            )}
+
+            <div className="modal-footer">
+              <button
+                className="modal-btn modal-btn--cancel"
+                onClick={() => {
+                  setShowPackModal(false);
+                  setSelectedPack(null);
+                  setPackMsg({ type: '', text: '' });
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                className="modal-btn modal-btn--primary"
+                onClick={() => handleBuyPack(selectedPack)}
+              >
+                Confirmer l'achat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Onglets */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e2e8f0', marginBottom: 32 }}>
@@ -728,7 +817,7 @@ const SchoolProfile = () => {
                       width: '100%',
                       background: isCurrent ? color : undefined,
                       borderColor: !isCurrent ? color : undefined,
-                      color: !isCurrent && isUpgradable ? color : undefined,
+                      color: !isCurrent && isUpgradable ? 'white' : undefined,
                       cursor: (isCurrent || !isUpgradable) ? 'default' : 'pointer',
                     }}
                     disabled={isCurrent || !isUpgradable}
@@ -829,7 +918,7 @@ const SchoolProfile = () => {
                 <button 
                   className="btn btn-outline" 
                   style={{ marginTop: 'auto', width: '100%', borderColor: 'var(--primary)', color: 'var(--primary)', padding: '0.5rem', borderRadius: '4px', background: 'transparent', cursor: 'pointer' }} 
-                  onClick={() => handleBuyPack(pack)}
+                  onClick={() => openPackModal(pack)}
                 >
                   Acheter
                 </button>
@@ -896,7 +985,7 @@ const SchoolProfile = () => {
                       width: '100%',
                       background: isCurrent ? color : undefined,
                       borderColor: !isCurrent ? color : undefined,
-                      color: !isCurrent && isUpgradable ? color : undefined,
+                      color: !isCurrent && isUpgradable ? 'white' : undefined,
                       cursor: (isCurrent || !isUpgradable) ? 'default' : 'pointer',
                     }}
                     disabled={isCurrent || !isUpgradable}

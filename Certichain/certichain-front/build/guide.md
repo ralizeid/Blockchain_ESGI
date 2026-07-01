@@ -106,7 +106,6 @@ Choisissez **« Importer le compte »**.
 
 Collez la **clé privée** copiée depuis CertiChain, puis cliquez sur **« Importer »**. Le compte est maintenant accessible dans MetaMask.
 
-<!-- 📸 IMAGE : Champ de saisie de la clé privée dans MetaMask -->
 ![Saisie de la clé privée](images/guide/Saisie_cle_privee1.png)
 ![Saisie de la clé privée](images/guide/Saisie_cle_privee2.png)
 ---
@@ -136,14 +135,12 @@ Remplissez les champs suivants :
 - **Formation** suivie
 - **Date d'obtention** du diplôme
 
-<!-- 📸 IMAGE : Formulaire de saisie des informations de l'étudiant -->
 ![Formulaire informations étudiant](images/guide/emission1.png)
 
 ### Étape 3 — Importer le fichier du diplôme
 
 Importez le fichier du diplôme au format **PDF ou image**.
 
-<!-- 📸 IMAGE : Zone de dépôt du fichier diplôme (drag & drop ou sélection) -->
 ![Import du fichier diplôme](images/guide/emission2.png)
 
 ### Étape 4 — Calcul de l'empreinte numérique
@@ -154,7 +151,6 @@ La plateforme calcule automatiquement l'**empreinte numérique (Hash)** du fichi
 
 Une signature MetaMask est demandée pour **ancrer l'empreinte sur la blockchain**. Une notification apparaît dans l'extension — cliquez simplement sur **« Confirmer »**.
 
-<!-- 📸 IMAGE : Pop-up de confirmation MetaMask -->
 ![Confirmation MetaMask](images/guide/ecole_signature1.png)
 ![Confirmation MetaMask](images/guide/ecole_signature2.png)
 ![Confirmation MetaMask](images/guide/ecole_signature3.png)
@@ -164,7 +160,6 @@ Une signature MetaMask est demandée pour **ancrer l'empreinte sur la blockchain
 
 Le diplôme est désormais **certifié et vérifiable publiquement**.
 
-<!-- 📸 IMAGE : Écran de confirmation "Diplôme certifié" avec récapitulatif -->
 ![Diplôme certifié](images/guide/diplome-certifie.png)
 ![Diplôme certifié](images/guide/diplome-certifie2.png)
 ![Diplôme certifié](images/guide/diplome-certifie3.png)

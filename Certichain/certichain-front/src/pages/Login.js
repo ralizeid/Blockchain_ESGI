@@ -75,6 +75,21 @@ const Login = ({ onLogin }) => {
   const [hasRectorateWallet, setHasRectorateWallet] = useState(true);
   const [generatedPrivateKey, setGeneratedPrivateKey] = useState('');
 
+  const getApiErrorMessage = (data, fallback = "Une erreur est survenue.") => {
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (typeof data !== 'object') return fallback;
+
+    const directMessage = data.error || data.detail || data.message;
+    if (typeof directMessage === 'string' && directMessage.trim()) return directMessage;
+
+    const flattened = Object.values(data)
+      .flatMap(value => Array.isArray(value) ? value : [value])
+      .filter(value => typeof value === 'string' && value.trim());
+
+    return flattened[0] || fallback;
+  };
+
   const generateRectorateWallet = () => {
     try {
       const wallet = ethers.Wallet.createRandom();
@@ -180,11 +195,10 @@ const Login = ({ onLogin }) => {
           onLogin(data.user_id, data.username);
         }
       } else {
-        const errorMsg = typeof data === 'object' ? JSON.stringify(data) : data.error;
-        setError(errorMsg || "Une erreur est survenue.");
+        setError(getApiErrorMessage(data));
       }
     } catch (err) {
-      setError("Impossible de contacter le serveur.");
+      setError("Impossible de contacter le serveur. Réessayez dans quelques instants.");
     }
   };
 
