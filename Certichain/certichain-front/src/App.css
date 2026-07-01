@@ -129,6 +129,11 @@ a { color: inherit; }
 }
 .nav-brand:hover { opacity: 0.8; }
 .nav-brand-icon { flex-shrink: 0; filter: drop-shadow(0 2px 6px rgba(79,70,229,0.2)); }
+.nav-brand-icon-img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
 
 .nav-links { display: flex; align-items: center; gap: 24px; }
 .nav-link {
@@ -322,6 +327,54 @@ a { color: inherit; }
 
 .hero-left  { display: flex; flex-direction: column; }
 .hero-right { display: flex; justify-content: center; align-items: center; }
+
+.hero-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  width: fit-content;
+  margin-bottom: 1.25rem;
+  animation: fadeUp 0.45s ease both;
+}
+.hero-brand-mark {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f4f7ff);
+  border: 1px solid rgba(79,70,229,0.12);
+  box-shadow: var(--shadow-md);
+  flex-shrink: 0;
+}
+.hero-brand-image {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  display: block;
+}
+.hero-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hero-brand-kicker {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-4);
+}
+.hero-brand-name {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--text-1);
+}
 
 /* Badge pill */
 .hero-badge {
@@ -1336,7 +1389,13 @@ a { color: inherit; }
 .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
 .markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 12px; text-align: left; }
 .markdown-body th { background: var(--bg); font-weight: 700; }
-.markdown-body img { max-width: 100%; height: auto; border-radius: var(--radius-sm); margin: 20px 0; }
+.markdown-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  margin: 20px auto;
+}
 .markdown-body h2 { margin-top: 30px; margin-bottom: 15px; color: var(--text-1); }
 .markdown-body h3 { margin-top: 20px; margin-bottom: 10px; color: var(--text-1); }
 .markdown-body blockquote {

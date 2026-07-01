@@ -98,6 +98,20 @@ const Home = () => {
           {/* ── Gauche : contenu éditorial ── */}
           <div className="hero-left">
 
+            <div className="hero-brand" aria-label="CertiChain">
+              <div className="hero-brand-mark" aria-hidden="true">
+                <img
+                  className="hero-brand-image"
+                  src={`${process.env.PUBLIC_URL}/images/logo-full.png`}
+                  alt="CertiChain"
+                />
+              </div>
+              <div className="hero-brand-copy">
+                <span className="hero-brand-kicker">Plateforme de certification</span>
+                <span className="hero-brand-name">CertiChain</span>
+              </div>
+            </div>
+
             <div className="hero-badge">
               <span className="hero-badge-dot" aria-hidden="true" />
               <span>Certification académique · Blockchain Polygon</span>
