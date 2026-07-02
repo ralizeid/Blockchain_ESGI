@@ -67,16 +67,11 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
 
         {/* En-tête sidebar */}
         <div className="sidebar-header">
-          <svg width="26" height="26" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M15 2L27 9V21L15 28L3 21V9L15 2Z" fill="url(#hexSideGrad)"/>
-            <path d="M10.5 15L13.5 18L19.5 12" stroke="white" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"/>
-            <defs>
-              <linearGradient id="hexSideGrad" x1="3" y1="2" x2="27" y2="28" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#6366F1"/>
-                <stop offset="1" stopColor="#818CF8"/>
-              </linearGradient>
-            </defs>
-          </svg>
+          <img
+            className="sidebar-brand-icon-img"
+            src={`${process.env.PUBLIC_URL}/favicon.ico`}
+            alt="CertiChain"
+          />
           <span>CertiChain</span>
         </div>
 
@@ -126,12 +121,10 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
             <>
               <div className="sidebar-section-label">Administration</div>
 
-              <Link to="/admin" className="sidebar-link" onClick={() => setIsOpen(false)}>
+              <Link to="/dashboard" className="sidebar-link" onClick={() => setIsOpen(false)}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <rect x="2.25" y="2.25" width="5.625" height="5.625" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-                  <rect x="10.125" y="2.25" width="5.625" height="5.625" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-                  <rect x="2.25" y="10.125" width="5.625" height="5.625" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-                  <rect x="10.125" y="10.125" width="5.625" height="5.625" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M2.25 5.25H15.75M2.25 9H15.75M2.25 12.75H15.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M4.5 2.25H13.5A1.5 1.5 0 0 1 15 3.75V14.25A1.5 1.5 0 0 1 13.5 15.75H4.5A1.5 1.5 0 0 1 3 14.25V3.75A1.5 1.5 0 0 1 4.5 2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
                 </svg>
                 <span>Espace Émetteur</span>
               </Link>

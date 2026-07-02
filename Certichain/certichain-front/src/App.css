@@ -135,6 +135,14 @@ a { color: inherit; }
   object-fit: contain;
 }
 
+.sidebar-brand-icon-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(255,255,255,0.12));
+}
+
 .nav-links { display: flex; align-items: center; gap: 24px; }
 .nav-link {
   text-decoration: none;
@@ -829,7 +837,7 @@ a { color: inherit; }
 }
 .bento-card-dark  .bento-title { color: white; }
 .bento-card-light .bento-title { color: var(--text-1); }
-.bento-card-green .bento-title { color: #065F46; }
+.bento-card-green .bento-title { color: #064E3B; }
 
 .bento-desc {
   font-size: 0.875rem;
@@ -838,7 +846,7 @@ a { color: inherit; }
 }
 .bento-card-dark  .bento-desc { color: rgba(255,255,255,0.55); }
 .bento-card-light .bento-desc { color: var(--text-3); }
-.bento-card-green .bento-desc { color: #047857; opacity: 0.8; }
+.bento-card-green .bento-desc { color: #14532D; opacity: 0.95; }
 
 /* CTAs dans les bento cards */
 .bento-cta {

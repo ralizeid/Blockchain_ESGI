@@ -15,7 +15,7 @@ function App() {
         <div className="container mx-auto p-4">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/admin" element={<IssuerDashboard account={account} />} />
+            <Route path="/dashboard" element={<IssuerDashboard account={account} />} />
             <Route path="/verify" element={<VerifierPortal />} />
           </Routes>
         </div>
