@@ -51,7 +51,7 @@ def _send_mail_async(subject, message, from_email, recipient_list, on_error=None
         raise exc
 
 def _verify_and_consume_otp(user, action_type, code):
-    """VÃ©rifie un OTP et le marque comme utilisÃ©. Retourne True si valide, False sinon."""
+    """Vérifie un OTP et le marque comme utilisé. Retourne True si valide, False sinon."""
     try:
         otp = ActionOTP.objects.get(
             user=user,
@@ -69,17 +69,17 @@ def _verify_and_consume_otp(user, action_type, code):
 
 class SendActionOTPView(APIView):
     """
-    GÃ©nÃ¨re un code OTP Ã  6 chiffres valable 10 minutes et l'envoie par email
+    Génère un code OTP à 6 chiffres valable 10 minutes et l'envoie par email
     pour valider une action critique anti-usurpation.
 
     POST /api/send-action-otp/
       { "user_id": X, "action_type": "CREATE_DIPLOMA" | ... }
     """
     VALID_ACTIONS = {
-        'CREATE_DIPLOMA':  'Ã‰mettre un diplÃ´me',
-        'REVOKE_DIPLOMA':  'RÃ©voquer un diplÃ´me',
-        'ERASE_DIPLOMA':   'Effacer des donnÃ©es RGPD',
-        'UPDATE_PROFILE':  'Modifier le profil Ã©tablissement',
+        'CREATE_DIPLOMA':  'Émettre un diplôme',
+        'REVOKE_DIPLOMA':  'Révoquer un diplôme',
+        'ERASE_DIPLOMA':   'Effacer des données RGPD',
+        'UPDATE_PROFILE':  'Modifier le profil établissement',
         'CHANGE_PASSWORD': 'Changer le mot de passe',
         'DELETE_ACCOUNT':  'Supprimer le compte',
     }
@@ -100,12 +100,12 @@ class SendActionOTPView(APIView):
             return Response({"error": "Utilisateur introuvable."}, status=404)
 
         if not user.email:
-            return Response({"error": "Aucun email associÃ© Ã  ce compte. Contactez le support."}, status=400)
+            return Response({"error": "Aucun email associé à ce compte. Contactez le support."}, status=400)
 
-        # Invalider les OTPs prÃ©cÃ©dents non utilisÃ©s pour cette action
+        # Invalider les OTPs précédents non utilisés pour cette action
         ActionOTP.objects.filter(user=user, action_type=action_type, used=False).update(used=True)
 
-        # GÃ©nÃ©rer un code OTP Ã  6 chiffres
+        # Générer un code OTP à 6 chiffres
         code = f"{random.randint(0, 999999):06d}"
         ActionOTP.objects.create(
             user=user,
@@ -142,11 +142,11 @@ class SendActionOTPView(APIView):
             on_error=_on_error,
         )
 
-        logging.info(f"OTP action '{action_type}' envoyÃ© Ã  {masked} (user {user_id}).")
+        logging.info(f"OTP action '{action_type}' envoyé à {masked} (user {user_id}).")
         return Response({
             "status":       "sent",
             "email_masked": masked,
-            "message":      f"Code envoyÃ© Ã  {masked}. Valable 10 minutes.",
+            "message":      f"Code envoyé à {masked}. Valable 10 minutes.",
         })
 
 
@@ -157,7 +157,7 @@ class RegisterView(APIView):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "Compte Ã©cole crÃ©Ã© avec profil rectorat !"}, status=status.HTTP_201_CREATED)
+            return Response({"message": "Compte école créé avec profil rectorat !"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
@@ -168,18 +168,18 @@ class LoginView(APIView):
         
         if user:
             return Response({
-                "message": "Connexion rÃ©ussie",
+                "message": "Connexion réussie",
                 "user_id": user.id,
                 "username": user.username
             })
         return Response({"error": "Identifiants invalides"}, status=status.HTTP_401_UNAUTHORIZED)
 
-# --- MISE Ã€ JOUR DU PROFIL ---
+# --- MISE À JOUR DU PROFIL ---
 
 class UpdateProfileView(APIView):
     """
     GET  ?user_id=X  â†’ retourne email, rectorate_email, school_eth_address, rectorate_eth_address
-    PATCH            â†’ met Ã  jour ces champs
+    PATCH            → met à jour ces champs
     """
 
     def _get_profile(self, user_id):
@@ -191,7 +191,7 @@ class UpdateProfileView(APIView):
     def get(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
-            return Response({"error": "Non authentifiÃ©"}, status=400)
+            return Response({"error": "Non authentifié"}, status=400)
         profile = self._get_profile(user_id)
         if not profile:
             return Response({"error": "Profil introuvable"}, status=404)
@@ -215,18 +215,18 @@ class UpdateProfileView(APIView):
     def patch(self, request):
         user_id = request.data.get('user_id')
         if not user_id:
-            return Response({"error": "Non authentifiÃ©"}, status=400)
+            return Response({"error": "Non authentifié"}, status=400)
         profile = self._get_profile(user_id)
         if not profile:
             return Response({"error": "Profil introuvable"}, status=404)
 
-        # VÃ©rification OTP anti-usurpation
+        # Vérification OTP anti-usurpation
         otp_code    = request.data.get('otp_code', '').strip()
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis."}, status=400)
         _action = 'CHANGE_PASSWORD' if 'new_password' in request.data else 'UPDATE_PROFILE'
         if not _verify_and_consume_otp(profile.user, _action, otp_code):
-            return Response({"error": "Code de validation incorrect ou expirÃ©. Demandez un nouveau code."}, status=400)
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
         # Validation adresses Ethereum (format 0x + 40 hex)
         import re
@@ -236,7 +236,7 @@ class UpdateProfileView(APIView):
         rectorate_eth = request.data.get('rectorate_eth_address', '').strip()
 
         if school_eth and not eth_re.match(school_eth):
-            return Response({"error": "Adresse MetaMask Ã©cole invalide (format 0x + 40 hex)"}, status=400)
+            return Response({"error": "Adresse MetaMask école invalide (format 0x + 40 hex)"}, status=400)
         if rectorate_eth and not eth_re.match(rectorate_eth):
             return Response({"error": "Adresse MetaMask rectorat invalide (format 0x + 40 hex)"}, status=400)
 
@@ -251,13 +251,13 @@ class UpdateProfileView(APIView):
         if rectorate_email:
             profile.rectorate_email = rectorate_email
 
-        # Adresses MetaMask (on accepte chaÃ®ne vide pour effacer)
+        # Adresses MetaMask (on accepte chaîne vide pour effacer)
         if 'school_eth_address' in request.data:
             profile.school_eth_address = school_eth or None
         if 'rectorate_eth_address' in request.data:
             profile.rectorate_eth_address = rectorate_eth or None
 
-        # Informations Ã©tablissement
+        # Informations établissement
         simple_fields = [
             'school_name', 'school_type', 'school_address', 'school_zip',
             'school_city', 'school_phone', 'school_website', 'director_name',
@@ -280,12 +280,12 @@ class UpdateProfileView(APIView):
             
             import re
             if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}$', new_password):
-                return Response({"error": "Le nouveau mot de passe doit faire au moins 12 caractÃ¨res et contenir une majuscule, une minuscule, un chiffre et un caractÃ¨re spÃ©cial."}, status=400)
+                return Response({"error": "Le nouveau mot de passe doit faire au moins 12 caractères et contenir une majuscule, une minuscule, un chiffre et un caractère spécial."}, status=400)
                 
             profile.user.set_password(new_password)
             profile.user.save(update_fields=['password'])
 
-        return Response({"message": "Profil mis Ã  jour avec succÃ¨s."})
+        return Response({"message": "Profil mis à jour avec succès."})
 
 from .models import DiplomaPack, UserPack
 from .serializers import DiplomaPackSerializer
@@ -323,7 +323,7 @@ class QuotaView(APIView):
     def get(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
-            return Response({"error": "Non authentifiÃ©"}, status=400)
+            return Response({"error": "Non authentifié"}, status=400)
 
         try:
             profile = UserProfile.objects.select_related('subscription_plan').get(user_id=user_id)
@@ -383,7 +383,7 @@ class QuotaView(APIView):
             "renewal_date": renewal_date.strftime("%Y-%m-%d"),
         })
 
-# --- DIPLÃ”MES & VALIDATION ---
+# --- DIPLÔMES & VALIDATION ---
 
 class CreateDiplomaView(APIView):
     def post(self, request):
@@ -398,14 +398,14 @@ class CreateDiplomaView(APIView):
             try:
                 parsed = float(value)
             except (TypeError, ValueError):
-                raise ValueError(f"ParamÃ¨tre invalide: {name}.")
+                raise ValueError(f"Paramètre invalide: {name}.")
             if parsed < min_value or parsed > max_value:
-                raise ValueError(f"{name} doit Ãªtre compris entre {min_value} et {max_value}.")
+                raise ValueError(f"{name} doit être compris entre {min_value} et {max_value}.")
             return parsed
 
         user_id = request.data.get('user_id')
         if not user_id:
-            return Response({"error": "Non authentifiÃ©"}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Non authentifié"}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             profile = UserProfile.objects.select_related('subscription_plan').get(user_id=user_id)
@@ -414,9 +414,9 @@ class CreateDiplomaView(APIView):
 
         plan = profile.subscription_plan
         if plan is None:
-            return Response({"error": "Aucun abonnement actif. Veuillez souscrire Ã  un plan."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Aucun abonnement actif. Veuillez souscrire à un plan."}, status=status.HTTP_403_FORBIDDEN)
 
-        max_diplomas = plan.max_diplomas  # -1 = illimitÃ©
+        max_diplomas = plan.max_diplomas  # -1 = illimité
 
         if max_diplomas != -1:
             current_year = timezone.now().year
@@ -428,16 +428,16 @@ class CreateDiplomaView(APIView):
             if used_quota >= max_diplomas:
                 return Response(
                     {"error": f"Limite annuelle atteinte ({used_quota}/{max_diplomas}). "
-                               f"Veuillez souscrire Ã  un abonnement supÃ©rieur."},
+                               f"Veuillez souscrire à un abonnement supérieur."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-        # VÃ©rification OTP anti-usurpation
+        # Vérification OTP anti-usurpation
         otp_code = request.data.get('otp_code', '').strip()
         if not otp_code:
-            return Response({"error": "Un code de validation par email est requis pour certifier un diplÃ´me."}, status=400)
+            return Response({"error": "Un code de validation par email est requis pour certifier un diplôme."}, status=400)
         if not _verify_and_consume_otp(profile.user, 'CREATE_DIPLOMA', otp_code):
-            return Response({"error": "Code de validation incorrect ou expirÃ©. Demandez un nouveau code."}, status=400)
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
         try:
             embed_qr = _to_bool(request.data.get('embed_qr', 'true'), default=True)
@@ -449,15 +449,15 @@ class CreateDiplomaView(APIView):
 
         serializer = DiplomaSerializer(data=request.data)
         if serializer.is_valid():
-            # Sauvegarde initiale â€“ school_token (UUID) est gÃ©nÃ©rÃ© automatiquement par le modÃ¨le
+            # Sauvegarde initiale – school_token (UUID) est généré automatiquement par le modèle
             diploma = serializer.save(
                 owner_id=user_id,
                 rectorate_email_snapshot=profile.rectorate_email,
             )
 
-            # RGPD Art. 5.1.f â€“ Pseudonymisation : hash calculÃ© APRÃˆS save pour
-            # inclure school_token comme sel cryptographique alÃ©atoire.
-            # Format : "prÃ©nom|nom|intitulÃ©|uuid-secret" â†’ SHA-256 â†’ bytes32
+            # RGPD Art. 5.1.f – Pseudonymisation : hash calculé APRÈS save pour
+            # inclure school_token comme sel cryptographique aléatoire.
+            # Format : "prénom|nom|intitulé|uuid-secret" → SHA-256 → bytes32
             diploma.diploma_hash = compute_diploma_hash(
                 diploma.first_name,
                 diploma.last_name,
@@ -479,13 +479,13 @@ class CreateDiplomaView(APIView):
                         qr_size_pct,
                     )
                 except ValueError as e:
-                    logging.warning(f"QR embed refusÃ© pour diplÃ´me {diploma.id}: {e}")
+                    logging.warning(f"QR embed refusé pour diplôme {diploma.id}: {e}")
                     diploma.delete()
                     return Response({"error": str(e)}, status=400)
                 except Exception as e:
-                    logging.error(f"QR embed Ã©chec pour diplÃ´me {diploma.id}: {e}")
+                    logging.error(f"QR embed échec pour diplôme {diploma.id}: {e}")
                     diploma.delete()
-                    return Response({"error": "Impossible d'intÃ©grer le QR code dans le diplÃ´me."}, status=500)
+                    return Response({"error": "Impossible d'intégrer le QR code dans le diplôme."}, status=500)
 
                 diploma.image.save(stamped_file.name, stamped_file, save=False)
                 diploma.save(update_fields=['image'])
@@ -527,7 +527,7 @@ class CreateDiplomaView(APIView):
             verify_url = f"{frontend_url}/verify/{diploma.verification_uuid}"
 
             return Response({
-                "message": "DiplÃ´me crÃ©Ã©. Emails de validation envoyÃ©s !",
+                "message": "Diplôme créé. Emails de validation envoyés !",
                 "diploma_id": diploma.id,
                 "diploma_file_url": diploma_file_url,
                 "verify_url": verify_url,
@@ -541,7 +541,7 @@ class ValidateDiplomaView(APIView):
 
     def _get_diploma_and_type(self, token):
         if Diploma.objects.filter(school_token=token).exists():
-            return Diploma.objects.get(school_token=token), "Ã‰cole"
+            return Diploma.objects.get(school_token=token), "École"
         elif Diploma.objects.filter(rectorate_token=token).exists():
             return Diploma.objects.get(rectorate_token=token), "Rectorat"
         return None, None
@@ -550,11 +550,11 @@ class ValidateDiplomaView(APIView):
         diploma, validation_type = self._get_diploma_and_type(token)
         
         if not diploma:
-            return Response({"error": "Lien de validation invalide ou expirÃ©."}, status=404)
+            return Response({"error": "Lien de validation invalide ou expiré."}, status=404)
         
-        # NOUVEAU : On vÃ©rifie si la personne qui a ce token a DÃ‰JÃ€ validÃ©
+        # NOUVEAU : On vérifie si la personne qui a ce token a DÉJÀ validé
         already_validated = False
-        if validation_type == "Ã‰cole":
+        if validation_type == "École":
             already_validated = diploma.school_validated
         elif validation_type == "Rectorat":
             already_validated = diploma.rectorate_validated
@@ -564,7 +564,7 @@ class ValidateDiplomaView(APIView):
             "last_name":         diploma.last_name,
             "course_name":       diploma.course_name,
             "graduation_date":   str(diploma.graduation_date),
-            "diploma_hash":      diploma.diploma_hash,   # nÃ©cessaire pour la signature MetaMask
+            "diploma_hash":      diploma.diploma_hash,   # nécessaire pour la signature MetaMask
             "validation_type":   validation_type,
             "status":            diploma.status,
             "already_validated": already_validated,
@@ -575,15 +575,15 @@ class ValidateDiplomaView(APIView):
         diploma, validation_type = self._get_diploma_and_type(token)
         
         if not diploma:
-            return Response({"error": "Lien de validation invalide ou expirÃ©."}, status=404)
+            return Response({"error": "Lien de validation invalide ou expiré."}, status=404)
             
         if diploma.status == 'REJECTED':
-            return Response({"error": "Ce diplÃ´me a dÃ©jÃ  Ã©tÃ© refusÃ©."}, status=400)
+            return Response({"error": "Ce diplôme a déjà été refusé."}, status=400)
 
         if action == 'reject':
             diploma.status = 'REJECTED'
             diploma.save()
-            return Response({"message": f"Le diplÃ´me a Ã©tÃ© refusÃ© par : {validation_type}. Le quota a Ã©tÃ© restaurÃ©."})
+            return Response({"message": f"Le diplôme a été refusé par : {validation_type}. Le quota a été restauré."})
 
         elif action == 'validate':
             eth_signature = request.data.get('eth_signature')
@@ -596,33 +596,33 @@ class ValidateDiplomaView(APIView):
                 )
             if not diploma.diploma_hash:
                 return Response(
-                    {"error": "Hash du diplÃ´me manquant, impossible de vÃ©rifier la signature."},
+                    {"error": "Hash du diplôme manquant, impossible de vérifier la signature."},
                     status=400,
                 )
             if not verify_eth_signature(diploma.diploma_hash, eth_signature, eth_address):
                 return Response(
-                    {"error": "Signature invalide : l'adresse MetaMask ne correspond pas Ã  la signature fournie."},
+                    {"error": "Signature invalide : l'adresse MetaMask ne correspond pas à la signature fournie."},
                     status=400,
                 )
 
-            # VÃ©rification du whitelist : seule l'adresse enregistrÃ©e Ã  l'inscription peut signer
+            # Vérification du whitelist : seule l'adresse enregistrée à l'inscription peut signer
             profile = diploma.owner.profile
-            if validation_type == "Ã‰cole":
+            if validation_type == "École":
                 registered = profile.school_eth_address
                 if registered and eth_address.lower() != registered.lower():
                     return Response(
-                        {"error": f"Adresse MetaMask non autorisÃ©e pour le rÃ´le Ã‰cole. Adresse attendue : {registered}"},
+                        {"error": f"Adresse MetaMask non autorisée pour le rôle École. Adresse attendue : {registered}"},
                         status=403,
                     )
             elif validation_type == "Rectorat":
                 registered = profile.rectorate_eth_address
                 if registered and eth_address.lower() != registered.lower():
                     return Response(
-                        {"error": f"Adresse MetaMask non autorisÃ©e pour le rÃ´le Rectorat. Adresse attendue : {registered}"},
+                        {"error": f"Adresse MetaMask non autorisée pour le rôle Rectorat. Adresse attendue : {registered}"},
                         status=403,
                     )
 
-            if validation_type == "Ã‰cole":
+            if validation_type == "École":
                 diploma.school_validated     = True
                 diploma.school_eth_address   = eth_address
                 diploma.school_eth_signature = eth_signature
@@ -634,7 +634,7 @@ class ValidateDiplomaView(APIView):
             # --- AUTOMATISATION BLOCKCHAIN (CUSTODIAL) ---
             if diploma.school_validated and diploma.rectorate_validated:
                 diploma.status = 'VALIDATED'
-                logging.info(f"Certification blockchain du diplÃ´me {diploma.id} (hash: {diploma.diploma_hash[:10]}â€¦)")
+                logging.info(f"Certification blockchain du diplôme {diploma.id} (hash: {diploma.diploma_hash[:10]}…)")
 
                 tx_hash = certify_diploma_on_blockchain(
                     diploma.diploma_hash,
@@ -644,20 +644,20 @@ class ValidateDiplomaView(APIView):
                 if tx_hash:
                     diploma.blockchain_tx_hash = tx_hash
                     diploma.blockchain_status  = 'ANCHORED'
-                    logging.info(f"DiplÃ´me gravÃ© on-chain. Tx: {tx_hash}")
+                    logging.info(f"Diplôme gravé on-chain. Tx: {tx_hash}")
                 else:
                     diploma.blockchain_status = 'FAILED'
-                    logging.error("Ã‰chec de la communication avec la blockchain.")
+                    logging.error("Échec de la communication avec la blockchain.")
                     diploma.save()
                     return Response(
-                        {"error": "Validation rÃ©ussie, mais Ã©chec de la connexion Ã  la Blockchain."},
+                        {"error": "Validation réussie, mais échec de la connexion à la Blockchain."},
                         status=500,
                     )
             # ---------------------------------------------
 
             diploma.save()
             return Response({
-                "message":       f"La validation ({validation_type}) a bien Ã©tÃ© enregistrÃ©e !",
+                "message":       f"La validation ({validation_type}) a bien été enregistrée !",
                 "statut_global": diploma.status,
             })
             
@@ -668,11 +668,11 @@ class RectoratePendingView(APIView):
     """
     GET /api/rectorate/pending/?eth_address=0x...
 
-    Retourne tous les diplÃ´mes en attente de signature rectorat,
-    groupÃ©s par Ã©cole.  L'eth_address doit correspondre au
-    rectorate_eth_address enregistrÃ© sur le profil de l'Ã©cole.
-    (Pas de session requise â€” la sÃ©curitÃ© est garantie par la
-    vÃ©rification MetaMask au moment de la soumission.)
+    Retourne tous les diplômes en attente de signature rectorat,
+    groupés par école.  L'eth_address doit correspondre au
+    rectorate_eth_address enregistré sur le profil de l'école.
+    (Pas de session requise — la sécurité est garantie par la
+    vérification MetaMask au moment de la soumission.)
     """
     authentication_classes = []
     permission_classes = []
@@ -680,7 +680,7 @@ class RectoratePendingView(APIView):
     def get(self, request):
         eth_address = request.query_params.get('eth_address', '').strip().lower()
         if not eth_address:
-            return Response({"error": "Le paramÃ¨tre eth_address est requis."}, status=400)
+            return Response({"error": "Le paramètre eth_address est requis."}, status=400)
 
         profiles = UserProfile.objects.filter(
             rectorate_eth_address__iexact=eth_address
@@ -730,8 +730,8 @@ class RectorateBulkValidateView(APIView):
           ...
       ] }
 
-    Valide chaque diplÃ´me avec sa signature MetaMask individuelle
-    et retourne un rapport par diplÃ´me.
+    Valide chaque diplôme avec sa signature MetaMask individuelle
+    et retourne un rapport par diplôme.
     """
     authentication_classes = []
     permission_classes = []
@@ -739,7 +739,7 @@ class RectorateBulkValidateView(APIView):
     def post(self, request):
         items = request.data.get('validations', [])
         if not items:
-            return Response({"error": "Le tableau validations est requis et ne peut Ãªtre vide."}, status=400)
+            return Response({"error": "Le tableau validations est requis et ne peut être vide."}, status=400)
 
         results = []
         for item in items:
@@ -760,12 +760,12 @@ class RectorateBulkValidateView(APIView):
 
             if diploma.rectorate_validated:
                 results.append({"token": token_str, "success": True,
-                                 "message": "DÃ©jÃ  validÃ©.", "diploma_id": diploma.id})
+                                 "message": "Déjà validé.", "diploma_id": diploma.id})
                 continue
 
             if diploma.status in ('REJECTED', 'REVOKED'):
                 results.append({"token": token_str, "success": False,
-                                 "error": f"DiplÃ´me {diploma.status}, impossible Ã  valider.",
+                                 "error": f"Diplôme {diploma.status}, impossible à valider.",
                                  "diploma_id": diploma.id})
                 continue
 
@@ -779,12 +779,12 @@ class RectorateBulkValidateView(APIView):
                                  "error": "Signature MetaMask invalide.", "diploma_id": diploma.id})
                 continue
 
-            # VÃ©rification whitelist
+            # Vérification whitelist
             profile    = diploma.owner.profile
             registered = profile.rectorate_eth_address
             if registered and eth_address.lower() != registered.lower():
                 results.append({"token": token_str, "success": False,
-                                 "error": f"Adresse non autorisÃ©e. Attendue : {registered}",
+                                 "error": f"Adresse non autorisée. Attendue : {registered}",
                                  "diploma_id": diploma.id})
                 continue
 
@@ -802,13 +802,13 @@ class RectorateBulkValidateView(APIView):
                 if tx_hash:
                     diploma.blockchain_tx_hash = tx_hash
                     diploma.blockchain_status  = 'ANCHORED'
-                    logging.info(f"Bulk rectorat: diplÃ´me {diploma.id} ancrÃ©. Tx: {tx_hash}")
+                    logging.info(f"Bulk rectorat: diplôme {diploma.id} ancré. Tx: {tx_hash}")
                 else:
                     diploma.blockchain_status = 'FAILED'
-                    logging.error(f"Bulk rectorat: Ã©chec blockchain pour diplÃ´me {diploma.id}.")
+                    logging.error(f"Bulk rectorat: échec blockchain pour diplôme {diploma.id}.")
                     diploma.save()
                     results.append({"token": token_str, "success": False,
-                                    "error": "Validation enregistrÃ©e mais Blockchain inaccessible.",
+                                    "error": "Validation enregistrée mais Blockchain inaccessible.",
                                     "diploma_id": diploma.id})
                     continue
 
@@ -816,7 +816,7 @@ class RectorateBulkValidateView(APIView):
             results.append({
                 "token":             token_str,
                 "success":           True,
-                "message":           "AncrÃ© on-chain." if diploma.blockchain_status == 'ANCHORED' else "ValidÃ©.",
+                "message":           "Ancré on-chain." if diploma.blockchain_status == 'ANCHORED' else "Validé.",
                 "diploma_id":        diploma.id,
                 "statut_global":     diploma.status,
                 "blockchain_status": diploma.blockchain_status,
@@ -834,8 +834,8 @@ class RectorateBulkValidateView(APIView):
 
 def _auto_revoke_expired(owner_id=None):
     """
-    RÃ©voque automatiquement les diplÃ´mes dont expiry_date < aujourd'hui.
-    - Si ANCHORED : appelle revoke() on-chain pour mettre Ã  jour le flag blockchain.
+    Révoque automatiquement les diplômes dont expiry_date < aujourd'hui.
+    - Si ANCHORED : appelle revoke() on-chain pour mettre à jour le flag blockchain.
     - Dans tous les cas : passe status='REVOKED' en DB.
     """
     today = timezone.now().date()
@@ -847,9 +847,9 @@ def _auto_revoke_expired(owner_id=None):
             tx = revoke_diploma_on_blockchain(diploma.diploma_hash)
             if tx:
                 diploma.blockchain_status = 'REVOKED'
-                logging.info(f"DiplÃ´me #{diploma.id} expirÃ© â†’ rÃ©voquÃ© on-chain ({tx})")
+                logging.info(f"Diplôme #{diploma.id} expiré → révoqué on-chain ({tx})")
             else:
-                logging.warning(f"DiplÃ´me #{diploma.id} expirÃ© â†’ Ã©chec on-chain, DB seule mise Ã  jour")
+                logging.warning(f"Diplôme #{diploma.id} expiré → échec on-chain, DB seule mise à jour")
         diploma.status = 'REVOKED'
         diploma.save(update_fields=['status', 'blockchain_status'])
 
@@ -873,21 +873,21 @@ class SearchDiplomaView(APIView):
             diplomas = Diploma.objects.select_related('owner').filter(id=query, status__in=['VALIDATED', 'REVOKED'])
         else:
             diplomas = Diploma.objects.select_related('owner').filter(last_name__icontains=query, status__in=['VALIDATED', 'REVOKED'])
-        # RGPD Art. 5.1.c â€“ minimisation : on n'expose pas les tokens ni l'id propriÃ©taire
+        # RGPD Art. 5.1.c – minimisation : on n'expose pas les tokens ni l'id propriétaire
         return Response(PublicDiplomaSerializer(diplomas, many=True).data)
 
 
 # --- ABONNEMENTS ---
 
 class SubscriptionPlansView(APIView):
-    """Retourne la liste des plans disponibles (utilisÃ©e Ã  l'inscription et dans le dashboard)."""
+    """Retourne la liste des plans disponibles (utilisée à l'inscription et dans le dashboard)."""
     def get(self, request):
         plans = SubscriptionPlan.objects.all()
         return Response(SubscriptionPlanSerializer(plans, many=True).data)
 
 
 class UpgradeSubscriptionView(APIView):
-    """Permet Ã  une Ã©cole de passer Ã  un plan supÃ©rieur (jamais infÃ©rieur)."""
+    """Permet à une école de passer à un plan supérieur (jamais inférieur)."""
     def post(self, request):
         user_id = request.data.get('user_id')
         new_plan_name = request.data.get('plan')  # 'ESSENTIEL' | 'CAMPUS' | 'UNIVERSITE' | 'ACADEMIE'
@@ -907,11 +907,11 @@ class UpgradeSubscriptionView(APIView):
 
         current_plan = profile.subscription_plan
 
-        # RÃ¨gle : on ne peut qu'upgrader (niveau supÃ©rieur)
+        # Règle : on ne peut qu'upgrader (niveau supérieur)
         if current_plan and new_plan.level <= current_plan.level:
             return Response(
-                {"error": f"Impossible de passer de '{current_plan.display_name}' Ã  '{new_plan.display_name}'. "
-                           f"Vous ne pouvez choisir qu'un plan de niveau supÃ©rieur."},
+                {"error": f"Impossible de passer de '{current_plan.display_name}' à '{new_plan.display_name}'. "
+                           f"Vous ne pouvez choisir qu'un plan de niveau supérieur."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -920,7 +920,7 @@ class UpgradeSubscriptionView(APIView):
         profile.save()
 
         return Response({
-            "message":  f"Abonnement mis Ã  jour vers {new_plan.display_name} !",
+            "message":  f"Abonnement mis à jour vers {new_plan.display_name} !",
             "plan_name": new_plan.display_name,
             "max_diplomas": new_plan.max_diplomas,
             "annual_price": str(new_plan.annual_price),
@@ -930,7 +930,7 @@ class UpgradeSubscriptionView(APIView):
 # --- RGPD ---
 
 class ExportDataView(APIView):
-    """RGPD Art. 15 & 20 â€“ Export de toutes les donnÃ©es personnelles."""
+    """RGPD Art. 15 & 20 – Export de toutes les données personnelles."""
     def get(self, request):
         from django.contrib.auth.models import User
         user_id = request.query_params.get('user_id')
@@ -969,7 +969,7 @@ class ExportDataView(APIView):
 
 
 class DeleteAccountView(APIView):
-    """RGPD Art. 17 â€“ Suppression du compte avec anonymisation des diplÃ´mes validÃ©s."""
+    """RGPD Art. 17 – Suppression du compte avec anonymisation des diplômes validés."""
     def post(self, request):
         from django.contrib.auth.models import User
         user_id = request.data.get('user_id')
@@ -983,38 +983,38 @@ class DeleteAccountView(APIView):
         except User.DoesNotExist:
             return Response({"error": "Utilisateur introuvable."}, status=404)
 
-        # VÃ©rification OTP anti-usurpation
+        # Vérification OTP anti-usurpation
         otp_code = request.data.get('otp_code', '').strip()
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis pour supprimer le compte."}, status=400)
         if not _verify_and_consume_otp(user, 'DELETE_ACCOUNT', otp_code):
-            return Response({"error": "Code de validation incorrect ou expirÃ©. Demandez un nouveau code."}, status=400)
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
-        # Anonymiser les diplÃ´mes validÃ©s (conserver la preuve blockchain â€“ Art. 17.3.b)
+        # Anonymiser les diplômes validés (conserver la preuve blockchain – Art. 17.3.b)
         Diploma.objects.filter(owner_id=user_id, status='VALIDATED').update(
-            first_name='[SupprimÃ©]',
-            last_name='[SupprimÃ©]',
+            first_name='[Supprimé]',
+            last_name='[Supprimé]',
         )
-        # Supprimer les diplÃ´mes non validÃ©s
+        # Supprimer les diplômes non validés
         Diploma.objects.filter(owner_id=user_id).exclude(status='VALIDATED').delete()
 
         # Supprimer le compte (cascade sur UserProfile)
         user.delete()
 
-        return Response({"message": "Votre compte et vos donnÃ©es personnelles ont Ã©tÃ© supprimÃ©s."})
+        return Response({"message": "Votre compte et vos données personnelles ont été supprimés."})
 
 
 class StudentErasureView(APIView):
     """
-    RGPD Art. 17 â€“ Ã‰tape 1 : demande de suppression.
+    RGPD Art. 17 – Étape 1 : demande de suppression.
 
-    GÃ©nÃ¨re un OTP Ã  6 chiffres valable 30 minutes et l'envoie Ã  l'adresse
-    email de l'Ã©tudiant enregistrÃ©e lors de l'Ã©mission du diplÃ´me.
+    Génère un OTP à 6 chiffres valable 30 minutes et l'envoie à l'adresse
+    email de l'étudiant enregistrée lors de l'émission du diplôme.
 
     POST /api/student-erasure/
       { "uuid": "<verification_uuid>", "deletion_token": "<student_deletion_token>" }
 
-    Si l'Ã©tudiant n'a plus accÃ¨s Ã  son email, il doit contacter l'Ã©cole directement.
+    Si l'étudiant n'a plus accès à son email, il doit contacter l'école directement.
     """
     def post(self, request):
         import random
@@ -1027,31 +1027,31 @@ class StudentErasureView(APIView):
         try:
             diploma = Diploma.objects.get(verification_uuid=raw_uuid)
         except Diploma.DoesNotExist:
-            return Response({"error": "Identifiant de diplÃ´me invalide."}, status=404)
+            return Response({"error": "Identifiant de diplôme invalide."}, status=404)
 
-        # VÃ©rification du token privÃ©
+        # Vérification du token privé
         if str(diploma.student_deletion_token) != str(deletion_token):
             return Response(
-                {"error": "Token de suppression invalide. Seul l'Ã©tudiant titulaire peut exercer ce droit."},
+                {"error": "Token de suppression invalide. Seul l'étudiant titulaire peut exercer ce droit."},
                 status=403,
             )
 
-        if diploma.first_name == '[SupprimÃ©]':
-            return Response({"message": "Les donnÃ©es de ce diplÃ´me ont dÃ©jÃ  Ã©tÃ© supprimÃ©es."}, status=200)
+        if diploma.first_name == '[Supprimé]':
+            return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
 
         if not diploma.student_email:
             return Response(
-                {"error": "Aucun email Ã©tudiant enregistrÃ© pour ce diplÃ´me. Contactez directement l'Ã©tablissement Ã©metteur."},
+                {"error": "Aucun email étudiant enregistré pour ce diplôme. Contactez directement l'établissement émetteur."},
                 status=400,
             )
 
-        # GÃ©nÃ©rer un OTP Ã  6 chiffres valable 30 minutes
+        # Générer un OTP à 6 chiffres valable 30 minutes
         otp = f"{random.randint(0, 999999):06d}"
         diploma.erasure_otp            = otp
         diploma.erasure_otp_expires_at = timezone.now() + timezone.timedelta(minutes=30)
         diploma.save(update_fields=['erasure_otp', 'erasure_otp_expires_at'])
 
-        # Masquer l'email pour la rÃ©ponse (vie privÃ©e)
+        # Masquer l'email pour la réponse (vie privée)
         email = diploma.student_email
         parts = email.split('@')
         masked = parts[0][:2] + '***@' + parts[1] if len(parts) == 2 else '***'
@@ -1075,22 +1075,22 @@ class StudentErasureView(APIView):
             on_error=_on_erasure_error,
         )
 
-        logging.info(f"RGPD â€“ OTP envoyÃ© Ã  {masked} pour le diplÃ´me {diploma.id}.")
+        logging.info(f"RGPD – OTP envoyé à {masked} pour le diplôme {diploma.id}.")
         return Response({
             "status":       "otp_sent",
             "email_masked": masked,
-            "message":      f"Un code de confirmation a Ã©tÃ© envoyÃ© Ã  {masked}. Valable 30 minutes.",
+            "message":      f"Un code de confirmation a été envoyé à {masked}. Valable 30 minutes.",
         })
 
 
 class StudentErasureConfirmView(APIView):
     """
-    RGPD Art. 17 â€“ Ã‰tape 2 : confirmation par code OTP.
+    RGPD Art. 17 – Étape 2 : confirmation par code OTP.
 
     POST /api/student-erasure/confirm/
-      { "uuid": "â€¦", "deletion_token": "â€¦", "otp": "123456" }
+      { "uuid": "…", "deletion_token": "…", "otp": "123456" }
 
-    VÃ©rifie l'OTP + son expiration, puis efface les donnÃ©es personnelles.
+    Vérifie l'OTP + son expiration, puis efface les données personnelles.
     """
     def post(self, request):
         import uuid as uuid_lib
@@ -1104,15 +1104,15 @@ class StudentErasureConfirmView(APIView):
         try:
             diploma = Diploma.objects.get(verification_uuid=raw_uuid)
         except Diploma.DoesNotExist:
-            return Response({"error": "Identifiant de diplÃ´me invalide."}, status=404)
+            return Response({"error": "Identifiant de diplôme invalide."}, status=404)
 
         if str(diploma.student_deletion_token) != str(deletion_token):
             return Response({"error": "Token de suppression invalide."}, status=403)
 
-        if diploma.first_name == '[SupprimÃ©]':
-            return Response({"message": "Les donnÃ©es de ce diplÃ´me ont dÃ©jÃ  Ã©tÃ© supprimÃ©es."}, status=200)
+        if diploma.first_name == '[Supprimé]':
+            return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
 
-        # VÃ©rification OTP
+        # Vérification OTP
         if not diploma.erasure_otp:
             return Response({"error": "Aucun code en attente. Recommencez la demande."}, status=400)
 
@@ -1120,14 +1120,14 @@ class StudentErasureConfirmView(APIView):
             diploma.erasure_otp = None
             diploma.erasure_otp_expires_at = None
             diploma.save(update_fields=['erasure_otp', 'erasure_otp_expires_at'])
-            return Response({"error": "Code expirÃ©. Recommencez la demande."}, status=400)
+            return Response({"error": "Code expiré. Recommencez la demande."}, status=400)
 
         if otp_input != diploma.erasure_otp:
-            return Response({"error": "Code incorrect. VÃ©rifiez votre email et rÃ©essayez."}, status=400)
+            return Response({"error": "Code incorrect. Vérifiez votre email et réessayez."}, status=400)
 
         # â”€â”€ Anonymisation RGPD Art. 17 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        diploma.first_name = '[SupprimÃ©]'
-        diploma.last_name  = '[SupprimÃ©]'
+        diploma.first_name = '[Supprimé]'
+        diploma.last_name  = '[Supprimé]'
         if diploma.image:
             try:
                 diploma.image.delete(save=False)
@@ -1140,7 +1140,7 @@ class StudentErasureConfirmView(APIView):
             except Exception:
                 pass
             diploma.photo = None
-        # Effacement de l'email et de l'OTP (plus aucune donnÃ©e personnelle rÃ©siduelle)
+        # Effacement de l'email et de l'OTP (plus aucune donnée personnelle résiduelle)
         diploma.student_email          = None
         diploma.erasure_otp            = None
         diploma.erasure_otp_expires_at = None
@@ -1148,11 +1148,11 @@ class StudentErasureConfirmView(APIView):
         diploma.verification_uuid = uuid_lib.uuid4()
         diploma.save()
 
-        logging.info(f"RGPD Art. 17 â€“ Ã‰tudiant a confirmÃ© son droit Ã  l'oubli sur le diplÃ´me {diploma.id}.")
+        logging.info(f"RGPD Art. 17 – Étudiant a confirmé son droit à l'oubli sur le diplôme {diploma.id}.")
         return Response({
             "message": (
-                "Vos donnÃ©es personnelles ont Ã©tÃ© supprimÃ©es conformÃ©ment au RGPD (Art. 17). "
-                "La preuve cryptographique sur la blockchain est conservÃ©e (Art. 17.3.b) "
+                "Vos données personnelles ont été supprimées conformément au RGPD (Art. 17). "
+                "La preuve cryptographique sur la blockchain est conservée (Art. 17.3.b) "
                 "mais ne contient aucune information personnelle."
             )
         })
@@ -1160,10 +1160,10 @@ class StudentErasureConfirmView(APIView):
 
 class SchoolDiplomaErasureView(APIView):
     """
-    RGPD Art. 17 â€“ Effacement des donnÃ©es personnelles dâ€™un diplÃ´me par lâ€™Ã©cole Ã©mettrice.
+    RGPD Art. 17 – Effacement des données personnelles d’un diplôme par l’école émettrice.
 
-    Seul le propriÃ©taire du diplÃ´me (vÃ©rifiÃ© via user_id) peut effectuer cet effacement.
-    Le hash + la preuve blockchain sont conservÃ©s (Art. 17.3.b).
+    Seul le propriétaire du diplôme (vérifié via user_id) peut effectuer cet effacement.
+    Le hash + la preuve blockchain sont conservés (Art. 17.3.b).
 
     POST /api/school-diploma-erasure/
       { "user_id": X, "diploma_id": Y, "confirm": true }
@@ -1180,12 +1180,12 @@ class SchoolDiplomaErasureView(APIView):
         try:
             diploma = Diploma.objects.get(pk=diploma_id, owner_id=user_id)
         except Diploma.DoesNotExist:
-            return Response({"error": "DiplÃ´me introuvable ou non autorisÃ©."}, status=404)
+            return Response({"error": "Diplôme introuvable ou non autorisé."}, status=404)
 
-        if diploma.first_name == '[SupprimÃ©]':
-            return Response({"message": "Les donnÃ©es de ce diplÃ´me ont dÃ©jÃ  Ã©tÃ© supprimÃ©es."}, status=200)
+        if diploma.first_name == '[Supprimé]':
+            return Response({"message": "Les données de ce diplôme ont déjà été supprimées."}, status=200)
 
-        # VÃ©rification OTP anti-usurpation
+        # Vérification OTP anti-usurpation
         from django.contrib.auth.models import User as _User
         try:
             _user = _User.objects.get(pk=user_id)
@@ -1195,11 +1195,11 @@ class SchoolDiplomaErasureView(APIView):
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis pour cet effacement RGPD."}, status=400)
         if not _verify_and_consume_otp(_user, 'ERASE_DIPLOMA', otp_code):
-            return Response({"error": "Code de validation incorrect ou expirÃ©. Demandez un nouveau code."}, status=400)
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
         # Anonymisation RGPD Art. 17
-        diploma.first_name    = '[SupprimÃ©]'
-        diploma.last_name     = '[SupprimÃ©]'
+        diploma.first_name    = '[Supprimé]'
+        diploma.last_name     = '[Supprimé]'
         diploma.student_email = None
         if diploma.image:
             try:
@@ -1217,21 +1217,21 @@ class SchoolDiplomaErasureView(APIView):
         diploma.verification_uuid = uuid_lib.uuid4()
         diploma.save()
 
-        logging.info(f"RGPD Art. 17 â€“ Ã‰cole (user {user_id}) a effacÃ© les donnÃ©es du diplÃ´me {diploma.id}.")
+        logging.info(f"RGPD Art. 17 – École (user {user_id}) a effacé les données du diplôme {diploma.id}.")
         return Response({
             "message": (
-                "Les donnÃ©es personnelles du diplÃ´me ont Ã©tÃ© supprimÃ©es (RGPD Art. 17). "
-                "La preuve blockchain est conservÃ©e (Art. 17.3.b)."
+                "Les données personnelles du diplôme ont été supprimées (RGPD Art. 17). "
+                "La preuve blockchain est conservée (Art. 17.3.b)."
             )
         })
 
 
 class RevokeDiplomaView(APIView):
     """
-    RÃ©voque un diplÃ´me ancrÃ© sur la blockchain.
-    â€“ Seul le propriÃ©taire (Ã©cole Ã©mettrice) peut rÃ©voquer ses propres diplÃ´mes.
-    â€“ Le hash reste sur la chaÃ®ne (preuve d'historique) mais le flag revoked = true.
-    â€“ Le statut Django passe Ã  REJECTED (plus comptabilisÃ© dans le quota).
+    Révoque un diplôme ancré sur la blockchain.
+    – Seul le propriétaire (école émettrice) peut révoquer ses propres diplômes.
+    – Le hash reste sur la chaîne (preuve d'historique) mais le flag revoked = true.
+    – Le statut Django passe à REJECTED (plus comptabilisé dans le quota).
     """
     def post(self, request):
         user_id    = request.data.get('user_id')
@@ -1243,15 +1243,15 @@ class RevokeDiplomaView(APIView):
         try:
             diploma = Diploma.objects.get(pk=diploma_id, owner_id=user_id)
         except Diploma.DoesNotExist:
-            return Response({"error": "DiplÃ´me introuvable ou non autorisÃ©."}, status=404)
+            return Response({"error": "Diplôme introuvable ou non autorisé."}, status=404)
 
         if diploma.blockchain_status != 'ANCHORED':
             return Response(
-                {"error": "Seuls les diplÃ´mes ancrÃ©s (ANCHORED) peuvent Ãªtre rÃ©voquÃ©s."},
+                {"error": "Seuls les diplômes ancrés (ANCHORED) peuvent être révoqués."},
                 status=400,
             )
 
-        # VÃ©rification OTP anti-usurpation
+        # Vérification OTP anti-usurpation
         from django.contrib.auth.models import User as _User
         try:
             _user = _User.objects.get(pk=user_id)
@@ -1259,20 +1259,20 @@ class RevokeDiplomaView(APIView):
             return Response({"error": "Utilisateur introuvable."}, status=404)
         otp_code = request.data.get('otp_code', '').strip()
         if not otp_code:
-            return Response({"error": "Un code de validation par email est requis pour rÃ©voquer un diplÃ´me."}, status=400)
+            return Response({"error": "Un code de validation par email est requis pour révoquer un diplôme."}, status=400)
         if not _verify_and_consume_otp(_user, 'REVOKE_DIPLOMA', otp_code):
-            return Response({"error": "Code de validation incorrect ou expirÃ©. Demandez un nouveau code."}, status=400)
+            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
         tx_hash = revoke_diploma_on_blockchain(diploma.diploma_hash)
         if not tx_hash:
-            return Response({"error": "Ã‰chec de la rÃ©vocation sur la blockchain."}, status=500)
+            return Response({"error": "Échec de la révocation sur la blockchain."}, status=500)
 
         diploma.blockchain_status = 'REVOKED'
         diploma.status            = 'REVOKED'
         diploma.save(update_fields=['blockchain_status', 'status'])
 
         return Response({
-            "message":  "DiplÃ´me rÃ©voquÃ© avec succÃ¨s sur la blockchain.",
+            "message":  "Diplôme révoqué avec succès sur la blockchain.",
             "tx_hash":  tx_hash,
             "diploma_hash": diploma.diploma_hash,
         })
@@ -1280,8 +1280,8 @@ class RevokeDiplomaView(APIView):
 
 class VerifyBlockchainView(APIView):
     """
-    VÃ©rifie l'Ã©tat d'un diplÃ´me directement sur le contrat (lecture seule, public).
-    ParamÃ¨tre GET : hash=0x...
+    Vérifie l'état d'un diplôme directement sur le contrat (lecture seule, public).
+    Paramètre GET : hash=0x...
     """
     authentication_classes = []
     permission_classes     = []
@@ -1289,12 +1289,12 @@ class VerifyBlockchainView(APIView):
     def get(self, request):
         diploma_hash = request.query_params.get('hash')
         if not diploma_hash:
-            return Response({"error": "ParamÃ¨tre 'hash' requis."}, status=400)
+            return Response({"error": "Paramètre 'hash' requis."}, status=400)
 
         result = verify_diploma_on_blockchain(diploma_hash)
         if result is None:
             return Response(
-                {"error": "Impossible de contacter la blockchain. VÃ©rifiez que le nÅ“ud Hardhat est lancÃ©."},
+                {"error": "Impossible de contacter la blockchain. Vérifiez que le nœud Hardhat est lancé."},
                 status=503,
             )
         return Response(result)
@@ -1302,16 +1302,16 @@ class VerifyBlockchainView(APIView):
 
 class VerifyByUUIDView(APIView):
     """
-    VÃ©rification publique par UUID Ã©tudiant.
+    Vérification publique par UUID étudiant.
 
-    L'Ã©tudiant reÃ§oit un lien /verify/<uuid> (QR Code ou email).
-    Cette vue retrouve le diplÃ´me, vÃ©rifie son Ã©tat on-chain et retourne
-    les informations nÃ©cessaires Ã  l'affichage.
+    L'étudiant reçoit un lien /verify/<uuid> (QR Code ou email).
+    Cette vue retrouve le diplôme, vérifie son état on-chain et retourne
+    les informations nécessaires à l'affichage.
 
-    Droit Ã  l'oubli (RGPD Art. 17) :
-    Si l'Ã©cole a effacÃ© les donnÃ©es, first_name == '[SupprimÃ©]'.
+    Droit à l'oubli (RGPD Art. 17) :
+    Si l'école a effacé les données, first_name == '[Supprimé]'.
     Le hash reste sur la blockchain (preuve d'historique), mais
-    aucune information personnelle n'est exposÃ©e â€” le hash devient
+    aucune information personnelle n'est exposée — le hash devient
     une "empreinte morte" que personne ne peut recalculer.
     """
     authentication_classes = []
@@ -1321,18 +1321,18 @@ class VerifyByUUIDView(APIView):
         try:
             diploma = Diploma.objects.select_related('owner').get(verification_uuid=uuid)
         except Diploma.DoesNotExist:
-            return Response({"error": "Lien de vÃ©rification invalide ou rÃ©voquÃ©."}, status=404)
+            return Response({"error": "Lien de vérification invalide ou révoqué."}, status=404)
 
-        # DÃ©clenche la rÃ©vocation automatique si la date d'expiration est passÃ©e
+        # Déclenche la révocation automatique si la date d'expiration est passée
         _auto_revoke_expired()
         diploma.refresh_from_db()
 
-        data_deleted = (diploma.first_name == '[SupprimÃ©]')
+        data_deleted = (diploma.first_name == '[Supprimé]')
 
         bc_result = None
-        # On interroge la blockchain uniquement si le diplÃ´me y a Ã©tÃ© ancrÃ©.
-        # Si le nÅ“ud est down ou a Ã©tÃ© redÃ©marrÃ©, on retourne None et le frontend
-        # distingue  ANCHORED+bc_null  (nÅ“ud indisponible) de  NOT_ANCHORED.
+        # On interroge la blockchain uniquement si le diplôme y a été ancré.
+        # Si le nœud est down ou a été redémarré, on retourne None et le frontend
+        # distingue  ANCHORED+bc_null  (nœud indisponible) de  NOT_ANCHORED.
         if diploma.diploma_hash and not data_deleted and diploma.blockchain_status in ('ANCHORED', 'REVOKED'):
             bc_result = verify_diploma_on_blockchain(diploma.diploma_hash)
 
