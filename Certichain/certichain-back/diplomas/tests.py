@@ -435,7 +435,7 @@ class ValidateDiplomaViewTests(APITestCase):
 		response = self.client.get(f"/api/validate/{diploma.school_token}/")
 
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.data["validation_type"], "Ã‰cole")
+		self.assertEqual(response.data["validation_type"], "École")
 		self.assertFalse(response.data["already_validated"])
 		self.assertEqual(response.data["first_name"], "Jean")
 		self.assertEqual(response.data["last_name"], "Dupont")
@@ -459,7 +459,7 @@ class ValidateDiplomaViewTests(APITestCase):
 		school_response = self.client.post(f"/api/validate/{diploma.school_token}/", school_payload, format="json")
 
 		self.assertEqual(school_response.status_code, 200)
-		self.assertIn("validation (Ã‰cole)", school_response.data["message"])
+		self.assertIn("validation (École)", school_response.data["message"])
 		diploma.refresh_from_db()
 		self.assertTrue(diploma.school_validated)
 		self.assertEqual(diploma.status, "PENDING")

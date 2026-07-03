@@ -23,7 +23,7 @@ class DiplomasConfig(AppConfig):
 
 
 def _seed_plans(sender, **kwargs):
-    """CrÃ©e ou met Ã  jour les plans d'abonnement et les packs aprÃ¨s chaque migrate."""
+    """Crée ou met à jour les plans d'abonnement et les packs après chaque migrate."""
     try:
         from diplomas.models import SubscriptionPlan, UserProfile, DiplomaPack
         for plan in PLANS_DATA:
