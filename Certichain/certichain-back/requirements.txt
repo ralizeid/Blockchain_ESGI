@@ -9,3 +9,4 @@ web3
 qrcode
 pypdf
 reportlab
+django-anymail[resend]

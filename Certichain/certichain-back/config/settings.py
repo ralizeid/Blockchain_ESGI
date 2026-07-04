@@ -1,4 +1,5 @@
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -15,25 +16,18 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 # --- CONFIGURATION EMAIL ---
-# Si EMAIL_HOST_USER est défini dans .env → vrai SMTP Gmail
-# Sinon → backend console (les emails s'affichent dans le terminal Django)
-_email_user = os.getenv('EMAIL_HOST_USER', '').strip()
-_email_pass = os.getenv('EMAIL_HOST_PASSWORD', '').strip()
-
-if _email_user and _email_pass:
-    EMAIL_BACKEND      = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST         = 'smtp.gmail.com'
-    EMAIL_PORT         = 587
-    EMAIL_USE_TLS      = True
-    EMAIL_HOST_USER    = _email_user
-    EMAIL_HOST_PASSWORD = _email_pass
+ANYMAIL = {
+    "RESEND_API_KEY": os.getenv('RESEND_API_KEY', ''),
+}
+if os.getenv('RESEND_API_KEY'):
+    EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+    DEFAULT_FROM_EMAIL = "contact@pmvix.com"
+    EMAIL_HOST_USER = "contact@pmvix.com"
 else:
-    # Développement local : les emails s'affichent dans le terminal
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    EMAIL_HOST_USER = ''
-    EMAIL_HOST_PASSWORD = ''
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = "noreply@certichain.local"
 
-DEFAULT_FROM_EMAIL = _email_user or 'noreply@certichain.local'
+logging.getLogger("anymail").setLevel(logging.DEBUG) 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 # Application definition
 INSTALLED_APPS = [
@@ -149,9 +143,27 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
 # Configurations des sessions (12h + expiration navigateur)
 SESSION_COOKIE_AGE = 43200  # 12 heures en secondes
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+    'loggers': {
+        'anymail': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}

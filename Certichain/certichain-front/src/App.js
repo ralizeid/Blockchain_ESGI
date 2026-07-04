@@ -9,11 +9,24 @@ import Login from './pages/Login';
 import Validate from './pages/Validate';
 import SchoolProfile from './pages/SchoolProfile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import LegalPage from './pages/LegalPage';
 import VerifyDiploma from './pages/VerifyDiploma';
 import RectoratDashboard from './pages/RectoratDashboard';
+import Support from './pages/Support';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Initialise correctement pour éviter la redirection d'une fraction de seconde
+    const userId = sessionStorage.getItem('user_id');
+    const loginTime = sessionStorage.getItem('login_time');
+    if (userId && loginTime) {
+      const now = new Date().getTime();
+      if ((now - parseInt(loginTime, 10)) <= 12 * 60 * 60 * 1000) {
+        return true;
+      }
+    }
+    return false;
+  });
 
   useEffect(() => {
     const checkSession = () => {
@@ -74,12 +87,13 @@ function App() {
           <Route path="/" element={<Home />} />
           
           <Route path="/login" element={
-            isAuthenticated ? <Navigate to="/admin" /> : <Login onLogin={handleLogin} />
+            isAuthenticated ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />
           } />
           
-          <Route path="/admin" element={
+          <Route path="/dashboard" element={
             isAuthenticated ? <IssuerDashboard /> : <Navigate to="/login" />
           } />
+          <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
           
           <Route path="/verify" element={<VerifierPortal />} />
           
@@ -88,9 +102,13 @@ function App() {
           <Route path="/school-profile" element={isAuthenticated ? <SchoolProfile /> : <Navigate to="/login" />
 } />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/legal"   element={<LegalPage />} />
           {/* Vérification publique par UUID étudiant (QR Code) */}
           <Route path="/verify/:uuid" element={<VerifyDiploma />} />
           {/* Tableau de bord Rectorat (public, auth via MetaMask) */}
+          
+          {/* Route vers le Guide/Support accessible à tous */}
+          <Route path="/support" element={<Support />} />
           <Route path="/rectorat" element={<RectoratDashboard />} />
         </Routes>
       </div>

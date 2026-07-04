@@ -100,6 +100,43 @@
 
 ---
 
-## [À compléter — 16 au 22 mars 2026]
+## [16 au 20 mars 2026] — Mise en production V1.0 & Sécurisation
 
-> *Cette section sera mise à jour par Julien ATTARD*
+### Ajouté — Technique
+- `BE-96` : Correction bug script Windows (Aurélien)
+- **Déploiement V1.0** — mise en production officielle, merge main ← develop (Rayan)
+- Configuration Nginx pour servir les fichiers statiques React (Rayan)
+- `BE-98` : Sécurité diplôme — accès restreint à une seule page + correction (Aurélien)
+- `BE-99` : Aperçu (preview) photo d'identité de l'étudiant (Aurélien)
+- `BE-100` : Restructuration du formulaire d'inscription établissement (Aurélien)
+- `BE-101` : Guide d'aide à l'utilisation de MetaMask — V1 (Aurélien)
+- `BE-102` : Vérification des inputs + durcissement des mots de passe (Aurélien)
+- `BE-103` : Sauvegarde des coordonnées du QR code (Aurélien)
+- `BE-104` : Réglage de l'expiration de session (Aurélien)
+- `BE-105` : Amélioration navigation page diplôme (Aurélien)
+- `BE-106` : Champs obligatoires au processus de création diplôme et profil (Aurélien)
+- `BE-107` : Modification + correction système d'abonnements (Aurélien)
+- Pipeline Docker améliorée : tagging intelligent, déclenchement sur PR, migration vers images Docker, ajout service Cloudflared (Rayan)
+
+### Ajouté — Gestion de Projet (Julien ATTARD)
+- Rédaction et publication du **CHANGELOG historique complet** du projet CertiChain
+
+---
+
+## [23 au 29 mars 2026] — Consolidation post-V1.0
+
+> Période sans commits techniques — stabilisation post-déploiement V1.0.
+
+---
+
+## [Avril 2026] — Intégration Email Transactionnel & Infrastructure
+
+### Ajouté — Technique
+- `BE-111` : Fix des tests Hardhat — validation smart contract (Rayan)
+- Intégration **Anymail + Resend API** pour l'envoi d'emails transactionnels (Rayan)
+- Implémentation **envoi asynchrone des emails** pour les actions critiques (Rayan)
+- Ajout `django-anymail` dans `requirements.txt` (Rayan)
+- Configuration logging dédié pour le monitoring des erreurs d'envoi email (Rayan)
+- Ajout configuration réseau personnalisée dans `docker-compose` (Rayan)
+- Correction entrypoint : shell `bash` → `sh` (Rayan)
+- Dockerfile : remplacement `npm ci` par `npm install` (Rayan)

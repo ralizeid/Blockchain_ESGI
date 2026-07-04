@@ -4,31 +4,57 @@ import { ethers } from 'ethers';
 import '../App.css';
 
 const Login = ({ onLogin }) => {
-  const [isRegister, setIsRegister] = useState(false);
-
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    rectorate_email: '',
-    school_eth_address: '',
-    rectorate_eth_address: '',
-    subscription_plan: '',
-    gdpr_consent: false,
-    // Informations établissement
-    school_name: '',
-    school_type: '',
-    school_address: '',
-    school_zip: '',
-    school_city: '',
-    school_phone: '',
-    school_website: '',
-    director_name: '',
-    uai_code: '',
-    siret: '',
+  const [isRegister, setIsRegister] = useState(() => {
+    return sessionStorage.getItem('login_isRegister') === 'true';
   });
 
-  const [step, setStep] = useState(1);
+  useEffect(() => {
+    sessionStorage.setItem('login_isRegister', isRegister);
+  }, [isRegister]);
+
+  const [formData, setFormData] = useState(() => {
+    const saved = sessionStorage.getItem('login_form_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      username: '',
+      password: '',
+      email: '',
+      rectorate_email: '',
+      school_eth_address: '',
+      rectorate_eth_address: '',
+      subscription_plan: '',
+      gdpr_consent: false,
+      school_name: '',
+      school_type: '',
+      school_address: '',
+      school_zip: '',
+      school_city: '',
+      school_phone: '',
+      school_website: '',
+      director_name: '',
+      uai_code: '',
+      siret: '',
+    };
+  });
+
+  useEffect(() => {
+    // Évite de stocker le mot de passe pour des raisons de sécurité
+    const { password, ...dataToSave } = formData;
+    sessionStorage.setItem('login_form_data', JSON.stringify({ ...dataToSave, password: '' }));
+  }, [formData]);
+
+  const [step, setStep] = useState(() => {
+    const savedStep = sessionStorage.getItem('login_step');
+    return savedStep ? parseInt(savedStep, 10) : 1;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('login_step', step);
+  }, [step]);
   const [plans, setPlans]     = useState([]);
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
@@ -48,6 +74,21 @@ const Login = ({ onLogin }) => {
 
   const [hasRectorateWallet, setHasRectorateWallet] = useState(true);
   const [generatedPrivateKey, setGeneratedPrivateKey] = useState('');
+
+  const getApiErrorMessage = (data, fallback = "Une erreur est survenue.") => {
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (typeof data !== 'object') return fallback;
+
+    const directMessage = data.error || data.detail || data.message;
+    if (typeof directMessage === 'string' && directMessage.trim()) return directMessage;
+
+    const flattened = Object.values(data)
+      .flatMap(value => Array.isArray(value) ? value : [value])
+      .filter(value => typeof value === 'string' && value.trim());
+
+    return flattened[0] || fallback;
+  };
 
   const generateRectorateWallet = () => {
     try {
@@ -122,10 +163,10 @@ const Login = ({ onLogin }) => {
       // Step 3 validation
       if (!formData.rectorate_email || !/\S+@\S+\.\S+/.test(formData.rectorate_email)) return setError("L'email du rectorat est invalide.");
       if (hasRectorateWallet && (!formData.rectorate_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(formData.rectorate_eth_address))) {
-        return setError("L'adresse MetaMask du rectorat est invalide.");
+        return setError("L'adresse MetaMask du rectorat est obligatoire (doit commencer par 0x suivi de 40 caractères hexadécimaux).");
       }
       if (!hasRectorateWallet && !formData.rectorate_eth_address) {
-        return setError("Veuillez générer une adresse publique pour le rectorat.");
+        return setError("Veuillez générer une adresse publique pour le rectorat (obligatoire).");
       }
       if (!formData.gdpr_consent) {
         return setError("Vous devez accepter la politique de confidentialité.");
@@ -154,11 +195,10 @@ const Login = ({ onLogin }) => {
           onLogin(data.user_id, data.username);
         }
       } else {
-        const errorMsg = typeof data === 'object' ? JSON.stringify(data) : data.error;
-        setError(errorMsg || "Une erreur est survenue.");
+        setError(getApiErrorMessage(data));
       }
     } catch (err) {
-      setError("Impossible de contacter le serveur.");
+      setError("Impossible de contacter le serveur. Réessayez dans quelques instants.");
     }
   };
 
@@ -251,16 +291,12 @@ const Login = ({ onLogin }) => {
                               <input type="text" value={generatedSchoolPrivateKey} readOnly style={{ flex: 1, padding: '5px', fontSize: '0.8rem', border: '1px solid #f87171', borderRadius: '4px', backgroundColor: '#fff' }} />
                               <button type="button" onClick={() => navigator.clipboard.writeText(generatedSchoolPrivateKey)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem' }}>Copier</button>
                             </div>
-                            <details style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
-                              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Tutoriel : Comment importer cette clé dans MetaMask ?</summary>
-                              <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', lineHeight: '1.4' }}>
-                                <li>Installez l'extension <strong>MetaMask</strong> sur votre navigateur.</li>
-                                <li>Configurez un portefeuille (créez un mot de passe).</li>
-                                <li>Cliquez sur le sélecteur de compte (en haut au centre), puis sur <strong>Ajouter un compte...</strong>.</li>
-                                <li>Choisissez <strong>Importer le compte</strong>.</li>
-                                <li>Collez la clé privée copiée ci-dessus et cliquez sur <strong>Importer</strong>. C'est prêt !</li>
-                              </ol>
-                            </details>
+                            <p style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
+                              <span>Tutoriel : </span> 
+                              <Link to="/support" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 'bold', color: '#b91c1c', textDecoration: 'underline' }}>
+                                Comment importer cette clé dans MetaMask ?
+                              </Link>
+                            </p>
                           </div>
                         )}
                       </div>
@@ -375,10 +411,10 @@ const Login = ({ onLogin }) => {
                 </div>
 
                 {hasRectorateWallet ? (
-                  <div className="input-group" style={{ marginBottom: 0 }}>
-                    <label className="input-label">Adresse MetaMask du Rectorat</label>
-                    <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" />
-                  </div>
+                      <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label className="input-label">Adresse MetaMask du Rectorat <span style={{color: "#ef4444"}}>*</span></label>
+                        <input className="input-field" type="text" name="rectorate_eth_address" value={formData.rectorate_eth_address} placeholder="0x..." onChange={handleChange} pattern="^0x[0-9a-fA-F]{40}$" required />
+                      </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <button type="button" onClick={generateRectorateWallet} className="btn" style={{ backgroundColor: '#e2e8f0', color: '#1e293b', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '0.85rem' }}>
@@ -397,16 +433,12 @@ const Login = ({ onLogin }) => {
                         <div style={{ display: 'flex', gap: '5px' }}>
                           <input type="text" value={generatedPrivateKey} readOnly style={{ flex: 1, padding: '5px', fontSize: '0.8rem', border: '1px solid #f87171', borderRadius: '4px', backgroundColor: '#fff' }} />
                           <button type="button" onClick={() => navigator.clipboard.writeText(generatedPrivateKey)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', cursor: 'pointer', fontSize: '0.8rem' }}>Copier</button>
-                        </div>                          <details style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Tutoriel : Comment importer cette clé dans MetaMask ?</summary>
-                            <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', lineHeight: '1.4' }}>
-                              <li>Installez l'extension <strong>MetaMask</strong> sur votre navigateur.</li>
-                              <li>Configurez un portefeuille (créez un mot de passe).</li>
-                              <li>Cliquez sur le sélecteur de compte (en haut au centre), puis sur <strong>Ajouter un compte...</strong>.</li>
-                              <li>Choisissez <strong>Importer le compte</strong>.</li>
-                              <li>Collez la clé privée copiée ci-dessus et cliquez sur <strong>Importer</strong>. C'est prêt !</li>
-                            </ol>
-                          </details>                      </div>
+                        </div>                          <p style={{ marginTop: '10px', fontSize: '0.8rem', color: '#991b1b', backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px' }}>
+                            <span>Tutoriel : </span> 
+                            <Link to="/support" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 'bold', color: '#b91c1c', textDecoration: 'underline' }}>
+                              Comment importer cette clé dans MetaMask ?
+                            </Link>
+                          </p>                      </div>
                     )}
                   </div>
                 )}

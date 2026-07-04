@@ -15,9 +15,13 @@ const SchoolProfile = () => {
   const userId   = sessionStorage.getItem('user_id');
   const username = sessionStorage.getItem('username') || '—';
 
-  const [activeTab, setActiveTab]     = useState('profile');
+  // State initialisé avec le localStorage pour garder l'onglet et les champs si refresh
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('schoolProfile_activeTab') || 'profile';
+  });
   const [quota, setQuota]             = useState(null);
   const [plans, setPlans]             = useState([]);
+  const [packs, setPacks]             = useState([]);
   const [loading, setLoading]         = useState(true);
 
   // Upgrade modal
@@ -30,19 +34,56 @@ const SchoolProfile = () => {
   const [deleteStep, setDeleteStep]           = useState(1);
   const [deleteMsg, setDeleteMsg]             = useState({ type: '', text: '' });
 
+  // Packs — confirmation d'achat
+  const [showPackModal, setShowPackModal] = useState(false);
+  const [selectedPack, setSelectedPack] = useState(null);
+  const [packMsg, setPackMsg] = useState({ type: '', text: '' });
+
   // Wallet & Profil — édition
-  const [profileForm, setProfileForm] = useState({
-    email: '', rectorate_email: '', school_eth_address: '', rectorate_eth_address: '',
-    school_name: '', school_type: '', school_address: '', school_zip: '', school_city: '',
-    school_phone: '', school_website: '', director_name: '', uai_code: '', siret: '',
+  const [profileForm, setProfileForm] = useState(() => {
+    const saved = sessionStorage.getItem('schoolProfile_form');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      email: '', rectorate_email: '', school_eth_address: '', rectorate_eth_address: '',
+      school_name: '', school_type: '', school_address: '', school_zip: '', school_city: '',
+      school_phone: '', school_website: '', director_name: '', uai_code: '', siret: '',
+    };
   });
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [profileMsg, setProfileMsg]       = useState({ type: '', text: '' });
   const [passwordMsg, setPasswordMsg]     = useState({ type: '', text: '' });
+  const [pageMsg, setPageMsg]             = useState({ type: '', text: '' });
   const [otpModal, setOtpModal]           = useState({ open: false });
   const closeOTPModal = () => setOtpModal({ open: false });
+
+  const getApiErrorMessage = (data, fallback = 'Une erreur est survenue.') => {
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (typeof data !== 'object') return fallback;
+
+    const directMessage = data.error || data.detail || data.message;
+    if (typeof directMessage === 'string' && directMessage.trim()) return directMessage;
+
+    const flattened = Object.values(data)
+      .flatMap(value => Array.isArray(value) ? value : [value])
+      .filter(value => typeof value === 'string' && value.trim());
+
+    return flattened[0] || fallback;
+  };
+
+  useEffect(() => {
+    sessionStorage.setItem('schoolProfile_activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem('schoolProfile_form', JSON.stringify(profileForm));
+  }, [profileForm]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -57,22 +98,36 @@ const SchoolProfile = () => {
       const prData = await prRes.json();
       if (qRes.ok)  setQuota(qData);
       if (pRes.ok)  setPlans(pData);
-      if (prRes.ok) setProfileForm({
-        email:                 prData.email                 || '',
-        rectorate_email:       prData.rectorate_email       || '',
-        school_eth_address:    prData.school_eth_address    || '',
-        rectorate_eth_address: prData.rectorate_eth_address || '',
-        school_name:    prData.school_name    || '',
-        school_type:    prData.school_type    || '',
-        school_address: prData.school_address || '',
-        school_zip:     prData.school_zip     || '',
-        school_city:    prData.school_city    || '',
-        school_phone:   prData.school_phone   || '',
-        school_website: prData.school_website || '',
-        director_name:  prData.director_name  || '',
-        uai_code:       prData.uai_code       || '',
-        siret:          prData.siret          || '',
-      });
+      if (prRes.ok) {
+        // Au lieu d'écraser bêtement, on vérifie d'abord si on n'a pas rafraichi 
+        // sinon on charge les données du serveur s'il n'y avait rien avant.
+        setProfileForm(prev => {
+          const hasLocalData = !!sessionStorage.getItem('schoolProfile_form');
+          if (hasLocalData) {
+            // Si on a des champs localement sauvegardés à cause d'un refresh
+            // On ne les écrase pas pour ne pas perdre la saisie
+            return prev;
+          }
+          return {
+            email:                 prData.email                 || '',
+            rectorate_email:       prData.rectorate_email       || '',
+            school_eth_address:    prData.school_eth_address    || '',
+            rectorate_eth_address: prData.rectorate_eth_address || '',
+            school_name:    prData.school_name    || '',
+            school_type:    prData.school_type    || '',
+            school_address: prData.school_address || '',
+            school_zip:     prData.school_zip     || '',
+            school_city:    prData.school_city    || '',
+            school_phone:   prData.school_phone   || '',
+            school_website: prData.school_website || '',
+            director_name:  prData.director_name  || '',
+            uai_code:       prData.uai_code       || '',
+            siret:          prData.siret          || '',
+          };
+        });
+      }
+      const packsRes = await fetch('/api/packs/');
+      if (packsRes.ok) setPacks(await packsRes.json());
     } catch (e) {
       console.error('Erreur chargement profil', e);
     }
@@ -103,7 +158,48 @@ const SchoolProfile = () => {
     }
   };
 
+  const openPackModal = (pack) => {
+    setSelectedPack(pack);
+    setPackMsg({ type: '', text: '' });
+    setShowPackModal(true);
+  };
+
+  const handleBuyPack = async (pack) => {
+    if (!pack) return;
+    try {
+      const res = await fetch('/api/buy-pack/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, pack_id: pack.id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPageMsg({ type: 'success', text: `${pack.name} acheté avec succès. Le quota a été mis à jour.` });
+        setShowPackModal(false);
+        setSelectedPack(null);
+        fetchData();
+      } else {
+        const message = getApiErrorMessage(data, "Erreur lors de l'achat.");
+        setPackMsg({ type: 'error', text: message });
+        setPageMsg({ type: 'error', text: message });
+      }
+    } catch (e) {
+      const message = 'Erreur réseau. Le serveur est temporairement indisponible.';
+      setPackMsg({ type: 'error', text: message });
+      setPageMsg({ type: 'error', text: message });
+    }
+  };
+
   const handleProfileSave = () => {
+    if (!profileForm.school_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(profileForm.school_eth_address)) {
+      setProfileMsg({ type: 'error', text: 'L\'adresse MetaMask de l\'école est invalide ou manquante.' });
+      return;
+    }
+    if (!profileForm.rectorate_eth_address || !/^0x[a-fA-F0-9]{40}$/.test(profileForm.rectorate_eth_address)) {
+      setProfileMsg({ type: 'error', text: 'L\'adresse MetaMask du rectorat est invalide ou manquante.' });
+      return;
+    }
+
     setOtpModal({
       open: true,
       userId,
@@ -194,7 +290,10 @@ const SchoolProfile = () => {
     try {
       const res  = await fetch(`/api/export-data/?user_id=${userId}`);
       const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Erreur export.'); return; }
+      if (!res.ok) {
+        setPageMsg({ type: 'error', text: getApiErrorMessage(data, 'Erreur lors de l’export.') });
+        return;
+      }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -202,8 +301,9 @@ const SchoolProfile = () => {
       a.download = `certichain_mes_donnees_${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      setPageMsg({ type: 'success', text: 'Vos données personnelles ont été téléchargées au format JSON.' });
     } catch {
-      alert('Impossible de télécharger les données.');
+      setPageMsg({ type: 'error', text: 'Impossible de télécharger les données pour le moment.' });
     }
   };
 
@@ -246,6 +346,7 @@ const SchoolProfile = () => {
     { id: 'profile', label: 'Informations' },
     { id: 'wallet',  label: '🔒 Wallet & Profil' },
     { id: 'quota',   label: 'Quota & Usage' },
+    { id: 'packs',   label: 'Acheter un Pack' },
     { id: 'plans',   label: 'Abonnement' },
     { id: 'rgpd',    label: 'Mes droits RGPD' },
   ];
@@ -264,6 +365,58 @@ const SchoolProfile = () => {
           Plan actuel : <strong style={{ color: planColor }}>{currentPlanName}</strong>
         </p>
       </div>
+
+      {pageMsg.text && (
+        <div className={`msg-box msg-${pageMsg.type}`} style={{ marginBottom: 24 }}>
+          {pageMsg.type === 'success' ? '✅' : '⚠️'} {pageMsg.text}
+        </div>
+      )}
+
+      {showPackModal && selectedPack && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowPackModal(false);
+            setSelectedPack(null);
+          }}
+        >
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">Confirmer l'achat</h3>
+            <p className="modal-subtitle">
+              Vous allez acheter <strong>{selectedPack.name}</strong> pour <strong>{selectedPack.price} €</strong>.
+            </p>
+
+            <div className="modal-details-box">
+              <p>Ce pack ajoute <strong>{selectedPack.diplomas_amount}</strong> diplômes à votre quota.</p>
+            </div>
+
+            {packMsg.text && (
+              <div className={`modal-${packMsg.type === 'success' ? 'success' : 'error'}-box`}>
+                {packMsg.type === 'success' ? '✅' : '⚠️'} {packMsg.text}
+              </div>
+            )}
+
+            <div className="modal-footer">
+              <button
+                className="modal-btn modal-btn--cancel"
+                onClick={() => {
+                  setShowPackModal(false);
+                  setSelectedPack(null);
+                  setPackMsg({ type: '', text: '' });
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                className="modal-btn modal-btn--primary"
+                onClick={() => handleBuyPack(selectedPack)}
+              >
+                Confirmer l'achat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Onglets */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e2e8f0', marginBottom: 32 }}>
@@ -324,7 +477,7 @@ const SchoolProfile = () => {
           </div>
 
           <div className="input-group">
-            <label className="input-label">🔒 Adresse MetaMask de l'école</label>
+            <label className="input-label">🔒 Adresse MetaMask de l'école <span style={{color: "#ef4444"}}>*</span></label>
             <input
               className="input-field"
               type="text"
@@ -332,15 +485,16 @@ const SchoolProfile = () => {
               value={profileForm.school_eth_address}
               onChange={e => setProfileForm(f => ({ ...f, school_eth_address: e.target.value }))}
               pattern="^0x[0-9a-fA-F]{40}$"
+              required
             />
             <small style={{ color: 'var(--gray)', fontSize: '0.8em', marginTop: 4, display: 'block' }}>
-              Adresse publique visible dans MetaMask (onglet principal, sous le nom du compte).
+              Obligatoire. Adresse publique visible dans MetaMask (onglet principal, sous le nom du compte).
               Seul le wallet possédant la clé privée correspondante pourra signer.
             </small>
           </div>
 
           <div className="input-group">
-            <label className="input-label">🔒 Adresse MetaMask du Rectorat</label>
+            <label className="input-label">🔒 Adresse MetaMask du Rectorat <span style={{color: "#ef4444"}}>*</span></label>
             <input
               className="input-field"
               type="text"
@@ -348,9 +502,10 @@ const SchoolProfile = () => {
               value={profileForm.rectorate_eth_address}
               onChange={e => setProfileForm(f => ({ ...f, rectorate_eth_address: e.target.value }))}
               pattern="^0x[0-9a-fA-F]{40}$"
+              required
             />
             <small style={{ color: 'var(--gray)', fontSize: '0.8em', marginTop: 4, display: 'block' }}>
-              L'adresse publique du rectorat partenaire. Laisser vide pour ne pas restreindre.
+              Obligatoire. L'adresse publique du rectorat partenaire chargé de valider vos diplômes.
             </small>
           </div>
 
@@ -358,6 +513,12 @@ const SchoolProfile = () => {
             <strong>🔗 Comment trouver son adresse publique MetaMask ?</strong><br />
             Ouvrez MetaMask → écran principal → l'adresse <code>0x...</code> affichée sous le nom du compte.
             Cliquez dessus pour la copier. C'est l'adresse <strong>publique</strong>, sans risque à partager.
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #bbf7d0' }}>
+              <span>Besoin d'aide avec MetaMask ? </span>
+              <Link to="/support" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 'bold', color: '#15803d', textDecoration: 'underline' }}>
+                Consultez le guide et tutoriel complet
+              </Link>
+            </div>
           </div>
 
           <button
@@ -656,7 +817,7 @@ const SchoolProfile = () => {
                       width: '100%',
                       background: isCurrent ? color : undefined,
                       borderColor: !isCurrent ? color : undefined,
-                      color: !isCurrent && isUpgradable ? color : undefined,
+                      color: !isCurrent && isUpgradable ? 'white' : undefined,
                       cursor: (isCurrent || !isUpgradable) ? 'default' : 'pointer',
                     }}
                     disabled={isCurrent || !isUpgradable}
@@ -681,7 +842,14 @@ const SchoolProfile = () => {
       {activeTab === 'quota' && (
         <>
           <div className="form-card" style={{ marginBottom: 16 }}>
-            <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Utilisation annuelle</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>Utilisation annuelle</h2>
+              {quota?.renewal_date && (
+                <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, background: '#eff6ff', padding: '4px 10px', borderRadius: 99 }}>
+                  Renouvellement le {new Date(quota.renewal_date).toLocaleDateString('fr-FR')}
+                </span>
+              )}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
               <span style={{ color: 'var(--gray)', fontSize: '0.9rem' }}>
                 Plan <strong style={{ color: planColor }}>{currentPlanName}</strong>
@@ -712,16 +880,50 @@ const SchoolProfile = () => {
             </p>
           </div>
 
-          <div className="form-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div className="form-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
             <div>
               <div style={{ fontWeight: 600, color: 'var(--dark)' }}>Besoin de plus de certifications ?</div>
               <p style={{ color: 'var(--gray)', fontSize: '0.875rem', marginTop: 4, marginBottom: 0 }}>
-                Passez a un plan superieur depuis l'onglet Abonnement.
+                Passez a un plan superieur depuis l'onglet Abonnement ou choisissez un Pack.
               </p>
             </div>
-            <button className="btn btn-primary" style={{ width: 'auto' }} onClick={() => setActiveTab('plans')}>
-              Voir les plans
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-outline" style={{ width: 'auto' }} onClick={() => setActiveTab('packs')}>
+                Voir les Packs
+              </button>
+              <button className="btn btn-primary" style={{ width: 'auto' }} onClick={() => setActiveTab('plans')}>
+                Voir les Abonnements
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* PACKS */}
+      {activeTab === 'packs' && (
+        <>
+          <div style={{ marginTop: 24, marginBottom: 24 }}>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--dark)' }}>Acheter des Packs supplémentaires</h2>
+            <p style={{ color: 'var(--gray)', marginTop: 4, fontSize: '0.875rem' }}>
+              Achetez un volume de certifications directement sans modifier votre abonnement annuel principal.
+            </p>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            {packs.map(pack => (
+              <div key={pack.id} className="form-card" style={{ padding: 24, marginBottom: 0, border: '2px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem', color: 'var(--dark)' }}>{pack.name}</h3>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginBottom: 4 }}>+{pack.diplomas_amount} <span style={{fontSize: '0.9rem', color: 'var(--gray)', fontWeight: 500}}>diplômes</span></div>
+                <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--dark)', marginBottom: 16 }}>{pack.price} &euro;</div>
+                <button 
+                  className="btn btn-outline" 
+                  style={{ marginTop: 'auto', width: '100%', borderColor: 'var(--primary)', color: 'var(--primary)', padding: '0.5rem', borderRadius: '4px', background: 'transparent', cursor: 'pointer' }} 
+                  onClick={() => openPackModal(pack)}
+                >
+                  Acheter
+                </button>
+              </div>
+            ))}
           </div>
         </>
       )}
@@ -783,7 +985,7 @@ const SchoolProfile = () => {
                       width: '100%',
                       background: isCurrent ? color : undefined,
                       borderColor: !isCurrent ? color : undefined,
-                      color: !isCurrent && isUpgradable ? color : undefined,
+                      color: !isCurrent && isUpgradable ? 'white' : undefined,
                       cursor: (isCurrent || !isUpgradable) ? 'default' : 'pointer',
                     }}
                     disabled={isCurrent || !isUpgradable}

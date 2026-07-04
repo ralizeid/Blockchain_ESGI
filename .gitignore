@@ -7,6 +7,11 @@ venv/
 env/
 .env
 
+# Hardhat / Foundry artifacts
+artifacts/
+cache/
+out/
+
 # Django
 *.log
 local_settings.py
