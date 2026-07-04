@@ -36,7 +36,7 @@ jobs:
       # On génère des tags intelligents (latest + SHA du commit)
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/certichain-front
