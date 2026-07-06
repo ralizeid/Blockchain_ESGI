@@ -1,0 +1,80 @@
+name: Dependency Scan
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: "0 6 * * 1"   # tous les lundis 06:00 UTC (filet de sécurité récurrent)
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # PYTHON — pip-audit  (Certichain/certichain-back)
+  # ---------------------------------------------------------------------------
+  pip-audit:
+    name: Python (pip-audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Certichain/certichain-back
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit
+        continue-on-error: true
+        run: |
+          pip-audit -r requirements.txt --desc \
+            --format json --output pip-audit-report.json
+          # Résumé lisible dans les logs
+          pip-audit -r requirements.txt --desc || true
+
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: Certichain/certichain-back/pip-audit-report.json
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # NODE.JS — npm audit  (Certichain/certichain-front)
+  # ---------------------------------------------------------------------------
+  npm-audit:
+    name: Node.js (npm audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Certichain/certichain-front
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies (deterministic)
+        run: npm ci
+
+      - name: Run npm audit
+        continue-on-error: true
+        run: |
+          npm audit --audit-level=high --omit=dev
+          npm audit --json > npm-audit-report.json || true
+
+      - name: Upload npm audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: Certichain/certichain-front/npm-audit-report.json
+          retention-days: 30
