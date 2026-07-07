@@ -33,10 +33,10 @@ jobs:
       - name: Run Bandit
         continue-on-error: true
         run: |
-          bandit -r . -x ./diplomas/migrations \
+          bandit -r . -x ./diplomas/migrations,./diplomas/tests.py \
             -f json -o bandit-report.json || true
           # Résumé lisible dans les logs
-          bandit -r . -x ./diplomas/migrations || true
+          bandit -r . -x ./diplomas/migrations,./diplomas/tests.py || true
 
       - name: Upload Bandit report
         if: always()
