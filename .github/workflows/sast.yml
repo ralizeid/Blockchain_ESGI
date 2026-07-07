@@ -1,0 +1,88 @@
+name: SAST Scan
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: "0 6 * * 1"   # tous les lundis 06:00 UTC (filet de sécurité récurrent)
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # PYTHON — Bandit  (Certichain/certichain-back)
+  # ---------------------------------------------------------------------------
+  bandit:
+    name: Python (Bandit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Certichain/certichain-back
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        continue-on-error: true
+        run: |
+          bandit -r . -x ./diplomas/migrations,./diplomas/tests.py \
+            -f json -o bandit-report.json || true
+          # Résumé lisible dans les logs
+          bandit -r . -x ./diplomas/migrations,./diplomas/tests.py || true
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: Certichain/certichain-back/bandit-report.json
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # SOLIDITY — Slither  (Certichain/certichain-blockchain, Hardhat)
+  # ---------------------------------------------------------------------------
+  slither:
+    name: Solidity (Slither)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Certichain/certichain-blockchain
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Slither
+        run: pip install slither-analyzer
+
+      - name: Run Slither
+        continue-on-error: true
+        run: |
+          slither . --json slither-report.json || true
+          # Résumé lisible dans les logs
+          slither . || true
+
+      - name: Upload Slither report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither-report
+          path: Certichain/certichain-blockchain/slither-report.json
+          retention-days: 30

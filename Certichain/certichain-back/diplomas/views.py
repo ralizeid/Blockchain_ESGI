@@ -80,12 +80,12 @@ class SendActionOTPView(APIView):
         'REVOKE_DIPLOMA':  'Révoquer un diplôme',
         'ERASE_DIPLOMA':   'Effacer des données RGPD',
         'UPDATE_PROFILE':  'Modifier le profil établissement',
-        'CHANGE_PASSWORD': 'Changer le mot de passe',
+        'CHANGE_PASSWORD': 'Changer le mot de passe',  # nosec B105 -- libellé UI, pas un secret
         'DELETE_ACCOUNT':  'Supprimer le compte',
     }
 
     def post(self, request):
-        import random
+        import secrets
         from django.contrib.auth.models import User as DjangoUser
 
         user_id     = request.data.get('user_id')
@@ -106,7 +106,7 @@ class SendActionOTPView(APIView):
         ActionOTP.objects.filter(user=user, action_type=action_type, used=False).update(used=True)
 
         # Générer un code OTP à 6 chiffres
-        code = f"{random.randint(0, 999999):06d}"
+        code = f"{secrets.randbelow(1_000_000):06d}"
         ActionOTP.objects.create(
             user=user,
             action_type=action_type,
@@ -1017,7 +1017,7 @@ class StudentErasureView(APIView):
     Si l'étudiant n'a plus accès à son email, il doit contacter l'école directement.
     """
     def post(self, request):
-        import random
+        import secrets
         raw_uuid       = request.data.get('uuid')
         deletion_token = request.data.get('deletion_token')
 
@@ -1046,7 +1046,7 @@ class StudentErasureView(APIView):
             )
 
         # Générer un OTP à 6 chiffres valable 30 minutes
-        otp = f"{random.randint(0, 999999):06d}"
+        otp = f"{secrets.randbelow(1_000_000):06d}"
         diploma.erasure_otp            = otp
         diploma.erasure_otp_expires_at = timezone.now() + timezone.timedelta(minutes=30)
         diploma.save(update_fields=['erasure_otp', 'erasure_otp_expires_at'])

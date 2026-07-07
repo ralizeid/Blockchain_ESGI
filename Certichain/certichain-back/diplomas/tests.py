@@ -111,8 +111,8 @@ class SendActionOTPViewTests(APITestCase):
 		)
 
 	@patch("diplomas.views._send_mail_async")
-	@patch("random.randint", return_value=123456)
-	def test_send_action_otp_creates_code_and_invalidates_previous_ones(self, mock_randint, mock_send_mail_async):
+	@patch("secrets.randbelow", return_value=123456)
+	def test_send_action_otp_creates_code_and_invalidates_previous_ones(self, mock_randbelow, mock_send_mail_async):
 		ActionOTP.objects.create(
 			user=self.user,
 			action_type="UPDATE_PROFILE",
