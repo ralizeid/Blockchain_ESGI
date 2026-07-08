@@ -160,15 +160,15 @@ const LegalPage = () => {
                   infrastructure afin de garantir la maîtrise complète des données.
                 </p>
                 <ul className="legal-list">
-                  <li>Machine Virtuelle <strong>Debian</strong> sur hyperviseur <strong>Proxmox</strong></li>
-                  <li>Backend <strong>Django</strong> (API REST)</li>
-                  <li>Frontend <strong>React</strong> (application SPA)</li>
-                  <li>Nœud <strong>IPFS</strong> privé pour le stockage off-chain</li>
-                  <li>Réseau blockchain : <strong>Polygon</strong></li>
+                  <li>Machine virtuelle <strong>Debian</strong> sur hyperviseur <strong>Proxmox</strong></li>
+                  <li>Backend <strong>Django</strong> (API REST) · Frontend <strong>React</strong> (SPA)</li>
+                  <li>Stockage des fichiers hors chaîne, côté serveur</li>
+                  <li>Blockchain : nœud EVM compatible <strong>Polygon</strong> (nœud Hardhat en développement/démonstration)</li>
                 </ul>
                 <p className="legal-p" style={{ marginTop: 10 }}>
-                  Aucune donnée n'est transmise à des services cloud tiers (AWS, GCP, Azure).
-                  Notre infrastructure est entièrement sous contrôle de l'équipe projet.
+                  Aucun hébergeur cloud tiers (AWS, GCP, Azure) n'est utilisé. L'application
+                  s'appuie sur deux sous-traitants : <strong>Resend</strong> (envoi d'e-mails)
+                  et <strong>Cloudflare</strong> (tunnel d'accès public).
                 </p>
               </div>
 
@@ -200,29 +200,30 @@ const LegalPage = () => {
               <div className="legal-article">
                 <h3 className="legal-h3">1. Objet</h3>
                 <p className="legal-p">
-                  CertiChain fournit une interface permettant aux établissements d'enseignement
-                  d'émettre des diplômes sous forme de <strong>Soulbound Tokens (SBT)</strong> sur
-                  le réseau <strong>Polygon</strong>, et aux recruteurs de vérifier ces diplômes via
-                  un <strong>QR code</strong> ou un identifiant UUID.
+                  CertiChain permet aux établissements d'émettre des diplômes sous forme
+                  d'<strong>empreintes cryptographiques</strong> ancrées dans un registre
+                  non-transférable sur une blockchain (compatible <strong>Polygon</strong>),
+                  et aux recruteurs de les vérifier via un <strong>QR code</strong> ou un
+                  identifiant UUID.
                 </p>
               </div>
 
               <div className="legal-article">
                 <h3 className="legal-h3">2. Responsabilités de l'École (Émetteur)</h3>
                 <p className="legal-p">
-                  L'établissement garantit l'exactitude des informations saisies (nom, prénom,
-                  mention, visuel du diplôme).
+                  L'établissement garantit l'exactitude des informations saisies. La
+                  certification repose sur une <strong>double co-signature cryptographique</strong>{' '}
+                  (école et rectorat).
                 </p>
                 <div className="legal-callout legal-callout--warn">
-                  La certification nécessite une signature cryptographique stricte. L'école est
-                  l'<strong>unique responsable</strong> de la sécurité de sa clé privée (wallet
-                  MetaMask). En cas de perte ou de compromission, CertiChain ne pourra pas
+                  L'école est <strong>seule responsable</strong> de la sécurité de sa clé privée
+                  (wallet MetaMask) ; en cas de perte ou de compromission, CertiChain ne peut
                   restaurer l'accès.
                 </div>
                 <ul className="legal-list" style={{ marginTop: 12 }}>
-                  <li>Conservez votre clé privée MetaMask dans un gestionnaire de mots de passe sécurisé.</li>
-                  <li>Ne partagez jamais votre clé privée, même avec l'équipe CertiChain.</li>
-                  <li>Chaque signature de diplôme génère une transaction on-chain irréversible.</li>
+                  <li>Conservez votre clé privée dans un gestionnaire de mots de passe sécurisé.</li>
+                  <li>Ne la partagez jamais, même avec l'équipe CertiChain.</li>
+                  <li>Chaque diplôme certifié donne lieu à un ancrage on-chain irréversible.</li>
                 </ul>
               </div>
 
@@ -230,23 +231,20 @@ const LegalPage = () => {
                 <h3 className="legal-h3">3. Responsabilités du Recruteur (Vérificateur)</h3>
                 <p className="legal-p">
                   Le service de vérification est fourni à titre informatif. CertiChain garantit
-                  l'<strong>intégrité cryptographique</strong> du document présenté par rapport à
-                  son ancrage sur la blockchain, mais n'est pas responsable des décisions de
-                  recrutement qui en découlent.
+                  l'<strong>intégrité cryptographique</strong> du document par rapport à son
+                  ancrage on-chain, mais n'est pas responsable des décisions de recrutement.
                 </p>
                 <p className="legal-p">
-                  La vérification publique ne nécessite ni compte, ni wallet, ni installation.
-                  Un simple scan du QR code ou la saisie de l'UUID suffit.
+                  La vérification ne nécessite ni compte, ni wallet, ni installation.
                 </p>
               </div>
 
               <div className="legal-article">
-                <h3 className="legal-h3">4. Disponibilité du service</h3>
+                <h3 className="legal-h3">4. Disponibilité</h3>
                 <p className="legal-p">
-                  CertiChain est un projet académique. L'équipe s'efforce d'assurer la disponibilité
-                  du service mais ne peut garantir une continuité en cas de maintenance ou de force
-                  majeure. La preuve on-chain sur le réseau Polygon reste accessible indépendamment
-                  de notre infrastructure.
+                  Projet académique : l'équipe s'efforce d'assurer la disponibilité du service
+                  mais ne garantit pas la continuité en cas de maintenance ou de force majeure.
+                  La preuve cryptographique est ancrée on-chain de manière immuable.
                 </p>
               </div>
 
@@ -267,7 +265,7 @@ const LegalPage = () => {
             <div className="legal-section__body">
 
               <div className="legal-article">
-                <h3 className="legal-h3">1. Architecture et séparation des données</h3>
+                <h3 className="legal-h3">1. Séparation des données</h3>
                 <p className="legal-p">
                   Dans une démarche de <strong>Privacy by Design</strong>, CertiChain sépare le
                   stockage des données pour concilier technologie blockchain et respect du RGPD :
@@ -275,29 +273,28 @@ const LegalPage = () => {
                 <div className="legal-arch-grid">
                   <div className="legal-arch-card">
                     <div className="legal-arch-card__label">Off-Chain · Stockage privé</div>
-                    <div className="legal-arch-card__title">Nœud IPFS privé</div>
+                    <div className="legal-arch-card__title">Stockage serveur privé</div>
                     <ul className="legal-arch-card__items">
                       <li>Nom &amp; Prénom de l'étudiant</li>
                       <li>Mention / intitulé de formation</li>
                       <li>Visuel du diplôme (PDF / image)</li>
-                      <li>Photo d'identité (anti-usurpation)</li>
+                      <li>Photo d'identité</li>
                       <li>Email de l'étudiant</li>
                     </ul>
                   </div>
                   <div className="legal-arch-card">
                     <div className="legal-arch-card__label">On-Chain · Blockchain publique</div>
-                    <div className="legal-arch-card__title">Réseau Polygon</div>
+                    <div className="legal-arch-card__title">Nœud Hardhat, compatible Polygon</div>
                     <ul className="legal-arch-card__items">
                       <li>Hash SHA-256 (empreinte anonyme)</li>
-                      <li>CID IPFS du document</li>
-                      <li>Adresse wallet de l'école</li>
+                      <li>Adresses des wallets co-signataires (école et rectorat)</li>
                       <li>Date d'ancrage (timestamp)</li>
                     </ul>
                   </div>
                 </div>
                 <p className="legal-p">
-                  <strong>Aucune donnée à caractère personnel n'est stockée sur la blockchain.</strong>{' '}
-                  Seule l'empreinte cryptographique (hash) est inscrite de manière immuable sur Polygon.
+                  <strong>Aucune donnée personnelle n'est stockée sur la blockchain.</strong>{' '}
+                  Seule l'empreinte y est inscrite de manière immuable.
                 </p>
               </div>
 
@@ -307,12 +304,12 @@ const LegalPage = () => {
                   Pour les comptes établissements, CertiChain collecte les données suivantes :
                 </p>
                 <ul className="legal-list">
-                  <li>Identifiant (username) et mot de passe haché (PBKDF2)</li>
-                  <li>Adresse e-mail officielle de l'établissement et du rectorat</li>
-                  <li>Adresses de portefeuilles Ethereum (MetaMask) — publiques par nature</li>
-                  <li>Plan d'abonnement souscrit et date de souscription</li>
-                  <li>Date et heure du consentement RGPD recueilli lors de l'inscription</li>
-                  <li>Données des diplômes émis (stockées off-chain, cf. architecture ci-dessus)</li>
+                  <li>Identifiant et mot de passe haché (PBKDF2)</li>
+                  <li>E-mail de l'établissement et du rectorat</li>
+                  <li>Adresses de portefeuilles Ethereum (publiques par nature)</li>
+                  <li>Plan d'abonnement et date de souscription</li>
+                  <li>Date et heure du consentement RGPD</li>
+                  <li>Données des diplômes (off-chain)</li>
                 </ul>
               </div>
 
@@ -323,9 +320,9 @@ const LegalPage = () => {
                   ou d'effacement. Sur simple demande :
                 </p>
                 <ul className="legal-list">
-                  <li>Le visuel et les données nominatives sont <strong>supprimés de notre nœud IPFS</strong>.</li>
+                  <li>Le visuel et les données nominatives sont <strong>supprimés de notre serveur</strong>.</li>
                   <li>
-                    L'empreinte sur la blockchain <strong>devient orpheline et indéchiffrable</strong>
+                    L'empreinte sur la blockchain <strong>devient orpheline et non ré-identifiable</strong>
                     — garantissant le droit à l'oubli conformément à l'Art. 17.3.b du RGPD.
                   </li>
                 </ul>
@@ -368,12 +365,21 @@ const LegalPage = () => {
               <div className="legal-article">
                 <h3 className="legal-h3">5. Sécurité</h3>
                 <ul className="legal-list">
-                  <li>Mots de passe stockés sous forme hachée (PBKDF2)</li>
-                  <li>Clés privées blockchain jamais stockées dans le code source (variables d'environnement)</li>
-                  <li>Communications chiffrées en transit (HTTPS en production)</li>
-                  <li>Double validation cryptographique : signature école + signature rectorat</li>
+                  <li>Mots de passe hachés (PBKDF2)</li>
+                  <li>Clé privée blockchain jamais dans le code source (variable d'environnement)</li>
+                  <li>HTTPS en production</li>
+                  <li>Double validation cryptographique (école + rectorat)</li>
                 </ul>
-                <p className="legal-p" style={{ marginTop: 12 }}>
+              </div>
+
+              <div className="legal-article">
+                <h3 className="legal-h3">6. Sous-traitants</h3>
+                <p className="legal-p">
+                  <strong>Resend</strong> (e-mails transactionnels) et <strong>Cloudflare</strong>{' '}
+                  (tunnel d'accès public). Ces services pouvant traiter des données hors UE, les
+                  transferts sont encadrés par les garanties du RGPD (clauses contractuelles types).
+                </p>
+                <p className="legal-p" style={{ marginTop: 10 }}>
                   Pour toute réclamation, vous pouvez contacter la CNIL :{' '}
                   <a href="https://www.cnil.fr" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>
                     www.cnil.fr
@@ -398,24 +404,22 @@ const LegalPage = () => {
             <div className="legal-section__body">
 
               <div className="legal-article">
-                <h3 className="legal-h3">1. Cookies techniques strictement nécessaires</h3>
+                <h3 className="legal-h3">1. Un seul cookie, strictement technique</h3>
                 <p className="legal-p">
-                  L'application CertiChain utilise exclusivement des cookies techniques nécessaires
-                  au bon fonctionnement du site :
+                  CertiChain n'utilise qu'un seul cookie, strictement technique : le{' '}
+                  <strong>cookie de protection CSRF</strong> (<code>csrftoken</code>) déposé
+                  par Django pour sécuriser les requêtes contre les attaques cross-site. Aucun
+                  cookie de session, publicitaire, analytique ou de traçage n'est utilisé.
                 </p>
-                <ul className="legal-list">
-                  <li>
-                    <strong>Gestion des sessions</strong> — maintien de la connexion au tableau
-                    de bord École (sessionStorage navigateur, durée : 12 heures)
-                  </li>
-                  <li>
-                    <strong>Protection CSRF</strong> — cookie de sécurité généré par le backend
-                    Django pour protéger les requêtes POST contre les attaques cross-site
-                  </li>
-                </ul>
                 <p className="legal-p" style={{ marginTop: 10 }}>
-                  Conformément aux directives de la CNIL, ces cookies fonctionnels ne requièrent
-                  pas de consentement préalable (Art. 82 de la Loi Informatique &amp; Libertés).
+                  L'état de connexion à l'espace École est conservé côté navigateur{' '}
+                  (<code>sessionStorage</code> / <code>localStorage</code>), et la durée de
+                  session (12 h) est contrôlée par l'application — <strong>non par un cookie</strong>.
+                </p>
+                <p className="legal-p" style={{ marginTop: 10 }}>
+                  Conformément aux directives de la CNIL, ces mécanismes strictement nécessaires
+                  ne requièrent pas de consentement préalable (Art. 82 de la Loi Informatique
+                  &amp; Libertés).
                 </p>
               </div>
 
