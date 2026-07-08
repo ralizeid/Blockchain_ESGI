@@ -21,10 +21,10 @@ jobs:
 
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Connexion au GitHub Container Registry
         uses: docker/login-action@v3
@@ -36,7 +36,7 @@ jobs:
       # On génère des tags intelligents (latest + SHA du commit)
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/certichain-front
@@ -46,7 +46,7 @@ jobs:
             type=sha,format=long
 
       - name: Build & Push – Backend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./Certichain/certichain-back
           file: ./Certichain/certichain-back/Dockerfile
@@ -56,7 +56,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build & Push – Frontend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./Certichain/certichain-front
           file: ./Certichain/certichain-front/Dockerfile
@@ -66,7 +66,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build & Push – Blockchain
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./Certichain/certichain-blockchain
           file: ./Certichain/certichain-blockchain/Dockerfile
@@ -85,7 +85,7 @@ jobs:
     
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Copier le fichier .env de production
         run: cp /opt/Certichain/.env ./.env

@@ -9,76 +9,62 @@ on:
       - main
 
 jobs:
-  backend-quality:
-    name: Backend (Django) Tests
+  quality:
+    name: Quality Tests (Backend / Frontend / Blockchain)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./Certichain/certichain-back
 
     steps:
       - name: Checkout du code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
+      # ------------------------------------------------------------
+      # Backend (Django)
+      # ------------------------------------------------------------
       - name: Setup Python
-        uses: actions/setup-python@v5   
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
-      - name: Installation des dépendances
+      - name: Backend – Installation des dépendances
+        working-directory: ./Certichain/certichain-back
         run: pip install -r requirements.txt
 
-      - name: Tests Django
+      - name: Backend – Tests Django
+        working-directory: ./Certichain/certichain-back
         run: python manage.py test
         env:
           SECRET_KEY: 'test-secret-key-pour-ci'
           DEBUG: 'True'
 
-  frontend-quality:
-    name: Frontend (React) Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./Certichain/certichain-front
-
-    steps:
-      - name: Checkout du code
-        uses: actions/checkout@v4
-
+      # ------------------------------------------------------------
+      # Frontend (React)
+      # ------------------------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Installation des dépendances
+      - name: Frontend – Installation des dépendances
+        working-directory: ./Certichain/certichain-front
         run: npm install
 
-      - name: Build de test (Vérifie que React compile)
+      - name: Frontend – Build de test (Vérifie que React compile)
+        working-directory: ./Certichain/certichain-front
         run: npm run build
-        env :
+        env:
           CI: 'false'
 
-  blockchain-quality:
-    name: Blockchain (Hardhat) Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
+      # ------------------------------------------------------------
+      # Blockchain (Hardhat)
+      # ------------------------------------------------------------
+      - name: Blockchain – Installation des dépendances
         working-directory: ./Certichain/certichain-blockchain
-
-    steps:
-      - name: Checkout du code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Installation des dépendances
         run: npm install
 
-      - name: Compilation des contrats
+      - name: Blockchain – Compilation des contrats
+        working-directory: ./Certichain/certichain-blockchain
         run: npm run build
 
-      - name: Tests Hardhat
+      - name: Blockchain – Tests Hardhat
+        working-directory: ./Certichain/certichain-blockchain
         run: npm test

@@ -114,7 +114,7 @@ const Home = () => {
 
             <div className="hero-badge">
               <span className="hero-badge-dot" aria-hidden="true" />
-              <span>Certification académique · Blockchain Polygon</span>
+              <span>Certification académique · Ancrage blockchain</span>
             </div>
 
             <h1 className="hero-title">
@@ -125,7 +125,7 @@ const Home = () => {
             </h1>
 
             <p className="hero-subtitle">
-              CertiChain ancre l'authenticité de chaque diplôme sur la blockchain Polygon.
+              CertiChain ancre l'authenticité de chaque diplôme sur la blockchain, via une empreinte cryptographique immuable.
               Vérification en moins de 3 secondes par QR code, sans compte, conforme RGPD.
             </p>
 
@@ -310,8 +310,8 @@ const Home = () => {
                     <circle cx="12" cy="14" r="2" fill="currentColor"/>
                   </svg>
                 ),
-                title: 'IPFS + Polygon ancrent',
-                desc: "Le CID IPFS du diplôme est ancré sur la blockchain Polygon via un Soulbound Token (SBT) Solidity. Immuable.",
+                title: 'Ancrage sur la blockchain',
+                desc: "L'empreinte SHA-256 du diplôme est ancrée sur la blockchain ; le visuel reste stocké côté serveur. Immuable.",
               },
               {
                 n: '03',
@@ -417,7 +417,7 @@ const Home = () => {
                 </svg>
               </div>
               <h3 className="bento-title">Sécurisé par conception</h3>
-              <p className="bento-desc">Stockage IPFS, ancrage Polygon, Soulbound Token Solidity. Les données privées restent off-chain — seule la preuve cryptographique est publique.</p>
+              <p className="bento-desc">Stockage serveur sécurisé, ancrage de l'empreinte sur la blockchain (registre non-transférable). Les données privées restent hors chaîne — seule la preuve cryptographique (hash) est publique.</p>
               <Link to="/support" className="bento-cta bento-cta-green">
                 En savoir plus
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
