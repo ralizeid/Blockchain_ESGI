@@ -40,7 +40,7 @@ jobs:
 
       - name: Upload Bandit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bandit-report
           path: Certichain/certichain-back/bandit-report.json
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload Slither report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: slither-report
           path: Certichain/certichain-blockchain/slither-report.json
