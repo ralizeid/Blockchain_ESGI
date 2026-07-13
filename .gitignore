@@ -24,6 +24,7 @@ node_modules/
 dist/
 package-lock.json
 yarn.lock
+Certichain/certichain-front/build/
 
 # IDE
 .vscode/

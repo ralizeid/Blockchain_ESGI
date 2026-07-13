@@ -107,7 +107,6 @@ Choisissez **« Importer le compte »**.
 Collez la **clé privée** copiée depuis CertiChain, puis cliquez sur **« Importer »**. Le compte est maintenant accessible dans MetaMask.
 
 ![Saisie de la clé privée](images/guide/Saisie_cle_privee1.png)
-![Saisie de la clé privée](images/guide/Saisie_cle_privee2.png)
 ---
 
 ## 3. Se connecter à l'espace École
@@ -151,7 +150,6 @@ La plateforme calcule automatiquement l'**empreinte numérique (Hash)** du fichi
 
 Une signature MetaMask est demandée pour **ancrer l'empreinte sur la blockchain**. Une notification apparaît dans l'extension — cliquez simplement sur **« Confirmer »**.
 
-![Confirmation MetaMask](images/guide/ecole_signature1.png)
 ![Confirmation MetaMask](images/guide/ecole_signature2.png)
 ![Confirmation MetaMask](images/guide/ecole_signature3.png)
 ![Confirmation MetaMask](images/guide/ecole_signature4.png)
@@ -212,6 +210,7 @@ Pour chaque diplôme en attente, vérifiez les informations affichées (établis
 
 ![Confirmation MetaMask](images/guide/rectorat_signature1.png)
 ![Confirmation MetaMask](images/guide/rectorat_signature2.png)
+![Confirmation MetaMask](images/guide/rectorat_signature3.png)
 ---
 
 ## 7. Navigation
