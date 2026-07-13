@@ -6,6 +6,14 @@ Bienvenue sur la page de support CertiChain. Ce guide vous accompagne dans l'uti
 
 ---
 
+## 🎥 Vidéo de démonstration
+
+[![Regarder la vidéo de démonstration CertiChain](https://img.youtube.com/vi/G8TtbfJY7tA/maxresdefault.jpg)](https://www.youtube.com/watch?v=G8TtbfJY7tA)
+
+**[▶️ Regarder la démo complète sur YouTube](https://www.youtube.com/watch?v=G8TtbfJY7tA)**
+
+---
+
 ## Table des matières
 
 1. [Page d'accueil](#1-page-daccueil)
