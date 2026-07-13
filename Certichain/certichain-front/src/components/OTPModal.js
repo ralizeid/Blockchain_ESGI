@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import '../App.css';
 
 /**
@@ -69,11 +70,11 @@ const OTPModal = ({
     setStep('sending');
     setError('');
     try {
-      const res  = await fetch('/api/send-action-otp/', {
+      const res  = await fetchWithTimeout('/api/send-action-otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, action_type: actionType }),
-      });
+      }, 20000);
       const data = await res.json();
       if (res.ok) {
         setEmailMasked(data.email_masked);
@@ -82,8 +83,8 @@ const OTPModal = ({
         setError(data.error || "Erreur lors de l'envoi du code.");
         setStep('ready');
       }
-    } catch {
-      setError('Erreur serveur.');
+    } catch (e) {
+      setError(e.message || 'Erreur serveur.');
       setStep('ready');
     }
   };
@@ -99,9 +100,18 @@ const OTPModal = ({
     }
     setStep('submitting');
     setError('');
-    const result = await onConfirm(otpCode);
+    let result;
+    try {
+      result = await onConfirm(otpCode);
+    } catch (e) {
+      result = { ok: false, error: e.message || 'Erreur serveur.' };
+    }
     if (result && !result.ok) {
       setError(result.error || 'Code incorrect ou expiré.');
+      if (result.otpResent) {
+        // Trop de tentatives : l'ancien code a été invalidé et un nouveau vient d'être envoyé.
+        setOtpCode('');
+      }
       setStep('sent');
     }
     // Si result.ok === true, le parent a déjà fermé la modale (open = false)

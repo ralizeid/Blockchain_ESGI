@@ -3,6 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { QRCodeSVG } from 'qrcode.react';
 import '../App.css';
 import OTPModal from '../components/OTPModal';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 const PLAN_COLORS = { ESSENTIEL: '#3b82f6', CAMPUS: '#8b5cf6', UNIVERSITE: '#f59e0b', ACADEMIE: '#10b981' };
 const today = new Date().toISOString().split('T')[0];
@@ -373,7 +374,7 @@ const IssuerDashboard = () => {
     data.append('qr_size_pct', String(parseDecimalInput(snapshot.qr_size_pct)));
     data.append('otp_code', otpCode);
     try {
-      const res = await fetch('/api/certify/', { method: 'POST', body: data });
+      const res = await fetchWithTimeout('/api/certify/', { method: 'POST', body: data }, 45000);
       const responseData = await res.json();
       if (res.ok) {
         closeOTPModal();
@@ -387,44 +388,45 @@ const IssuerDashboard = () => {
         setTimeout(() => setActiveTab('list'), 2000);
         return { ok: true };
       } else {
-        return { ok: false, error: responseData.error || "Erreur lors de l'enregistrement." };
+        return { ok: false, error: responseData.error || "Erreur lors de l'enregistrement.", otpResent: responseData.otp_resent };
       }
     } catch (e) {
-      return { ok: false, error: "Erreur serveur." };
+      return { ok: false, error: e.message || "Erreur serveur." };
     }
   };
 
-  const doErasure = async (diploma) => {
+  const doErasure = async (diploma, otpCode) => {
     setSchoolErasureMsg({ type: '', text: '' });
     try {
-      const res = await fetch('/api/school-diploma-erasure/', {
+      const res = await fetchWithTimeout('/api/school-diploma-erasure/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, diploma_id: diploma.id, confirm: true }),
-      });
+        body: JSON.stringify({ user_id: userId, diploma_id: diploma.id, confirm: true, otp_code: otpCode }),
+      }, 20000);
       const data = await res.json();
       if (res.ok) {
+        closeOTPModal();
         setSchoolErasureMsg({ type: 'success', text: '✅ ' + data.message });
         const erased = { ...diploma, first_name: '[Supprimé]', last_name: '[Supprimé]', image: null, photo: null };
         setSelectedDiploma(erased);
         setMyDiplomas(prev => prev.map(d => d.id === diploma.id ? erased : d));
         return { ok: true };
       } else {
-        return { ok: false, error: data.error || "Erreur lors de l'effacement." };
+        return { ok: false, error: data.error || "Erreur lors de l'effacement.", otpResent: data.otp_resent };
       }
-    } catch {
-      return { ok: false, error: 'Erreur serveur.' };
+    } catch (e) {
+      return { ok: false, error: e.message || 'Erreur serveur.' };
     }
   };
 
   const doRevoke = async (diploma, otpCode) => {
     setRevokeMsg({ type: '', text: '' });
     try {
-      const res = await fetch('/api/revoke-diploma/', {
+      const res = await fetchWithTimeout('/api/revoke-diploma/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, diploma_id: diploma.id, otp_code: otpCode }),
-      });
+      }, 20000);
       const data = await res.json();
       if (res.ok) {
         closeOTPModal();
@@ -433,10 +435,10 @@ const IssuerDashboard = () => {
         setMyDiplomas(prev => prev.map(d => d.id === diploma.id ? { ...d, blockchain_status: 'REVOKED', status: 'REVOKED' } : d));
         return { ok: true };
       } else {
-        return { ok: false, error: data.error || 'Erreur lors de la révocation.' };
+        return { ok: false, error: data.error || 'Erreur lors de la révocation.', otpResent: data.otp_resent };
       }
-    } catch {
-      return { ok: false, error: 'Erreur serveur.' };
+    } catch (e) {
+      return { ok: false, error: e.message || 'Erreur serveur.' };
     }
   };
 
