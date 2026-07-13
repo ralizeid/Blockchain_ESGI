@@ -92,13 +92,12 @@ class ActionOTP(models.Model):
         ('CHANGE_PASSWORD', 'Changer le mot de passe'),
         ('DELETE_ACCOUNT',  'Supprimer le compte'),
     ]
-    user            = models.ForeignKey(User, on_delete=models.CASCADE, related_name='action_otps')
-    action_type     = models.CharField(max_length=30, choices=ACTION_CHOICES)
-    code            = models.CharField(max_length=6)
-    created_at      = models.DateTimeField(auto_now_add=True)
-    expires_at      = models.DateTimeField()
-    used            = models.BooleanField(default=False)
-    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='action_otps')
+    action_type = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    code        = models.CharField(max_length=6)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    expires_at  = models.DateTimeField()
+    used        = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-created_at']

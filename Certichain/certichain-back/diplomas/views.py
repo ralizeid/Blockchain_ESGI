@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
+from django.core.cache import cache
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
@@ -107,8 +108,16 @@ def _generate_and_send_action_otp(user, action_type):
     return masked
 
 
+def _otp_attempts_cache_key(user, action_type):
+    return f"otp-fail-attempts:{user.id}:{action_type}"
+
+
 def _verify_and_consume_otp(user, action_type, code):
     """Vérifie un OTP et le marque comme utilisé.
+
+    Le compteur de tentatives échouées vit dans le cache Django (pas en base :
+    c'est une donnée purement transitoire, alignée sur la durée de vie du code
+    de 10 minutes) — aucune migration nécessaire.
 
     Retourne (valid, locked) :
       - (True, False)  : code correct, action autorisée.
@@ -116,6 +125,7 @@ def _verify_and_consume_otp(user, action_type, code):
       - (False, True)  : trop de tentatives échouées (anti brute-force) — l'OTP
                           a été invalidé et un nouveau code vient d'être envoyé.
     """
+    cache_key = _otp_attempts_cache_key(user, action_type)
     try:
         otp = ActionOTP.objects.get(
             user=user,
@@ -126,30 +136,31 @@ def _verify_and_consume_otp(user, action_type, code):
         )
         otp.used = True
         otp.save(update_fields=['used'])
+        cache.delete(cache_key)
         logger.info(f"OTP action '{action_type}' validé (user {user.id}).")
         return True, False
     except ActionOTP.DoesNotExist:
         pass
 
-    # Code incorrect : on incrémente le compteur d'essais du code actif (s'il y en a un).
-    active_otp = ActionOTP.objects.filter(
+    # Code incorrect : on ne compte que s'il y a un code actif à protéger.
+    has_active_otp = ActionOTP.objects.filter(
         user=user, action_type=action_type, used=False, expires_at__gt=timezone.now(),
-    ).order_by('-created_at').first()
+    ).exists()
 
-    if not active_otp:
+    if not has_active_otp:
         logger.warning(f"OTP action '{action_type}' refusé : aucun code actif (user {user.id}).")
         return False, False
 
-    active_otp.failed_attempts += 1
-    active_otp.save(update_fields=['failed_attempts'])
+    attempts = cache.get(cache_key, 0) + 1
+    cache.set(cache_key, attempts, timeout=600)  # aligné sur la durée de vie du code (10 min)
     logger.warning(
         f"OTP action '{action_type}' refusé : code incorrect "
-        f"(tentative {active_otp.failed_attempts}/{MAX_OTP_ATTEMPTS}, user {user.id})."
+        f"(tentative {attempts}/{MAX_OTP_ATTEMPTS}, user {user.id})."
     )
 
-    if active_otp.failed_attempts >= MAX_OTP_ATTEMPTS:
-        active_otp.used = True
-        active_otp.save(update_fields=['used'])
+    if attempts >= MAX_OTP_ATTEMPTS:
+        cache.delete(cache_key)
+        ActionOTP.objects.filter(user=user, action_type=action_type, used=False).update(used=True)
         logger.warning(
             f"OTP action '{action_type}' verrouillé après {MAX_OTP_ATTEMPTS} tentatives "
             f"échouées — envoi automatique d'un nouveau code (user {user.id})."
