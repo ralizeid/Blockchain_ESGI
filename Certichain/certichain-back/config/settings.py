@@ -1,5 +1,4 @@
 import os
-import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -27,7 +26,6 @@ else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = "noreply@certichain.local"
 
-logging.getLogger("anymail").setLevel(logging.DEBUG) 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 # Application definition
 INSTALLED_APPS = [
@@ -150,20 +148,34 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'standard',
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': 'DEBUG',
+        'level': 'DEBUG' if DEBUG else 'INFO',
     },
     'loggers': {
+        # HTTP interne (Resend/urllib3) très verbeux en DEBUG — bruit inutile
+        # (ex: "Starting new HTTPS connection...") même quand DEBUG=True.
         'anymail': {
             'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': True,
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'urllib3': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
         },
     },
 }

@@ -19,39 +19,103 @@ from .web3_service import (
 )
 from .qr_overlay import embed_qr_in_diploma
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# UTILITAIRE EMAIL ASYNCHRONE
+# UTILITAIRE EMAIL
 # ---------------------------------------------------------------------------
 
 def _send_mail_async(subject, message, from_email, recipient_list, on_error=None):
     """
-    VERSION DEBOGAGE SYNCHRONE : Envoie l'email en direct pour faire exploser l'API
-    en cas d'erreur locale et afficher TOUS les logs dans la console.
+    Envoie l'email de façon synchrone : la requête HTTP reste bloquée jusqu'à
+    la fin de l'envoi (pas de file d'attente asynchrone en place).
     """
-    print(f"\n================ EMAIL DEBUG ================")
-    print(f"Destinataire : {recipient_list}")
-    print(f"De : {from_email}")
-    print(f"Sujet : {subject}")
-
+    logger.info(f"Envoi email à {recipient_list} : {subject!r}")
     try:
         send_mail(subject, message, from_email, recipient_list, fail_silently=False)
-        print("========> SUCCES ABSOLU DE L'ENVOI ! <========")
+        logger.info(f"Email envoyé avec succès à {recipient_list}.")
     except Exception as exc:
-        print("========> CRASH LORS DE L'ENVOI <========")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Échec de l'envoi email à {recipient_list} : {exc}", exc_info=True)
         if on_error:
             on_error(exc)
-        else:
-            logging.error(f"Echec envoi email synchrone : {exc}", exc_info=True)
         # On remonte l'erreur pour que l'API renvoie une vraie erreur 500
         raise exc
 
+
+# ---------------------------------------------------------------------------
+# OTP D'ACTION (anti-usurpation)
+# ---------------------------------------------------------------------------
+
+OTP_ACTION_LABELS = {
+    'CREATE_DIPLOMA':  'Émettre un diplôme',
+    'REVOKE_DIPLOMA':  'Révoquer un diplôme',
+    'ERASE_DIPLOMA':   'Effacer des données RGPD',
+    'UPDATE_PROFILE':  'Modifier le profil établissement',
+    'CHANGE_PASSWORD': 'Changer le mot de passe',  # nosec B105 -- libellé UI, pas un secret
+    'DELETE_ACCOUNT':  'Supprimer le compte',
+}
+
+MAX_OTP_ATTEMPTS = 5
+
+
+def _generate_and_send_action_otp(user, action_type):
+    """Génère un nouveau code OTP à 6 chiffres, invalide les précédents et l'envoie par email.
+
+    Retourne l'email masqué (ex: "jo***@exemple.com").
+    """
+    import secrets
+
+    ActionOTP.objects.filter(user=user, action_type=action_type, used=False).update(used=True)
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    ActionOTP.objects.create(
+        user=user,
+        action_type=action_type,
+        code=code,
+        expires_at=timezone.now() + timezone.timedelta(minutes=10),
+    )
+
+    label = OTP_ACTION_LABELS.get(action_type, action_type)
+    email = user.email
+    parts = email.split('@')
+    masked = (parts[0][:2] + '***@' + parts[1]) if len(parts) == 2 else '***'
+
+    def _on_error(e):
+        logger.error(f"Échec envoi OTP action ({action_type}) pour user {user.id}: {e}")
+        # On ne peut pas retourner une Response depuis un thread —
+        # l'OTP reste en base mais expirera naturellement dans 10 min.
+        ActionOTP.objects.filter(user=user, action_type=action_type, used=False).delete()
+
+    _send_mail_async(
+        subject=f'[CertiChain] Code de validation – {label}',
+        message=(
+            f"Bonjour {user.username},\n\n"
+            f"Vous avez initié l'action : {label}.\n\n"
+            f"Votre code de validation est : {code}\n\n"
+            f"Ce code est valable 10 minutes.\n\n"
+            f"Si vous n'êtes pas à l'origine de cette action, ignorez ce message "
+            f"et sécurisez immédiatement votre compte.\n\n"
+            f"— L'équipe CertiChain"
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        on_error=_on_error,
+    )
+
+    logger.info(f"OTP action '{action_type}' envoyé à {masked} (user {user.id}).")
+    return masked
+
+
 def _verify_and_consume_otp(user, action_type, code):
-    """Vérifie un OTP et le marque comme utilisé. Retourne True si valide, False sinon."""
+    """Vérifie un OTP et le marque comme utilisé.
+
+    Retourne (valid, locked) :
+      - (True, False)  : code correct, action autorisée.
+      - (False, False) : code incorrect, il reste des tentatives.
+      - (False, True)  : trop de tentatives échouées (anti brute-force) — l'OTP
+                          a été invalidé et un nouveau code vient d'être envoyé.
+    """
     try:
         otp = ActionOTP.objects.get(
             user=user,
@@ -62,9 +126,58 @@ def _verify_and_consume_otp(user, action_type, code):
         )
         otp.used = True
         otp.save(update_fields=['used'])
-        return True
+        logger.info(f"OTP action '{action_type}' validé (user {user.id}).")
+        return True, False
     except ActionOTP.DoesNotExist:
-        return False
+        pass
+
+    # Code incorrect : on incrémente le compteur d'essais du code actif (s'il y en a un).
+    active_otp = ActionOTP.objects.filter(
+        user=user, action_type=action_type, used=False, expires_at__gt=timezone.now(),
+    ).order_by('-created_at').first()
+
+    if not active_otp:
+        logger.warning(f"OTP action '{action_type}' refusé : aucun code actif (user {user.id}).")
+        return False, False
+
+    active_otp.failed_attempts += 1
+    active_otp.save(update_fields=['failed_attempts'])
+    logger.warning(
+        f"OTP action '{action_type}' refusé : code incorrect "
+        f"(tentative {active_otp.failed_attempts}/{MAX_OTP_ATTEMPTS}, user {user.id})."
+    )
+
+    if active_otp.failed_attempts >= MAX_OTP_ATTEMPTS:
+        active_otp.used = True
+        active_otp.save(update_fields=['used'])
+        logger.warning(
+            f"OTP action '{action_type}' verrouillé après {MAX_OTP_ATTEMPTS} tentatives "
+            f"échouées — envoi automatique d'un nouveau code (user {user.id})."
+        )
+        _generate_and_send_action_otp(user, action_type)
+        return False, True
+
+    return False, False
+
+
+def _otp_check_response(user, action_type, otp_code):
+    """Vérifie l'OTP fourni pour `action_type` et consomme les tentatives.
+
+    Retourne None si le code est valide (l'appelant peut poursuivre),
+    sinon une Response d'erreur prête à être renvoyée telle quelle.
+    """
+    valid, locked = _verify_and_consume_otp(user, action_type, otp_code)
+    if valid:
+        return None
+    if locked:
+        return Response({
+            "error": (
+                f"Trop de tentatives incorrectes ({MAX_OTP_ATTEMPTS}). "
+                "Un nouveau code de validation vient de vous être envoyé par email."
+            ),
+            "otp_resent": True,
+        }, status=429)
+    return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
 
 
 class SendActionOTPView(APIView):
@@ -75,23 +188,13 @@ class SendActionOTPView(APIView):
     POST /api/send-action-otp/
       { "user_id": X, "action_type": "CREATE_DIPLOMA" | ... }
     """
-    VALID_ACTIONS = {
-        'CREATE_DIPLOMA':  'Émettre un diplôme',
-        'REVOKE_DIPLOMA':  'Révoquer un diplôme',
-        'ERASE_DIPLOMA':   'Effacer des données RGPD',
-        'UPDATE_PROFILE':  'Modifier le profil établissement',
-        'CHANGE_PASSWORD': 'Changer le mot de passe',  # nosec B105 -- libellé UI, pas un secret
-        'DELETE_ACCOUNT':  'Supprimer le compte',
-    }
-
     def post(self, request):
-        import secrets
         from django.contrib.auth.models import User as DjangoUser
 
         user_id     = request.data.get('user_id')
         action_type = request.data.get('action_type')
 
-        if not user_id or action_type not in self.VALID_ACTIONS:
+        if not user_id or action_type not in OTP_ACTION_LABELS:
             return Response({"error": "user_id et action_type valide requis."}, status=400)
 
         try:
@@ -102,47 +205,8 @@ class SendActionOTPView(APIView):
         if not user.email:
             return Response({"error": "Aucun email associé à ce compte. Contactez le support."}, status=400)
 
-        # Invalider les OTPs précédents non utilisés pour cette action
-        ActionOTP.objects.filter(user=user, action_type=action_type, used=False).update(used=True)
+        masked = _generate_and_send_action_otp(user, action_type)
 
-        # Générer un code OTP à 6 chiffres
-        code = f"{secrets.randbelow(1_000_000):06d}"
-        ActionOTP.objects.create(
-            user=user,
-            action_type=action_type,
-            code=code,
-            expires_at=timezone.now() + timezone.timedelta(minutes=10),
-        )
-
-        label = self.VALID_ACTIONS[action_type]
-        email = user.email
-        parts = email.split('@')
-        masked = (parts[0][:2] + '***@' + parts[1]) if len(parts) == 2 else '***'
-
-# Callback en cas d'échec de l'envoi (thread séparé)
-        def _on_error(e):
-            logging.error(f"Échec envoi OTP action ({action_type}) pour user {user_id}: {e}")
-            # On ne peut pas retourner une Response depuis un thread —
-            # l'OTP reste en base mais expirera naturellement dans 10 min.
-            ActionOTP.objects.filter(user=user, action_type=action_type, used=False).delete()
-
-        _send_mail_async(
-            subject=f'[CertiChain] Code de validation – {label}',
-            message=(
-                f"Bonjour {user.username},\n\n"
-                f"Vous avez initié l'action : {label}.\n\n"
-                f"Votre code de validation est : {code}\n\n"
-                f"Ce code est valable 10 minutes.\n\n"
-                f"Si vous n'êtes pas à l'origine de cette action, ignorez ce message "
-                f"et sécurisez immédiatement votre compte.\n\n"
-                f"— L'équipe CertiChain"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            on_error=_on_error,
-        )
-
-        logging.info(f"OTP action '{action_type}' envoyé à {masked} (user {user_id}).")
         return Response({
             "status":       "sent",
             "email_masked": masked,
@@ -225,8 +289,9 @@ class UpdateProfileView(APIView):
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis."}, status=400)
         _action = 'CHANGE_PASSWORD' if 'new_password' in request.data else 'UPDATE_PROFILE'
-        if not _verify_and_consume_otp(profile.user, _action, otp_code):
-            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
+        otp_error = _otp_check_response(profile.user, _action, otp_code)
+        if otp_error:
+            return otp_error
 
         # Validation adresses Ethereum (format 0x + 40 hex)
         import re
@@ -404,6 +469,7 @@ class CreateDiplomaView(APIView):
             return parsed
 
         user_id = request.data.get('user_id')
+        logger.info(f"CreateDiplomaView.post reçu (user {user_id}).")
         if not user_id:
             return Response({"error": "Non authentifié"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -436,8 +502,9 @@ class CreateDiplomaView(APIView):
         otp_code = request.data.get('otp_code', '').strip()
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis pour certifier un diplôme."}, status=400)
-        if not _verify_and_consume_otp(profile.user, 'CREATE_DIPLOMA', otp_code):
-            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
+        otp_error = _otp_check_response(profile.user, 'CREATE_DIPLOMA', otp_code)
+        if otp_error:
+            return otp_error
 
         try:
             embed_qr = _to_bool(request.data.get('embed_qr', 'true'), default=True)
@@ -479,11 +546,11 @@ class CreateDiplomaView(APIView):
                         qr_size_pct,
                     )
                 except ValueError as e:
-                    logging.warning(f"QR embed refusé pour diplôme {diploma.id}: {e}")
+                    logger.warning(f"QR embed refusé pour diplôme {diploma.id}: {e}")
                     diploma.delete()
                     return Response({"error": str(e)}, status=400)
                 except Exception as e:
-                    logging.error(f"QR embed échec pour diplôme {diploma.id}: {e}")
+                    logger.error(f"QR embed échec pour diplôme {diploma.id}: {e}")
                     diploma.delete()
                     return Response({"error": "Impossible d'intégrer le QR code dans le diplôme."}, status=500)
 
@@ -634,7 +701,7 @@ class ValidateDiplomaView(APIView):
             # --- AUTOMATISATION BLOCKCHAIN (CUSTODIAL) ---
             if diploma.school_validated and diploma.rectorate_validated:
                 diploma.status = 'VALIDATED'
-                logging.info(f"Certification blockchain du diplôme {diploma.id} (hash: {diploma.diploma_hash[:10]}…)")
+                logger.info(f"Certification blockchain du diplôme {diploma.id} (hash: {diploma.diploma_hash[:10]}…)")
 
                 tx_hash = certify_diploma_on_blockchain(
                     diploma.diploma_hash,
@@ -644,10 +711,10 @@ class ValidateDiplomaView(APIView):
                 if tx_hash:
                     diploma.blockchain_tx_hash = tx_hash
                     diploma.blockchain_status  = 'ANCHORED'
-                    logging.info(f"Diplôme gravé on-chain. Tx: {tx_hash}")
+                    logger.info(f"Diplôme gravé on-chain. Tx: {tx_hash}")
                 else:
                     diploma.blockchain_status = 'FAILED'
-                    logging.error("Échec de la communication avec la blockchain.")
+                    logger.error("Échec de la communication avec la blockchain.")
                     diploma.save()
                     return Response(
                         {"error": "Validation réussie, mais échec de la connexion à la Blockchain."},
@@ -802,10 +869,10 @@ class RectorateBulkValidateView(APIView):
                 if tx_hash:
                     diploma.blockchain_tx_hash = tx_hash
                     diploma.blockchain_status  = 'ANCHORED'
-                    logging.info(f"Bulk rectorat: diplôme {diploma.id} ancré. Tx: {tx_hash}")
+                    logger.info(f"Bulk rectorat: diplôme {diploma.id} ancré. Tx: {tx_hash}")
                 else:
                     diploma.blockchain_status = 'FAILED'
-                    logging.error(f"Bulk rectorat: échec blockchain pour diplôme {diploma.id}.")
+                    logger.error(f"Bulk rectorat: échec blockchain pour diplôme {diploma.id}.")
                     diploma.save()
                     results.append({"token": token_str, "success": False,
                                     "error": "Validation enregistrée mais Blockchain inaccessible.",
@@ -847,9 +914,9 @@ def _auto_revoke_expired(owner_id=None):
             tx = revoke_diploma_on_blockchain(diploma.diploma_hash)
             if tx:
                 diploma.blockchain_status = 'REVOKED'
-                logging.info(f"Diplôme #{diploma.id} expiré → révoqué on-chain ({tx})")
+                logger.info(f"Diplôme #{diploma.id} expiré → révoqué on-chain ({tx})")
             else:
-                logging.warning(f"Diplôme #{diploma.id} expiré → échec on-chain, DB seule mise à jour")
+                logger.warning(f"Diplôme #{diploma.id} expiré → échec on-chain, DB seule mise à jour")
         diploma.status = 'REVOKED'
         diploma.save(update_fields=['status', 'blockchain_status'])
 
@@ -987,8 +1054,9 @@ class DeleteAccountView(APIView):
         otp_code = request.data.get('otp_code', '').strip()
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis pour supprimer le compte."}, status=400)
-        if not _verify_and_consume_otp(user, 'DELETE_ACCOUNT', otp_code):
-            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
+        otp_error = _otp_check_response(user, 'DELETE_ACCOUNT', otp_code)
+        if otp_error:
+            return otp_error
 
         # Anonymiser les diplômes validés (conserver la preuve blockchain – Art. 17.3.b)
         Diploma.objects.filter(owner_id=user_id, status='VALIDATED').update(
@@ -1057,7 +1125,7 @@ class StudentErasureView(APIView):
         masked = parts[0][:2] + '***@' + parts[1] if len(parts) == 2 else '***'
 
         def _on_erasure_error(exc):
-            logging.error(f"Échec envoi email OTP erasure: {exc}")
+            logger.error(f"Échec envoi email OTP erasure: {exc}")
 
         _send_mail_async(
             subject="[CertiChain] Code de confirmation – Droit à l'oubli (RGPD Art. 17)",
@@ -1075,7 +1143,7 @@ class StudentErasureView(APIView):
             on_error=_on_erasure_error,
         )
 
-        logging.info(f"RGPD – OTP envoyé à {masked} pour le diplôme {diploma.id}.")
+        logger.info(f"RGPD – OTP envoyé à {masked} pour le diplôme {diploma.id}.")
         return Response({
             "status":       "otp_sent",
             "email_masked": masked,
@@ -1148,7 +1216,7 @@ class StudentErasureConfirmView(APIView):
         diploma.verification_uuid = uuid_lib.uuid4()
         diploma.save()
 
-        logging.info(f"RGPD Art. 17 – Étudiant a confirmé son droit à l'oubli sur le diplôme {diploma.id}.")
+        logger.info(f"RGPD Art. 17 – Étudiant a confirmé son droit à l'oubli sur le diplôme {diploma.id}.")
         return Response({
             "message": (
                 "Vos données personnelles ont été supprimées conformément au RGPD (Art. 17). "
@@ -1194,8 +1262,9 @@ class SchoolDiplomaErasureView(APIView):
         otp_code = request.data.get('otp_code', '').strip()
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis pour cet effacement RGPD."}, status=400)
-        if not _verify_and_consume_otp(_user, 'ERASE_DIPLOMA', otp_code):
-            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
+        otp_error = _otp_check_response(_user, 'ERASE_DIPLOMA', otp_code)
+        if otp_error:
+            return otp_error
 
         # Anonymisation RGPD Art. 17
         diploma.first_name    = '[Supprimé]'
@@ -1217,7 +1286,7 @@ class SchoolDiplomaErasureView(APIView):
         diploma.verification_uuid = uuid_lib.uuid4()
         diploma.save()
 
-        logging.info(f"RGPD Art. 17 – École (user {user_id}) a effacé les données du diplôme {diploma.id}.")
+        logger.info(f"RGPD Art. 17 – École (user {user_id}) a effacé les données du diplôme {diploma.id}.")
         return Response({
             "message": (
                 "Les données personnelles du diplôme ont été supprimées (RGPD Art. 17). "
@@ -1260,8 +1329,9 @@ class RevokeDiplomaView(APIView):
         otp_code = request.data.get('otp_code', '').strip()
         if not otp_code:
             return Response({"error": "Un code de validation par email est requis pour révoquer un diplôme."}, status=400)
-        if not _verify_and_consume_otp(_user, 'REVOKE_DIPLOMA', otp_code):
-            return Response({"error": "Code de validation incorrect ou expiré. Demandez un nouveau code."}, status=400)
+        otp_error = _otp_check_response(_user, 'REVOKE_DIPLOMA', otp_code)
+        if otp_error:
+            return otp_error
 
         tx_hash = revoke_diploma_on_blockchain(diploma.diploma_hash)
         if not tx_hash:

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../App.css';
 import OTPModal from '../components/OTPModal';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 const PLAN_COLORS = {
   ESSENTIEL: '#3b82f6',
@@ -215,21 +216,21 @@ const SchoolProfile = () => {
     setProfileSaving(true);
     setProfileMsg({ type: '', text: '' });
     try {
-      const res  = await fetch('/api/update-profile/', {
+      const res  = await fetchWithTimeout('/api/update-profile/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, ...profileForm, otp_code: otpCode }),
-      });
+      }, 20000);
       const data = await res.json();
       if (res.ok) {
         closeOTPModal();
         setProfileMsg({ type: 'success', text: data.message });
         return { ok: true };
       } else {
-        return { ok: false, error: data.error || 'Erreur.' };
+        return { ok: false, error: data.error || 'Erreur.', otpResent: data.otp_resent };
       }
-    } catch {
-      return { ok: false, error: 'Erreur serveur.' };
+    } catch (e) {
+      return { ok: false, error: e.message || 'Erreur serveur.' };
     } finally {
       setProfileSaving(false);
     }
@@ -260,7 +261,7 @@ const SchoolProfile = () => {
   const doPasswordSave = async (otpCode) => {
     setPasswordSaving(true);
     try {
-      const res  = await fetch('/api/update-profile/', {
+      const res  = await fetchWithTimeout('/api/update-profile/', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -269,7 +270,7 @@ const SchoolProfile = () => {
           new_password:     passwordForm.new_password,
           otp_code:         otpCode,
         }),
-      });
+      }, 20000);
       const data = await res.json();
       if (res.ok) {
         closeOTPModal();
@@ -277,10 +278,10 @@ const SchoolProfile = () => {
         setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
         return { ok: true };
       } else {
-        return { ok: false, error: data.error || 'Erreur.' };
+        return { ok: false, error: data.error || 'Erreur.', otpResent: data.otp_resent };
       }
-    } catch {
-      return { ok: false, error: 'Erreur serveur.' };
+    } catch (e) {
+      return { ok: false, error: e.message || 'Erreur serveur.' };
     } finally {
       setPasswordSaving(false);
     }
@@ -310,11 +311,11 @@ const SchoolProfile = () => {
   const handleDeleteAccount = async (otpCode) => {
     setDeleteMsg({ type: '', text: '' });
     try {
-      const res  = await fetch('/api/delete-account/', {
+      const res  = await fetchWithTimeout('/api/delete-account/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, confirm: true, otp_code: otpCode }),
-      });
+      }, 20000);
       const data = await res.json();
       if (res.ok) {
         setDeleteStep(2);
@@ -322,10 +323,10 @@ const SchoolProfile = () => {
         setTimeout(() => { sessionStorage.clear(); navigate('/'); window.location.reload(); }, 3000);
         return { ok: true };
       } else {
-        return { ok: false, error: data.error || 'Erreur.' };
+        return { ok: false, error: data.error || 'Erreur.', otpResent: data.otp_resent };
       }
-    } catch {
-      return { ok: false, error: 'Erreur serveur.' };
+    } catch (e) {
+      return { ok: false, error: e.message || 'Erreur serveur.' };
     }
   };
 
