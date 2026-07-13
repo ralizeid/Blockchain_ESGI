@@ -12,8 +12,8 @@ Bienvenue sur la page de support CertiChain. Ce guide vous accompagne dans l'uti
 2. [Créer un compte établissement](#2-créer-un-compte-établissement)
 3. [Se connecter à l'espace École](#3-se-connecter-à-lespace-école)
 4. [Certifier un diplôme](#4-certifier-un-diplôme)
-5. [Vérifier un diplôme — espace public](#5-vérifier-un-diplôme--espace-public)
-6. [Espace Rectorat](#6-espace-rectorat)
+5. [Espace Rectorat](#5-espace-rectorat)
+6. [Diplôme certifié & Vérification publique](#6-diplôme-certifié--vérification-publique)
 7. [Navigation](#7-navigation)
 8. [Questions fréquentes](#8-questions-fréquentes)
 
@@ -154,43 +154,9 @@ Une signature MetaMask est demandée pour **ancrer l'empreinte sur la blockchain
 ![Confirmation MetaMask](images/guide/ecole_signature3.png)
 ![Confirmation MetaMask](images/guide/ecole_signature4.png)
 
-### Étape 6 — Diplôme certifié ✅
-
-Le diplôme est désormais **certifié et vérifiable publiquement**.
-
-![Diplôme certifié](images/guide/diplome-certifie.png)
-![Diplôme certifié](images/guide/diplome-certifie2.png)
-![Diplôme certifié](images/guide/diplome-certifie3.png)
-
-> ℹ️ **Note :** Une fois ancré, le diplôme ne peut plus être modifié. Toute altération du fichier rendrait l'empreinte invalide, ce qui signalerait immédiatement une falsification lors de la vérification.
->
-> *Si votre établissement est rattaché à un rectorat, les diplômes peuvent passer par une étape de validation intermédiaire avant l'ancrage définitif.*
-
 ---
 
-## 5. Vérifier un diplôme — espace public
-
-La vérification est **ouverte à tous, sans création de compte**. Elle est accessible depuis :
-
-- La page d'accueil via le bouton vert **« Vérifier un candidat »**
-- Le menu latéral en sélectionnant **« Vérification Publique »**
-
-Sur la page de vérification, saisissez le **nom de famille** du candidat ou l'**identifiant (ID) du diplôme** dans le champ de recherche, puis cliquez sur **« Rechercher »**.
-
-Le système interroge la base de données et la blockchain pour confirmer que le document n'a pas été modifié depuis sa certification.
-
-### Résultats possibles
-
-- ✅ **Diplôme valide :** les informations associées s'affichent (établissement émetteur, formation, date d'obtention).
-- ❌ **Diplôme non trouvé ou empreinte incorrecte :** cela est clairement indiqué.
-
-> Il n'est pas nécessaire de contacter l'établissement. La vérification est **instantanée**, disponible à tout moment, et ne demande **aucune inscription**.
-
-![Diplôme certifié](images/guide/diplome-certifie-public1.png)
-![Diplôme certifié](images/guide/diplome-certifie-public2.png)
----
-
-## 6. Espace Rectorat
+## 5. Espace Rectorat
 
 Le tableau de bord Rectorat est destiné aux **autorités académiques de tutelle**. Il permet de valider les diplômes soumis par les établissements rattachés avant leur ancrage définitif sur la blockchain.
 
@@ -211,6 +177,44 @@ Pour chaque diplôme en attente, vérifiez les informations affichées (établis
 ![Confirmation MetaMask](images/guide/rectorat_signature1.png)
 ![Confirmation MetaMask](images/guide/rectorat_signature2.png)
 ![Confirmation MetaMask](images/guide/rectorat_signature3.png)
+
+---
+
+## 6. Diplôme certifié & Vérification publique
+
+### Diplôme certifié ✅
+
+Le diplôme est désormais **certifié et vérifiable publiquement**.
+
+![Diplôme certifié](images/guide/diplome-certifie.png)
+![Diplôme certifié](images/guide/diplome-certifie2.png)
+![Diplôme certifié](images/guide/diplome-certifie3.png)
+
+> ℹ️ **Note :** Une fois ancré, le diplôme ne peut plus être modifié. Toute altération du fichier rendrait l'empreinte invalide, ce qui signalerait immédiatement une falsification lors de la vérification.
+>
+> *Si votre établissement est rattaché à un rectorat, les diplômes peuvent passer par une étape de validation intermédiaire avant l'ancrage définitif.*
+
+### Vérifier un diplôme — espace public
+
+La vérification est **ouverte à tous, sans création de compte**. Elle est accessible depuis :
+
+- La page d'accueil via le bouton vert **« Vérifier un candidat »**
+- Le menu latéral en sélectionnant **« Vérification Publique »**
+
+Sur la page de vérification, saisissez le **nom de famille** du candidat ou l'**identifiant (ID) du diplôme** dans le champ de recherche, puis cliquez sur **« Rechercher »**.
+
+Le système interroge la base de données et la blockchain pour confirmer que le document n'a pas été modifié depuis sa certification.
+
+#### Résultats possibles
+
+- ✅ **Diplôme valide :** les informations associées s'affichent (établissement émetteur, formation, date d'obtention).
+- ❌ **Diplôme non trouvé ou empreinte incorrecte :** cela est clairement indiqué.
+
+> Il n'est pas nécessaire de contacter l'établissement. La vérification est **instantanée**, disponible à tout moment, et ne demande **aucune inscription**.
+
+![Diplôme certifié](images/guide/diplome-certifie-public1.png)
+![Diplôme certifié](images/guide/diplome-certifie-public2.png)
+
 ---
 
 ## 7. Navigation
